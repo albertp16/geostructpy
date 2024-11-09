@@ -5,14 +5,12 @@
     <meta charset="UTF-8">
     <title>Mononobe-Okabe Calculator</title>
     <!-- Foundation CSS -->
-    <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
     <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <!-- MathJax for LaTeX equations -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async
-        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Custom CSS -->
@@ -337,17 +335,17 @@
             data() {
                 return {
                     parameters: {
-                        soil_weight: 19,
-                        h_wall: 1.4,
-                        angle_friction: 35.0,
+                        soil_weight: 7.2,
+                        h_wall: 1.35,
+                        angle_friction: 40,
                         angle_embankment: 0.0,
                         angle_inclination: 90.0,
                         angle_friction_wall_soil: 20.0,
                         surcharge_type: 'None',
                         surcharge_load: 0.0,
                         surcharge_height: 0.0,
-                        pga: 0.63,
-                        horizontal_acceleration: 0.15,
+                        pga: 0.60,
+                        horizontal_acceleration: 0.50,
                         vertical_acceleration: 0.0
                     },
                     results: [],
@@ -391,11 +389,14 @@
                     }
                 },
                 calculate_coefficients(PGA) {
-                    const kh = this.parameters.horizontal_acceleration || (0.5 * PGA);
-                    const kv = this.parameters.vertical_acceleration || 0;
+
+                    const kh = this.parameters.horizontal_acceleration * PGA;
+                    const kv = this.parameters.vertical_acceleration * PGA;
+
                     var report = ``
                     report += `<h4>Seismic Paramters</h4>`;
-                    report += `\\[ k_h = ${kh.toFixed(3)}, \\quad k_v = ${kv.toFixed(3)} \\]`;
+                    report += `\\[ \\text{Horizontal Acceleration due to Earthquake}, k_{h} = ${kh.toFixed(3)} \\]`;
+                    report += `\\[ \\text{Vertical Acceleration due to Earthquake}, k_{v} = ${kv.toFixed(3)} \\]`;
                     return { report, value: [kh, kv] };
                 },
 
@@ -405,15 +406,17 @@
                     const theta_deg = theta_rad / DEG_TO_RAD;
                     var report = ``
                     report += `<h4>Inclined Horizontal Acceleration</h4>`;
-                    report += `\\[ \\theta = \\arctan\\left(\\frac{k_h}{1 - k_v}\\right) = ${theta_deg.toFixed(3)}^\\circ \\]`;
+                    report += `\\[ \\theta = \\arctan\\left(\\frac{k_h}{1 - k_v}\\right) \\]`;
+                    report += `\\[ \\theta = \\arctan\\left(\\frac{${kh.toFixed(3)}}{1 - ${kv.toFixed(3)}}\\right) \\]`;
+                    report += `\\[ \\theta = ${theta_deg.toFixed(3)}^\\circ \\]`;
                     return { report, value: theta_deg };
                 },
 
                 calculate_ko(angle_friction_deg) {
                     const ko = 1 - Math.sin(angle_friction_deg * DEG_TO_RAD);
                     var report = ``
-                    report += `<h4>Inclined Horizontal Acceleration</h4>`;
-                    report = `\\[ K_o = 1 - \\sin(${angle_friction_deg}^\\circ) = ${ko.toFixed(3)} \\]`;
+                    report += `<h4>At-Rest Earth Pressure</h4>`;
+                    report += `\\[ K_o = 1 - \\sin(${angle_friction_deg}^\\circ) = ${ko.toFixed(3)} \\]`;
                     return { report, value: ko };
                 },
 
@@ -439,18 +442,21 @@
                 },
 
                 staticPassivePressureCoefficient(alpha_deg, beta_deg, delta_deg, phi_deg) {
+                    // Convert angles from degrees to radians
                     const alpha = alpha_deg * DEG_TO_RAD;
                     const beta = beta_deg * DEG_TO_RAD;
                     const delta = delta_deg * DEG_TO_RAD;
                     const phi = phi_deg * DEG_TO_RAD;
 
+                    // Calculate the numerator and denominator for Kp
                     const numerator = Math.pow(Math.sin(beta - phi), 2);
-                    const denominator = Math.sin(beta) * Math.sin(beta + delta) * Math.pow(1 - Math.sqrt(
-                        (Math.sin(phi + delta) * Math.sin(phi + alpha)) /
-                        (Math.sin(beta + delta) * Math.sin(beta - alpha))
-                    ), 2);
-                    const value = numerator / denominator;
+                    const innerTermNumerator = Math.sin(phi + delta) * Math.sin(phi + alpha);
+                    const innerTermDenominator = Math.sin(beta + delta) * Math.sin(beta - alpha);
+                    const innerTerm = 1 - Math.sqrt(innerTermNumerator / innerTermDenominator);
 
+                    // Final denominator calculation including the squared inner term
+                    const denominator = Math.sin(beta) * Math.sin(beta + delta) * Math.pow(innerTerm, 2);
+                    const value = numerator / denominator;
                     var report = ``
                     report += `<h4>Static Passive Pressure Coefficient</h4>`;
                     report += `
