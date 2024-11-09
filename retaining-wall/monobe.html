@@ -270,13 +270,19 @@
                 <p>The calculator uses the following key equations:</p>
                 <ul>
                     <li>Active Earth Pressure Coefficient:
-                        \\[ K_a = \\frac{\\sin^2(\\beta + \\phi)}{\\sin \\beta \\sin(\\beta - \\delta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha)}{\\sin(\\beta - \\delta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
+                        \[
+                        K_a = \frac{\sin^2(\beta + \phi)}{\sin \beta \sin(\beta - \delta) \left[1 + \sqrt{\frac{\sin(\phi + \delta) \sin(\phi - \alpha)}{\sin(\beta - \delta) \sin(\beta + \alpha)}}\right]^2}
+                        \]
                     </li>
                     <li>Passive Earth Pressure Coefficient:
-                        \\[ K_p = \\frac{\\sin^2(\\beta - \\phi)}{\\sin \\beta \\sin(\\beta + \\delta) \\left[1 - \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi + \\alpha)}{\\sin(\\beta + \\delta) \\sin(\\beta - \\alpha)}}\\right]^2} \\]
+                        \[
+                        K_p = \frac{\sin^2(\beta - \phi)}{\sin \beta \sin(\beta + \delta) \left[1 - \sqrt{\frac{\sin(\phi + \delta) \sin(\phi + \alpha)}{\sin(\beta + \delta) \sin(\beta - \alpha)}}\right]^2}
+                        \]
                     </li>
                     <li>Seismic Active Earth Pressure Coefficient:
-                        \\[ K_{ae} = \\frac{\\sin^2(\\beta + \\phi - \\theta)}{\\cos \\theta \\sin \\beta \\sin(\\beta - \\delta - \\theta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha - \\theta)}{\\sin(\\beta - \\delta - \\theta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
+                        \[
+                        K_{ae} = \frac{\sin^2(\beta + \phi - \theta)}{\cos \theta \sin \beta \sin(\beta - \delta - \theta) \left[1 + \sqrt{\frac{\sin(\phi + \delta) \sin(\phi - \alpha - \theta)}{\sin(\beta - \delta - \theta) \sin(\beta + \alpha)}}\right]^2}
+                        \]
                     </li>
                     <!-- Add more equations as needed -->
                 </ul>
@@ -293,7 +299,7 @@
                 return {
                     parameters: {
                         soil_weight: 18.0,
-                        h_wall: 6.0,
+                        h_wall: 7.2,
                         angle_friction: 30.0,
                         angle_embankment: 0.0,
                         angle_inclination: 90.0,
@@ -429,8 +435,10 @@
 
                     // Display results with LaTeX equations
                     this.results.push(
-                        { equation: `\\( K_o = ${ko.toFixed(3)} \\)` },
+                        // { equation: `\\( K_o = ${ko.toFixed(3)} \\)` },
+                        { equation: `Static Active Pressure Coefficient` },
                         { equation: `\\( K_a = ${ka.toFixed(3)} \\)` },
+                        { equation: `Static Passive Pressure Coefficient` },
                         { equation: `\\( K_p = ${kp.toFixed(3)} \\)` },
                         { equation: `\\( K_{ae} = ${kae.toFixed(3)} \\)` },
                         { equation: `\\( \\Delta K_a = ${deltaKa.toFixed(3)} \\)` }
