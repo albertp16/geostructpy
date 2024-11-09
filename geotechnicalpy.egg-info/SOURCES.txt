@@ -1,7 +1,0 @@
-LICENSE
-README.md
-setup.py
-geotechnicalpy.egg-info/PKG-INFO
-geotechnicalpy.egg-info/SOURCES.txt
-geotechnicalpy.egg-info/dependency_links.txt
-geotechnicalpy.egg-info/top_level.txt
