@@ -2,214 +2,398 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mononobe-Okabe Calculation with Vue.js</title>
+    <title>Mononobe-Okabe Calculator</title>
+    <!-- Foundation CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
+    <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- MathJax for LaTeX equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Custom CSS -->
     <style>
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f0f0;
             color: #333;
         }
-        .container {
-            max-width: 900px;
-            margin: 50px auto;
-            padding: 20px;
+        .app-header {
             background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .form-label {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        #results {
-            font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-            background-color: #f9f9f9;
+            border-bottom: 1px solid #ccc;
             padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            line-height: 1.5;
-            border-left: 4px solid #007bff;
-        }
-        input[type=number] {
+            position: fixed;
             width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-top: 5px;
+            top: 0;
+            z-index: 1000;
         }
-        select {
-            width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-top: 5px;
+        .app-header h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #444;
         }
-        .cell {
-            padding: 10px;
+        .app-header .nav-buttons {
+            float: right;
         }
-        .calculate-button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #007bff;
+        .app-header .nav-buttons button {
+            margin-left: 10px;
+            background-color: #444;
             color: #fff;
             border: none;
-            border-radius: 4px;
+            padding: 10px 15px;
             cursor: pointer;
+            border-radius: 4px;
         }
-        .calculate-button:hover {
-            background-color: #0056b3;
+        .app-header .nav-buttons button:hover {
+            background-color: #666;
         }
-        .result-item {
-            margin-bottom: 10px;
-        }
-        .result-label {
-            font-weight: bold;
+        .container {
+            max-width: 1200px;
+            margin: 100px auto 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
         .section-header {
             font-size: 1.2em;
             margin-top: 20px;
             margin-bottom: 10px;
-            text-decoration: underline;
+            color: #444;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .form-label {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type=number], select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        .action-buttons {
+            margin-top: 20px;
+        }
+        .action-buttons button {
+            margin-right: 10px;
+            background-color: #444;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .action-buttons button:hover {
+            background-color: #666;
+        }
+        #results {
+            background-color: #fafafa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            line-height: 1.5;
+            border-left: 4px solid #444;
+        }
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            position: relative;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+        }
+        .modal-content button.close-button {
+            background-color: #444;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .modal-content button.close-button:hover {
+            background-color: #666;
+        }
+        /* Plotly Graphs */
+        #pressure-plot, #retaining-wall-plot {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <div id="app" class="container">
-        <div class="grid-x grid-padding-x">
-            <div class="cell small-12">
-                <div class="section-header">Embankment Parameters:</div>
-                <label class="form-label" for="soil_weight">Unit Weight of Soil (γ<sub>moist</sub>) (kN/m³):</label>
-                <input type="number" id="soil_weight" v-model.number="parameters.soil_weight">
-
-                <label class="form-label" for="h_wall">Height of Embankment (H) (m):</label>
-                <input type="number" id="h_wall" v-model.number="parameters.h_wall">
-
-                <label class="form-label" for="angle_embankment">Angle of Embankment Slope (α) (deg):</label>
-                <input type="number" id="angle_embankment" v-model.number="parameters.angle_embankment">
-
-                <label class="form-label" for="angle_friction">Angle of Internal Friction (φ) (deg):</label>
-                <input type="number" id="angle_friction" v-model.number="parameters.angle_friction">
-
-                <label class="form-label" for="angle_inclination">Angle of Inclination of Inner Wall Face from Horizontal (θ) (deg):</label>
-                <input type="number" id="angle_inclination" v-model.number="parameters.angle_inclination">
-
-                <label class="form-label" for="angle_friction_wall_soil">Angle of Friction between Wall and Soil (δ) (deg):</label>
-                <input type="number" id="angle_friction_wall_soil" v-model.number="parameters.angle_friction_wall_soil">
-            </div>
-
-            <div class="cell small-12">
-                <div class="section-header">Surcharge Parameters:</div>
-                <label class="form-label" for="surcharge_type">Type of Surcharge Loading:</label>
-                <select id="surcharge_type" v-model="parameters.surcharge_type">
-                    <option>None</option>
-                    <!-- Add other options as needed -->
-                </select>
-
-                <label class="form-label" for="surcharge_load">Surcharge Load at Top of Embankment (Q) (kN):</label>
-                <input type="number" id="surcharge_load" v-model.number="parameters.surcharge_load">
-
-                <label class="form-label" for="surcharge_length">Length of Surcharge Load Perpendicular to Wall (L) (m):</label>
-                <input type="number" id="surcharge_length" v-model.number="parameters.surcharge_length">
-
-                <label class="form-label" for="surcharge_distance">Distance of Surcharge Load from Wall (D) (m):</label>
-                <input type="number" id="surcharge_distance" v-model.number="parameters.surcharge_distance">
-
-                <label class="form-label" for="surcharge_height">Equivalent Height of Vehicular Surcharge Live Load (H<sub>s</sub>) (m):</label>
-                <input type="number" id="surcharge_height" v-model.number="parameters.surcharge_height">
-            </div>
-
-            <div class="cell small-12">
-                <div class="section-header">Seismic Parameters:</div>
-                <label class="form-label" for="pga">Peak Ground Acceleration (PGA) (g):</label>
-                <input type="number" step="0.01" id="pga" v-model.number="parameters.pga">
-
-                <label class="form-label" for="horizontal_acceleration">Horizontal Acceleration due to Earthquake (K<sub>H</sub>) (g):</label>
-                <input type="number" step="0.01" id="horizontal_acceleration" v-model.number="parameters.horizontal_acceleration">
-
-                <label class="form-label" for="vertical_acceleration">Vertical Acceleration due to Earthquake (K<sub>V</sub>) (g):</label>
-                <input type="number" step="0.01" id="vertical_acceleration" v-model.number="parameters.vertical_acceleration">
-
-                <button class="calculate-button" @click="calculate">Calculate</button>
+    <div id="app">
+        <!-- Header -->
+        <div class="app-header">
+            <h1>Mononobe-Okabe Calculator</h1>
+            <div class="nav-buttons">
+                <button @click="openDocumentation">Documentation</button>
+                <button @click="openChangeLog">Change Log</button>
+                <button @click="returnToMenu">Return to Menu</button>
             </div>
         </div>
-        <div id="results" v-if="results.length">
-            <div class="result-item" v-for="result in results">
-                <span class="result-label">{{ result.label }}:</span> {{ result.value }}
+
+        <!-- Main Container -->
+        <div class="container">
+            <!-- Input Form -->
+            <div class="grid-x grid-padding-x">
+                <!-- Embankment Parameters -->
+                <div class="cell small-12 medium-6">
+                    <div class="section-header">Embankment Parameters</div>
+                    <label class="form-label" for="soil_weight">Unit Weight of Soil (γ<sub>moist</sub>) (kN/m³):</label>
+                    <input type="number" id="soil_weight" v-model.number="parameters.soil_weight">
+
+                    <label class="form-label" for="h_wall">Height of Embankment (H) (m):</label>
+                    <input type="number" id="h_wall" v-model.number="parameters.h_wall">
+
+                    <label class="form-label" for="angle_embankment">Angle of Embankment Slope (α) (deg):</label>
+                    <input type="number" id="angle_embankment" v-model.number="parameters.angle_embankment">
+
+                    <label class="form-label" for="angle_friction">Angle of Internal Friction (φ) (deg):</label>
+                    <input type="number" id="angle_friction" v-model.number="parameters.angle_friction">
+
+                    <label class="form-label" for="angle_inclination">Angle of Wall Face from Horizontal (β) (deg):</label>
+                    <input type="number" id="angle_inclination" v-model.number="parameters.angle_inclination">
+
+                    <label class="form-label" for="angle_friction_wall_soil">Wall-Soil Friction Angle (δ) (deg):</label>
+                    <input type="number" id="angle_friction_wall_soil" v-model.number="parameters.angle_friction_wall_soil">
+                </div>
+
+                <!-- Surcharge Parameters -->
+                <div class="cell small-12 medium-6">
+                    <div class="section-header">Surcharge Parameters</div>
+                    <label class="form-label" for="surcharge_type">Type of Surcharge Loading:</label>
+                    <select id="surcharge_type" v-model="parameters.surcharge_type">
+                        <option>None</option>
+                        <option>Uniform</option>
+                        <option>Line</option>
+                    </select>
+
+                    <label class="form-label" for="surcharge_load">Surcharge Load (q) (kN/m²):</label>
+                    <input type="number" id="surcharge_load" v-model.number="parameters.surcharge_load">
+
+                    <label class="form-label" for="surcharge_height">Equivalent Height of Surcharge (H<sub>s</sub>) (m):</label>
+                    <input type="number" id="surcharge_height" v-model.number="parameters.surcharge_height">
+                </div>
+
+                <!-- Seismic Parameters -->
+                <div class="cell small-12 medium-6">
+                    <div class="section-header">Seismic Parameters</div>
+                    <label class="form-label" for="pga">Peak Ground Acceleration (PGA) (g):</label>
+                    <input type="number" step="0.01" id="pga" v-model.number="parameters.pga">
+
+                    <label class="form-label" for="horizontal_acceleration">Horizontal Seismic Coefficient (k<sub>h</sub>):</label>
+                    <input type="number" step="0.01" id="horizontal_acceleration" v-model.number="parameters.horizontal_acceleration">
+
+                    <label class="form-label" for="vertical_acceleration">Vertical Seismic Coefficient (k<sub>v</sub>):</label>
+                    <input type="number" step="0.01" id="vertical_acceleration" v-model.number="parameters.vertical_acceleration">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="cell small-12">
+                    <div class="action-buttons">
+                        <button @click="calculate">Calculate</button>
+                        <button @click="saveParameters">Save</button>
+                        <button @click="loadParameters">Load</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" v-if="results.length">
+                <div class="result-item" v-for="result in results">
+                    <span v-html="result.equation"></span>
+                </div>
+
+                <!-- Plotly Graphs -->
+                <div id="pressure-plot"></div>
+                <div id="retaining-wall-plot"></div>
+            </div>
+        </div>
+
+        <!-- Change Log Modal -->
+        <div class="modal-overlay" v-if="showChangeLog">
+            <div class="modal-content">
+                <button class="close-button" @click="closeChangeLog">Close</button>
+                <h2>Change Log</h2>
+                <ul>
+                    <li>Version 1.0: Initial release.</li>
+                    <li>Version 1.1: Improved UI and added features.</li>
+                    <!-- Add more change log items here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Documentation Modal -->
+        <div class="modal-overlay" v-if="showDocumentation">
+            <div class="modal-content">
+                <button class="close-button" @click="closeDocumentation">Close</button>
+                <h2>Documentation</h2>
+                <p>This calculator uses the Mononobe-Okabe method to compute seismic active earth pressures on retaining structures.</p>
+                <h3>Parameters:</h3>
+                <ul>
+                    <li><strong>Unit Weight of Soil (γ<sub>moist</sub>)</strong>: The moist unit weight of the backfill soil.</li>
+                    <li><strong>Height of Embankment (H)</strong>: The vertical height of the retaining wall.</li>
+                    <li><strong>Angle of Embankment Slope (α)</strong>: The inclination angle of the backfill slope.</li>
+                    <li><strong>Angle of Internal Friction (φ)</strong>: The soil's internal friction angle.</li>
+                    <li><strong>Angle of Wall Face (β)</strong>: The angle of the wall face with respect to the horizontal.</li>
+                    <li><strong>Wall-Soil Friction Angle (δ)</strong>: The friction angle between the wall and the soil.</li>
+                    <!-- Add more descriptions as needed -->
+                </ul>
+                <h3>Equations:</h3>
+                <p>The calculator uses the following key equations:</p>
+                <ul>
+                    <li>Active Earth Pressure Coefficient:
+                        \\[ K_a = \\frac{\\sin^2(\\beta + \\phi)}{\\sin \\beta \\sin(\\beta - \\delta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha)}{\\sin(\\beta - \\delta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
+                    </li>
+                    <li>Passive Earth Pressure Coefficient:
+                        \\[ K_p = \\frac{\\sin^2(\\beta - \\phi)}{\\sin \\beta \\sin(\\beta + \\delta) \\left[1 - \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi + \\alpha)}{\\sin(\\beta + \\delta) \\sin(\\beta - \\alpha)}}\\right]^2} \\]
+                    </li>
+                    <li>Seismic Active Earth Pressure Coefficient:
+                        \\[ K_{ae} = \\frac{\\sin^2(\\beta + \\phi - \\theta)}{\\cos \\theta \\sin \\beta \\sin(\\beta - \\delta - \\theta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha - \\theta)}{\\sin(\\beta - \\delta - \\theta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
+                    </li>
+                    <!-- Add more equations as needed -->
+                </ul>
             </div>
         </div>
     </div>
+
+    <!-- Vue.js Script -->
     <script>
         const { createApp } = Vue;
 
         createApp({
             data() {
-                return { 
+                return {
                     parameters: {
-                        soil_weight: 15.0,
-                        h_wall: 0.45,
-                        angle_friction: 28.0,
+                        soil_weight: 18.0,
+                        h_wall: 6.0,
+                        angle_friction: 30.0,
                         angle_embankment: 0.0,
                         angle_inclination: 90.0,
-                        angle_friction_wall_soil: 14.0,
+                        angle_friction_wall_soil: 20.0,
                         surcharge_type: 'None',
                         surcharge_load: 0.0,
-                        surcharge_length: 0.0,
-                        surcharge_distance: 0.0,
-                        surcharge_height: 1.50,
-                        pga: 0.60,
-                        horizontal_acceleration: 0.60,
-                        vertical_acceleration: 0.63
+                        surcharge_height: 0.0,
+                        pga: 0.25,
+                        horizontal_acceleration: 0.15,
+                        vertical_acceleration: 0.0
                     },
-                    results: []
+                    results: [],
+                    showChangeLog: false,
+                    showDocumentation: false
                 };
             },
             methods: {
+                openChangeLog() {
+                    this.showChangeLog = true;
+                },
+                closeChangeLog() {
+                    this.showChangeLog = false;
+                },
+                openDocumentation() {
+                    this.showDocumentation = true;
+                    // Ensure equations in the modal are rendered
+                    this.$nextTick(() => {
+                        MathJax.typeset();
+                    });
+                },
+                closeDocumentation() {
+                    this.showDocumentation = false;
+                },
+                returnToMenu() {
+                    // Implement your logic to return to the menu
+                    alert('Returning to menu...');
+                },
+                saveParameters() {
+                    const params = JSON.stringify(this.parameters);
+                    localStorage.setItem('mo_parameters', params);
+                    alert('Parameters saved successfully.');
+                },
+                loadParameters() {
+                    const params = localStorage.getItem('mo_parameters');
+                    if (params) {
+                        this.parameters = JSON.parse(params);
+                        alert('Parameters loaded successfully.');
+                    } else {
+                        alert('No saved parameters found.');
+                    }
+                },
                 calculate_coefficients(PGA) {
-                    const kh = 0.5 * PGA;
-                    const kv = 0;
+                    const kh = this.parameters.horizontal_acceleration || (0.5 * PGA);
+                    const kv = this.parameters.vertical_acceleration || 0;
                     return [kh, kv];
                 },
                 incHorAcc(kh, kv) {
                     const theta_solve_init = kh / (1 - kv);
-                    const theta = Math.atan(theta_solve_init);
-                    const toDegree = (theta * 180) / Math.PI;
-                    return toDegree;
+                    const theta = Math.atan(theta_solve_init) * (180 / Math.PI);
+                    return theta;
                 },
                 calculate_ko(angle_friction) {
                     return 1 - Math.sin((angle_friction * Math.PI) / 180);
                 },
                 staticActivePressureCoefficient(alpha, beta, delta, phi) {
-                    const varia_a = Math.pow(Math.sin((beta + phi) * Math.PI / 180), 2);
-                    const varia_b = Math.sin((phi + delta) * Math.PI / 180) * Math.sin((phi - alpha) * Math.PI / 180);
-                    const varia_c = Math.sin((beta - delta) * Math.PI / 180) * Math.sin((beta + alpha) * Math.PI / 180);
-                    const varia_d = Math.pow(1 + Math.sqrt(varia_b / varia_c), 2);
-                    const varia_e = Math.pow(Math.sin(beta * Math.PI / 180), 2) * Math.sin((beta - delta) * Math.PI / 180) * varia_d;
-                    const results = varia_a / varia_e;
-                    return results;
+                    alpha = alpha * Math.PI / 180;
+                    beta = beta * Math.PI / 180;
+                    delta = delta * Math.PI / 180;
+                    phi = phi * Math.PI / 180;
+                    const numerator = Math.pow(Math.sin(beta + phi), 2);
+                    const denominator = Math.sin(beta) * Math.sin(beta - delta) * Math.pow(1 + Math.sqrt(
+                        (Math.sin(phi + delta) * Math.sin(phi - alpha)) /
+                        (Math.sin(beta - delta) * Math.sin(beta + alpha))
+                    ), 2);
+                    return numerator / denominator;
                 },
                 staticPassivePressureCoefficient(alpha, beta, delta, phi) {
-                    const varia_a = Math.pow(Math.sin((beta - phi) * Math.PI / 180), 2);
-                    const varia_b = Math.sin((phi + delta) * Math.PI / 180) * Math.sin((phi + alpha) * Math.PI / 180);
-                    const varia_c = Math.sin((beta + delta) * Math.PI / 180) * Math.sin((beta + alpha) * Math.PI / 180);
-                    const varia_d = Math.pow(1 - Math.sqrt(varia_b / varia_c), 2);
-                    const varia_e = Math.pow(Math.sin(beta * Math.PI / 180), 2) * Math.sin((beta - delta) * Math.PI / 180) * varia_d;
-                    const results = varia_a / varia_e;
-                    return results;
+                    alpha = alpha * Math.PI / 180;
+                    beta = beta * Math.PI / 180;
+                    delta = delta * Math.PI / 180;
+                    phi = phi * Math.PI / 180;
+                    const numerator = Math.pow(Math.sin(beta - phi), 2);
+                    const denominator = Math.sin(beta) * Math.sin(beta + delta) * Math.pow(1 - Math.sqrt(
+                        (Math.sin(phi + delta) * Math.sin(phi + alpha)) /
+                        (Math.sin(beta + delta) * Math.sin(beta - alpha))
+                    ), 2);
+                    return numerator / denominator;
                 },
                 staticActiveSeismicPressureCoefficient(alpha, beta, delta, phi, theta) {
-                    const varia_a = Math.pow(Math.sin((beta + phi - theta) * Math.PI / 180), 2);
-                    const varia_b = Math.sin((phi + delta) * Math.PI / 180) * Math.sin((phi - alpha - theta) * Math.PI / 180);
-                    const varia_c = Math.sin((beta - delta - theta) * Math.PI / 180) * Math.sin((beta + alpha) * Math.PI / 180);
-                    const varia_d = Math.pow(1 + Math.sqrt(varia_b / varia_c), 2);
-                    const varia_e = Math.cos(theta * Math.PI / 180) * Math.pow(Math.sin(beta * Math.PI / 180), 2) * Math.sin((beta - delta - theta) * Math.PI / 180) * varia_d;
-                    const results = varia_a / varia_e;
-                    return results;
+                    alpha = alpha * Math.PI / 180;
+                    beta = beta * Math.PI / 180;
+                    delta = delta * Math.PI / 180;
+                    phi = phi * Math.PI / 180;
+                    theta = theta * Math.PI / 180;
+                    const numerator = Math.pow(Math.sin(beta + phi - theta), 2);
+                    const denominator = Math.cos(theta) * Math.sin(beta) * Math.sin(beta - delta - theta) * Math.pow(1 + Math.sqrt(
+                        (Math.sin(phi + delta) * Math.sin(phi - alpha - theta)) /
+                        (Math.sin(beta - delta - theta) * Math.sin(beta + alpha))
+                    ), 2);
+                    return numerator / denominator;
                 },
                 calculate_deltaKa(kae, kv, ka) {
                     const deltaKa = kae * (1 - kv) - ka;
@@ -220,7 +404,7 @@
 
                     const PGA = this.parameters.pga;
                     const [kh, kv] = this.calculate_coefficients(PGA);
-                    const coefficient_seis = this.incHorAcc(kh, kv);
+                    const theta = this.incHorAcc(kh, kv);
                     const ko = this.calculate_ko(this.parameters.angle_friction);
                     const ka = this.staticActivePressureCoefficient(
                         this.parameters.angle_embankment,
@@ -239,18 +423,101 @@
                         this.parameters.angle_inclination,
                         this.parameters.angle_friction_wall_soil,
                         this.parameters.angle_friction,
-                        coefficient_seis
+                        theta
                     );
                     const deltaKa = this.calculate_deltaKa(kae, kv, ka);
 
-                    // Display results
+                    // Display results with LaTeX equations
                     this.results.push(
-                        { label: 'At-Rest Earth Pressure Coefficient (Ko)', value: ko.toFixed(2) },
-                        { label: 'Active Earth Pressure Coefficient (Ka)', value: ka.toFixed(2) },
-                        { label: 'Passive Earth Pressure Coefficient (Kp)', value: kp.toFixed(2) },
-                        { label: 'Active Earth Pressure due to Seismic (Kae)', value: kae.toFixed(2) },
-                        { label: 'Change in Active Earth Pressure due to Seismic (ΔKa)', value: deltaKa.toFixed(2) }
+                        { equation: `\\( K_o = ${ko.toFixed(3)} \\)` },
+                        { equation: `\\( K_a = ${ka.toFixed(3)} \\)` },
+                        { equation: `\\( K_p = ${kp.toFixed(3)} \\)` },
+                        { equation: `\\( K_{ae} = ${kae.toFixed(3)} \\)` },
+                        { equation: `\\( \\Delta K_a = ${deltaKa.toFixed(3)} \\)` }
                     );
+
+                    // Trigger MathJax typesetting and then plot
+                    this.$nextTick(() => {
+                        MathJax.typeset();
+                        // Plot after the DOM has updated
+                        this.plotPressure(ka, kae);
+                        this.plotRetainingWall();
+                    });
+                },
+                plotPressure(ka, kae) {
+                    const H = this.parameters.h_wall;
+                    const gamma = this.parameters.soil_weight;
+
+                    // Calculate static and seismic pressures
+                    const y = [];
+                    const staticPressure = [];
+                    const seismicPressure = [];
+
+                    for (let i = 0; i <= 10; i++) {
+                        const depth = (H / 10) * i;
+                        y.push(depth);
+
+                        const sigma_static = gamma * depth * ka;
+                        staticPressure.push(sigma_static);
+
+                        const sigma_seismic = gamma * depth * kae;
+                        seismicPressure.push(sigma_seismic);
+                    }
+
+                    // Create traces
+                    const traceStatic = {
+                        x: staticPressure,
+                        y: y,
+                        mode: 'lines',
+                        name: 'Static Pressure',
+                        line: { color: '#1f77b4' }
+                    };
+
+                    const traceSeismic = {
+                        x: seismicPressure,
+                        y: y,
+                        mode: 'lines',
+                        name: 'Seismic Pressure',
+                        line: { color: '#ff7f0e' }
+                    };
+
+                    const data = [traceStatic, traceSeismic];
+
+                    const layout = {
+                        title: 'Wall Pressure Distribution',
+                        xaxis: { title: 'Pressure (kPa)' },
+                        yaxis: { title: 'Depth (m)', autorange: 'reversed' },
+                        height: 400
+                    };
+
+                    Plotly.newPlot('pressure-plot', data, layout);
+                },
+                plotRetainingWall() {
+                    const H = this.parameters.h_wall;
+                    const beta = this.parameters.angle_inclination;
+
+                    // Define wall shape based on inclination
+                    const x = [0, H * Math.tan(beta * Math.PI / 180)];
+                    const y = [0, H];
+
+                    const wallTrace = {
+                        x: x,
+                        y: y,
+                        mode: 'lines',
+                        name: 'Retaining Wall',
+                        line: { color: '#2ca02c', width: 3 }
+                    };
+
+                    const data = [wallTrace];
+
+                    const layout = {
+                        title: 'Retaining Wall Profile',
+                        xaxis: { title: 'Horizontal Distance (m)' },
+                        yaxis: { title: 'Height (m)', autorange: 'reversed' },
+                        height: 400
+                    };
+
+                    Plotly.newPlot('retaining-wall-plot', data, layout);
                 }
             }
         }).mount('#app');
