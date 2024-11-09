@@ -461,7 +461,7 @@
                     report += `<h4>Static Passive Pressure Coefficient</h4>`;
                     report += `
                     \\[ K_p = \\frac{\\sin^2(\\beta - \\phi)}{\\sin \\beta \\sin(\\beta + \\delta) \\left[1 - \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi + \\alpha)}{\\sin(\\beta + \\delta) \\sin(\\beta - \\alpha)}}\\right]^2} \\]
-                    \\[ K_p = \\frac{\\sin^2(${(beta_deg - phi_deg).toFixed(3)}^\\circ)}{\\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\left[1 - \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg + alpha_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg - alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
+                    \\[ K_p = \\frac{ \\sin^2(${(beta_deg - phi_deg).toFixed(3)}^\\circ) }{ \\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\left[1 - \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg + alpha_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg - alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
                     \\[ K_p = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
                     return { report, value };
                 },
