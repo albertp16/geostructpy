@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Mononobe-Okabe Calculator</title>
     <!-- Foundation CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
     <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <!-- MathJax for LaTeX equations -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async
-      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-    </script>
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Custom CSS -->
@@ -21,6 +22,7 @@
             background-color: #f0f0f0;
             color: #333;
         }
+
         .app-header {
             background-color: #fff;
             border-bottom: 1px solid #ccc;
@@ -30,14 +32,17 @@
             top: 0;
             z-index: 1000;
         }
+
         .app-header h1 {
             margin: 0;
             font-size: 1.5em;
             color: #444;
         }
+
         .app-header .nav-buttons {
             float: right;
         }
+
         .app-header .nav-buttons button {
             margin-left: 10px;
             background-color: #444;
@@ -47,9 +52,11 @@
             cursor: pointer;
             border-radius: 4px;
         }
+
         .app-header .nav-buttons button:hover {
             background-color: #666;
         }
+
         .container {
             max-width: 1200px;
             margin: 100px auto 20px;
@@ -57,6 +64,7 @@
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
         .section-header {
             font-size: 1.2em;
             margin-top: 20px;
@@ -65,11 +73,14 @@
             border-bottom: 2px solid #ccc;
             padding-bottom: 5px;
         }
+
         .form-label {
             margin-top: 10px;
             font-weight: bold;
         }
-        input[type=number], select {
+
+        input[type=number],
+        select {
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
@@ -77,9 +88,11 @@
             border-radius: 4px;
             margin-top: 5px;
         }
+
         .action-buttons {
             margin-top: 20px;
         }
+
         .action-buttons button {
             margin-right: 10px;
             background-color: #444;
@@ -89,9 +102,11 @@
             cursor: pointer;
             border-radius: 4px;
         }
+
         .action-buttons button:hover {
             background-color: #666;
         }
+
         #results {
             background-color: #fafafa;
             padding: 15px;
@@ -100,6 +115,7 @@
             line-height: 1.5;
             border-left: 4px solid #444;
         }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -107,12 +123,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.6);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 2000;
         }
+
         .modal-content {
             background: #fff;
             padding: 20px;
@@ -124,9 +141,11 @@
             max-height: 90%;
             overflow-y: auto;
         }
+
         .modal-content h2 {
             margin-top: 0;
         }
+
         .modal-content button.close-button {
             background-color: #444;
             color: #fff;
@@ -138,15 +157,18 @@
             top: 10px;
             right: 10px;
         }
+
         .modal-content button.close-button:hover {
             background-color: #666;
         }
+
         /* Plotly Graphs */
-        #pressure-plot, #retaining-wall-plot {
+        #pressure-plot {
             margin-top: 20px;
         }
     </style>
 </head>
+
 <body>
     <div id="app">
         <!-- Header -->
@@ -178,11 +200,13 @@
                     <label class="form-label" for="angle_friction">Angle of Internal Friction (φ) (deg):</label>
                     <input type="number" id="angle_friction" v-model.number="parameters.angle_friction">
 
-                    <label class="form-label" for="angle_inclination">Angle of Wall Face from Horizontal (β) (deg):</label>
+                    <label class="form-label" for="angle_inclination">Angle of Wall Face from Horizontal (β)
+                        (deg):</label>
                     <input type="number" id="angle_inclination" v-model.number="parameters.angle_inclination">
 
                     <label class="form-label" for="angle_friction_wall_soil">Wall-Soil Friction Angle (δ) (deg):</label>
-                    <input type="number" id="angle_friction_wall_soil" v-model.number="parameters.angle_friction_wall_soil">
+                    <input type="number" id="angle_friction_wall_soil"
+                        v-model.number="parameters.angle_friction_wall_soil">
                 </div>
 
                 <!-- Surcharge Parameters -->
@@ -198,7 +222,8 @@
                     <label class="form-label" for="surcharge_load">Surcharge Load (q) (kN/m²):</label>
                     <input type="number" id="surcharge_load" v-model.number="parameters.surcharge_load">
 
-                    <label class="form-label" for="surcharge_height">Equivalent Height of Surcharge (H<sub>s</sub>) (m):</label>
+                    <label class="form-label" for="surcharge_height">Equivalent Height of Surcharge (H<sub>s</sub>)
+                        (m):</label>
                     <input type="number" id="surcharge_height" v-model.number="parameters.surcharge_height">
                 </div>
 
@@ -208,11 +233,15 @@
                     <label class="form-label" for="pga">Peak Ground Acceleration (PGA) (g):</label>
                     <input type="number" step="0.01" id="pga" v-model.number="parameters.pga">
 
-                    <label class="form-label" for="horizontal_acceleration">Horizontal Seismic Coefficient (k<sub>h</sub>):</label>
-                    <input type="number" step="0.01" id="horizontal_acceleration" v-model.number="parameters.horizontal_acceleration">
+                    <label class="form-label" for="horizontal_acceleration">Horizontal Seismic Coefficient
+                        (k<sub>h</sub>):</label>
+                    <input type="number" step="0.01" id="horizontal_acceleration"
+                        v-model.number="parameters.horizontal_acceleration">
 
-                    <label class="form-label" for="vertical_acceleration">Vertical Seismic Coefficient (k<sub>v</sub>):</label>
-                    <input type="number" step="0.01" id="vertical_acceleration" v-model.number="parameters.vertical_acceleration">
+                    <label class="form-label" for="vertical_acceleration">Vertical Seismic Coefficient
+                        (k<sub>v</sub>):</label>
+                    <input type="number" step="0.01" id="vertical_acceleration"
+                        v-model.number="parameters.vertical_acceleration">
                 </div>
 
                 <!-- Action Buttons -->
@@ -233,7 +262,6 @@
 
                 <!-- Plotly Graphs -->
                 <div id="pressure-plot"></div>
-                <div id="retaining-wall-plot"></div>
             </div>
         </div>
 
@@ -255,15 +283,20 @@
             <div class="modal-content">
                 <button class="close-button" @click="closeDocumentation">Close</button>
                 <h2>Documentation</h2>
-                <p>This calculator uses the Mononobe-Okabe method to compute seismic active earth pressures on retaining structures.</p>
+                <p>This calculator uses the Mononobe-Okabe method to compute seismic active earth pressures on retaining
+                    structures.</p>
                 <h3>Parameters:</h3>
                 <ul>
-                    <li><strong>Unit Weight of Soil (γ<sub>moist</sub>)</strong>: The moist unit weight of the backfill soil.</li>
+                    <li><strong>Unit Weight of Soil (γ<sub>moist</sub>)</strong>: The moist unit weight of the backfill
+                        soil.</li>
                     <li><strong>Height of Embankment (H)</strong>: The vertical height of the retaining wall.</li>
-                    <li><strong>Angle of Embankment Slope (α)</strong>: The inclination angle of the backfill slope.</li>
+                    <li><strong>Angle of Embankment Slope (α)</strong>: The inclination angle of the backfill slope.
+                    </li>
                     <li><strong>Angle of Internal Friction (φ)</strong>: The soil's internal friction angle.</li>
-                    <li><strong>Angle of Wall Face (β)</strong>: The angle of the wall face with respect to the horizontal.</li>
-                    <li><strong>Wall-Soil Friction Angle (δ)</strong>: The friction angle between the wall and the soil.</li>
+                    <li><strong>Angle of Wall Face (β)</strong>: The angle of the wall face with respect to the
+                        horizontal.</li>
+                    <li><strong>Wall-Soil Friction Angle (δ)</strong>: The friction angle between the wall and the soil.
+                    </li>
                     <!-- Add more descriptions as needed -->
                 </ul>
                 <h3>Equations:</h3>
@@ -271,17 +304,23 @@
                 <ul>
                     <li>Active Earth Pressure Coefficient:
                         \[
-                        K_a = \frac{\sin^2(\beta + \phi)}{\sin \beta \sin(\beta - \delta) \left[1 + \sqrt{\frac{\sin(\phi + \delta) \sin(\phi - \alpha)}{\sin(\beta - \delta) \sin(\beta + \alpha)}}\right]^2}
+                        K_a = \frac{\sin^2(\beta + \phi)}{\sin \beta \sin(\beta - \delta) \left[1 +
+                        \sqrt{\frac{\sin(\phi + \delta) \sin(\phi - \alpha)}{\sin(\beta - \delta) \sin(\beta +
+                        \alpha)}}\right]^2}
                         \]
                     </li>
                     <li>Passive Earth Pressure Coefficient:
                         \[
-                        K_p = \frac{\sin^2(\beta - \phi)}{\sin \beta \sin(\beta + \delta) \left[1 - \sqrt{\frac{\sin(\phi + \delta) \sin(\phi + \alpha)}{\sin(\beta + \delta) \sin(\beta - \alpha)}}\right]^2}
+                        K_p = \frac{\sin^2(\beta - \phi)}{\sin \beta \sin(\beta + \delta) \left[1 -
+                        \sqrt{\frac{\sin(\phi + \delta) \sin(\phi + \alpha)}{\sin(\beta + \delta) \sin(\beta -
+                        \alpha)}}\right]^2}
                         \]
                     </li>
                     <li>Seismic Active Earth Pressure Coefficient:
                         \[
-                        K_{ae} = \frac{\sin^2(\beta + \phi - \theta)}{\cos \theta \sin \beta \sin(\beta - \delta - \theta) \left[1 + \sqrt{\frac{\sin(\phi + \delta) \sin(\phi - \alpha - \theta)}{\sin(\beta - \delta - \theta) \sin(\beta + \alpha)}}\right]^2}
+                        K_{ae} = \frac{\sin^2(\beta + \phi - \theta)}{\cos \theta \sin \beta \sin(\beta - \delta -
+                        \theta) \left[1 + \sqrt{\frac{\sin(\phi + \delta) \sin(\phi - \alpha - \theta)}{\sin(\beta -
+                        \delta - \theta) \sin(\beta + \alpha)}}\right]^2}
                         \]
                     </li>
                     <!-- Add more equations as needed -->
@@ -354,94 +393,148 @@
                 calculate_coefficients(PGA) {
                     const kh = this.parameters.horizontal_acceleration || (0.5 * PGA);
                     const kv = this.parameters.vertical_acceleration || 0;
-                    return [kh, kv];
+                    const report = `\\[ k_h = ${kh.toFixed(3)}, \\quad k_v = ${kv.toFixed(3)} \\]`;
+                    return { report, value: [kh, kv] };
                 },
+
                 incHorAcc(kh, kv) {
                     const theta_solve_init = kh / (1 - kv);
-                    const theta = Math.atan(theta_solve_init) * (180 / Math.PI);
-                    return theta;
+                    const theta_rad = Math.atan(theta_solve_init);
+                    const theta_deg = theta_rad / DEG_TO_RAD;
+                    const report = `\\[ \\theta = \\arctan\\left(\\frac{k_h}{1 - k_v}\\right) = ${theta_deg.toFixed(3)}^\\circ \\]`;
+                    return { report, value: theta_deg };
                 },
-                calculate_ko(angle_friction) {
-                    return 1 - Math.sin((angle_friction * Math.PI) / 180);
+
+                calculate_ko(angle_friction_deg) {
+                    const ko = 1 - Math.sin(angle_friction_deg * DEG_TO_RAD);
+                    const report = `\\[ K_o = 1 - \\sin(${angle_friction_deg}^\\circ) = ${ko.toFixed(3)} \\]`;
+                    return { report, value: ko };
                 },
-                staticActivePressureCoefficient(alpha, beta, delta, phi) {
-                    alpha = alpha * Math.PI / 180;
-                    beta = beta * Math.PI / 180;
-                    delta = delta * Math.PI / 180;
-                    phi = phi * Math.PI / 180;
+
+                staticActivePressureCoefficient(alpha_deg, beta_deg, delta_deg, phi_deg) {
+                    const alpha = alpha_deg * DEG_TO_RAD;
+                    const beta = beta_deg * DEG_TO_RAD;
+                    const delta = delta_deg * DEG_TO_RAD;
+                    const phi = phi_deg * DEG_TO_RAD;
+
                     const numerator = Math.pow(Math.sin(beta + phi), 2);
                     const denominator = Math.sin(beta) * Math.sin(beta - delta) * Math.pow(1 + Math.sqrt(
                         (Math.sin(phi + delta) * Math.sin(phi - alpha)) /
                         (Math.sin(beta - delta) * Math.sin(beta + alpha))
                     ), 2);
-                    return numerator / denominator;
+                    const value = numerator / denominator;
+
+                    const report = `
+                    \\[ K_a = \\frac{\\sin^2(\\beta + \\phi)}{\\sin \\beta \\sin(\\beta - \\delta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha)}{\\sin(\\beta - \\delta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
+                    \\[ K_a = \\frac{\\sin^2(${(beta_deg + phi_deg).toFixed(3)}^\\circ)}{\\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg - delta_deg).toFixed(3)}^\\circ) \\left[1 + \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg - alpha_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg - delta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg + alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
+                    \\[ K_a = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
+                    return { report, value };
                 },
-                staticPassivePressureCoefficient(alpha, beta, delta, phi) {
-                    alpha = alpha * Math.PI / 180;
-                    beta = beta * Math.PI / 180;
-                    delta = delta * Math.PI / 180;
-                    phi = phi * Math.PI / 180;
+
+                staticPassivePressureCoefficient(alpha_deg, beta_deg, delta_deg, phi_deg) {
+                    const alpha = alpha_deg * DEG_TO_RAD;
+                    const beta = beta_deg * DEG_TO_RAD;
+                    const delta = delta_deg * DEG_TO_RAD;
+                    const phi = phi_deg * DEG_TO_RAD;
+
                     const numerator = Math.pow(Math.sin(beta - phi), 2);
                     const denominator = Math.sin(beta) * Math.sin(beta + delta) * Math.pow(1 - Math.sqrt(
                         (Math.sin(phi + delta) * Math.sin(phi + alpha)) /
                         (Math.sin(beta + delta) * Math.sin(beta - alpha))
                     ), 2);
-                    return numerator / denominator;
+                    const value = numerator / denominator;
+
+                    const report = `
+                    \\[ K_p = \\frac{\\sin^2(\\beta - \\phi)}{\\sin \\beta \\sin(\\beta + \\delta) \\left[1 - \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi + \\alpha)}{\\sin(\\beta + \\delta) \\sin(\\beta - \\alpha)}}\\right]^2} \\]
+                    \\[ K_p = \\frac{\\sin^2(${(beta_deg - phi_deg).toFixed(3)}^\\circ)}{\\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\left[1 - \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg + alpha_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg - alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
+                    \\[ K_p = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
+                    return { report, value };
                 },
-                staticActiveSeismicPressureCoefficient(alpha, beta, delta, phi, theta) {
-                    alpha = alpha * Math.PI / 180;
-                    beta = beta * Math.PI / 180;
-                    delta = delta * Math.PI / 180;
-                    phi = phi * Math.PI / 180;
-                    theta = theta * Math.PI / 180;
+
+                staticActiveSeismicPressureCoefficient(alpha_deg, beta_deg, delta_deg, phi_deg, theta_deg) {
+                    const alpha = alpha_deg * DEG_TO_RAD;
+                    const beta = beta_deg * DEG_TO_RAD;
+                    const delta = delta_deg * DEG_TO_RAD;
+                    const phi = phi_deg * DEG_TO_RAD;
+                    const theta = theta_deg * DEG_TO_RAD;
+
                     const numerator = Math.pow(Math.sin(beta + phi - theta), 2);
                     const denominator = Math.cos(theta) * Math.sin(beta) * Math.sin(beta - delta - theta) * Math.pow(1 + Math.sqrt(
                         (Math.sin(phi + delta) * Math.sin(phi - alpha - theta)) /
                         (Math.sin(beta - delta - theta) * Math.sin(beta + alpha))
                     ), 2);
-                    return numerator / denominator;
+                    const value = numerator / denominator;
+
+                    const report = `
+                    \\[ K_{ae} = \\frac{\\sin^2(\\beta + \\phi - \\theta)}{\\cos \\theta \\sin \\beta \\sin(\\beta - \\delta - \\theta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha - \\theta)}{\\sin(\\beta - \\delta - \\theta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
+                    \\[ K_{ae} = \\frac{\\sin^2(${(beta_deg + phi_deg - theta_deg).toFixed(3)}^\\circ)}{\\cos ${theta_deg.toFixed(3)}^\\circ \\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg - delta_deg - theta_deg).toFixed(3)}^\\circ) \\left[1 + \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg - alpha_deg - theta_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg - delta_deg - theta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg + alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
+                    \\[ K_{ae} = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
+                    return { report, value };
                 },
+
                 calculate_deltaKa(kae, kv, ka) {
                     const deltaKa = kae * (1 - kv) - ka;
-                    return deltaKa;
+                    const report = `\\[ \\Delta K_a = K_{ae} (1 - k_v) - K_a = ${deltaKa.toFixed(5)} \\]`;
+                    return { report, value: deltaKa };
                 },
+
                 calculate() {
                     this.results = [];  // Clear previous results
 
                     const PGA = this.parameters.pga;
-                    const [kh, kv] = this.calculate_coefficients(PGA);
-                    const theta = this.incHorAcc(kh, kv);
-                    const ko = this.calculate_ko(this.parameters.angle_friction);
-                    const ka = this.staticActivePressureCoefficient(
+                    const coeffs = this.calculate_coefficients(PGA);
+                    const [kh, kv] = coeffs.value;
+                    const kh_report = coeffs.report;
+
+                    const thetaData = this.incHorAcc(kh, kv);
+                    const theta = thetaData.value;
+                    const theta_report = thetaData.report;
+
+                    const koData = this.calculate_ko(this.parameters.angle_friction);
+                    const ko = koData.value;
+                    const ko_report = koData.report;
+
+                    const kaData = this.staticActivePressureCoefficient(
                         this.parameters.angle_embankment,
                         this.parameters.angle_inclination,
                         this.parameters.angle_friction_wall_soil,
                         this.parameters.angle_friction
                     );
-                    const kp = this.staticPassivePressureCoefficient(
+                    const ka = kaData.value;
+                    const ka_report = kaData.report;
+
+                    const kpData = this.staticPassivePressureCoefficient(
                         this.parameters.angle_embankment,
                         this.parameters.angle_inclination,
                         this.parameters.angle_friction_wall_soil,
                         this.parameters.angle_friction
                     );
-                    const kae = this.staticActiveSeismicPressureCoefficient(
+                    const kp = kpData.value;
+                    const kp_report = kpData.report;
+
+                    const kaeData = this.staticActiveSeismicPressureCoefficient(
                         this.parameters.angle_embankment,
                         this.parameters.angle_inclination,
                         this.parameters.angle_friction_wall_soil,
                         this.parameters.angle_friction,
                         theta
                     );
-                    const deltaKa = this.calculate_deltaKa(kae, kv, ka);
+                    const kae = kaeData.value;
+                    const kae_report = kaeData.report;
+
+                    const deltaKaData = this.calculate_deltaKa(kae, kv, ka);
+                    const deltaKa = deltaKaData.value;
+                    const deltaKa_report = deltaKaData.report;
 
                     // Display results with LaTeX equations
                     this.results.push(
-                        // { equation: `\\( K_o = ${ko.toFixed(3)} \\)` },
-                        { equation: `Static Active Pressure Coefficient` },
-                        { equation: `\\( K_a = ${ka.toFixed(3)} \\)` },
-                        { equation: `Static Passive Pressure Coefficient` },
-                        { equation: `\\( K_p = ${kp.toFixed(3)} \\)` },
-                        { equation: `\\( K_{ae} = ${kae.toFixed(3)} \\)` },
-                        { equation: `\\( \\Delta K_a = ${deltaKa.toFixed(3)} \\)` }
+                        { equation: kh_report },
+                        { equation: theta_report },
+                        { equation: ko_report },
+                        { equation: ka_report },
+                        { equation: kp_report },
+                        { equation: kae_report },
+                        { equation: deltaKa_report }
                     );
 
                     // Trigger MathJax typesetting and then plot
@@ -449,7 +542,6 @@
                         MathJax.typeset();
                         // Plot after the DOM has updated
                         this.plotPressure(ka, kae);
-                        this.plotRetainingWall();
                     });
                 },
                 plotPressure(ka, kae) {
@@ -499,36 +591,14 @@
                     };
 
                     Plotly.newPlot('pressure-plot', data, layout);
-                },
-                plotRetainingWall() {
-                    const H = this.parameters.h_wall;
-                    const beta = this.parameters.angle_inclination;
-
-                    // Define wall shape based on inclination
-                    const x = [0, H * Math.tan(beta * Math.PI / 180)];
-                    const y = [0, H];
-
-                    const wallTrace = {
-                        x: x,
-                        y: y,
-                        mode: 'lines',
-                        name: 'Retaining Wall',
-                        line: { color: '#2ca02c', width: 3 }
-                    };
-
-                    const data = [wallTrace];
-
-                    const layout = {
-                        title: 'Retaining Wall Profile',
-                        xaxis: { title: 'Horizontal Distance (m)' },
-                        yaxis: { title: 'Height (m)', autorange: 'reversed' },
-                        height: 400
-                    };
-
-                    Plotly.newPlot('retaining-wall-plot', data, layout);
                 }
+            },
+            mounted() {
+                // Define DEG_TO_RAD constant for conversion
+                window.DEG_TO_RAD = Math.PI / 180;
             }
         }).mount('#app');
     </script>
 </body>
+
 </html>
