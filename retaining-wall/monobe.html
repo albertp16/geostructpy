@@ -337,16 +337,16 @@
             data() {
                 return {
                     parameters: {
-                        soil_weight: 18.0,
-                        h_wall: 7.2,
-                        angle_friction: 30.0,
+                        soil_weight: 19,
+                        h_wall: 1.4,
+                        angle_friction: 35.0,
                         angle_embankment: 0.0,
                         angle_inclination: 90.0,
                         angle_friction_wall_soil: 20.0,
                         surcharge_type: 'None',
                         surcharge_load: 0.0,
                         surcharge_height: 0.0,
-                        pga: 0.25,
+                        pga: 0.63,
                         horizontal_acceleration: 0.15,
                         vertical_acceleration: 0.0
                     },
@@ -393,7 +393,9 @@
                 calculate_coefficients(PGA) {
                     const kh = this.parameters.horizontal_acceleration || (0.5 * PGA);
                     const kv = this.parameters.vertical_acceleration || 0;
-                    const report = `\\[ k_h = ${kh.toFixed(3)}, \\quad k_v = ${kv.toFixed(3)} \\]`;
+                    var report = ``
+                    report += `<h4>Seismic Paramters</h4>`;
+                    report += `\\[ k_h = ${kh.toFixed(3)}, \\quad k_v = ${kv.toFixed(3)} \\]`;
                     return { report, value: [kh, kv] };
                 },
 
@@ -401,13 +403,17 @@
                     const theta_solve_init = kh / (1 - kv);
                     const theta_rad = Math.atan(theta_solve_init);
                     const theta_deg = theta_rad / DEG_TO_RAD;
-                    const report = `\\[ \\theta = \\arctan\\left(\\frac{k_h}{1 - k_v}\\right) = ${theta_deg.toFixed(3)}^\\circ \\]`;
+                    var report = ``
+                    report += `<h4>Inclined Horizontal Acceleration</h4>`;
+                    report += `\\[ \\theta = \\arctan\\left(\\frac{k_h}{1 - k_v}\\right) = ${theta_deg.toFixed(3)}^\\circ \\]`;
                     return { report, value: theta_deg };
                 },
 
                 calculate_ko(angle_friction_deg) {
                     const ko = 1 - Math.sin(angle_friction_deg * DEG_TO_RAD);
-                    const report = `\\[ K_o = 1 - \\sin(${angle_friction_deg}^\\circ) = ${ko.toFixed(3)} \\]`;
+                    var report = ``
+                    report += `<h4>Inclined Horizontal Acceleration</h4>`;
+                    report = `\\[ K_o = 1 - \\sin(${angle_friction_deg}^\\circ) = ${ko.toFixed(3)} \\]`;
                     return { report, value: ko };
                 },
 
@@ -423,8 +429,9 @@
                         (Math.sin(beta - delta) * Math.sin(beta + alpha))
                     ), 2);
                     const value = numerator / denominator;
-
-                    const report = `
+                    var report = ``
+                    report += `<h4>Static Active Pressure Coefficient</h4>`;
+                    report += `
                     \\[ K_a = \\frac{\\sin^2(\\beta + \\phi)}{\\sin \\beta \\sin(\\beta - \\delta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha)}{\\sin(\\beta - \\delta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
                     \\[ K_a = \\frac{\\sin^2(${(beta_deg + phi_deg).toFixed(3)}^\\circ)}{\\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg - delta_deg).toFixed(3)}^\\circ) \\left[1 + \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg - alpha_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg - delta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg + alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
                     \\[ K_a = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
@@ -444,7 +451,9 @@
                     ), 2);
                     const value = numerator / denominator;
 
-                    const report = `
+                    var report = ``
+                    report += `<h4>Static Passive Pressure Coefficient</h4>`;
+                    report += `
                     \\[ K_p = \\frac{\\sin^2(\\beta - \\phi)}{\\sin \\beta \\sin(\\beta + \\delta) \\left[1 - \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi + \\alpha)}{\\sin(\\beta + \\delta) \\sin(\\beta - \\alpha)}}\\right]^2} \\]
                     \\[ K_p = \\frac{\\sin^2(${(beta_deg - phi_deg).toFixed(3)}^\\circ)}{\\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\left[1 - \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg + alpha_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg - alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
                     \\[ K_p = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
@@ -465,7 +474,9 @@
                     ), 2);
                     const value = numerator / denominator;
 
-                    const report = `
+                    var report = ``
+                    report += `<h4>Static Active Seismic Pressure Coefficient</h4>`;
+                    report += `
                     \\[ K_{ae} = \\frac{\\sin^2(\\beta + \\phi - \\theta)}{\\cos \\theta \\sin \\beta \\sin(\\beta - \\delta - \\theta) \\left[1 + \\sqrt{\\frac{\\sin(\\phi + \\delta) \\sin(\\phi - \\alpha - \\theta)}{\\sin(\\beta - \\delta - \\theta) \\sin(\\beta + \\alpha)}}\\right]^2} \\]
                     \\[ K_{ae} = \\frac{\\sin^2(${(beta_deg + phi_deg - theta_deg).toFixed(3)}^\\circ)}{\\cos ${theta_deg.toFixed(3)}^\\circ \\sin ${beta_deg.toFixed(3)}^\\circ \\sin(${(beta_deg - delta_deg - theta_deg).toFixed(3)}^\\circ) \\left[1 + \\sqrt{\\frac{\\sin(${(phi_deg + delta_deg).toFixed(3)}^\\circ) \\sin(${(phi_deg - alpha_deg - theta_deg).toFixed(3)}^\\circ)}{\\sin(${(beta_deg - delta_deg - theta_deg).toFixed(3)}^\\circ) \\sin(${(beta_deg + alpha_deg).toFixed(3)}^\\circ)}}\\right]^2} \\]
                     \\[ K_{ae} = \\frac{${numerator.toFixed(5)}}{${denominator.toFixed(5)}} = ${value.toFixed(5)} \\]`;
