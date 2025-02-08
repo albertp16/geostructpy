@@ -1,10 +1,10 @@
-# geotechnicalpy
+# geostructpy
 
-Academic / Research Open-source python libraries for Geotechnical Engineering 
+Academic / Research Open-source python libraries for Geotechnical Engineering for Structural Engineers. 
 
 Install package with, 
 
-`pip install geotechnicalpy==0.0.1`
+`pip install geostructpy`
 
 ## Shallow Foundation *(under-development)*
 
