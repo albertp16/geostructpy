@@ -6,7 +6,7 @@ setup(
     description='This APEC internal use only for Geotechnical - Structural libraries',
     author='Albert Pamonag',
     author_email='albert@apeconsultancy.net',
-    url='https://github.com/albertp16/apec-py',
+    url='https://github.com/albertp16/geostructpy',
     packages=find_packages(),
     install_requires=[
         'matplotlib'
