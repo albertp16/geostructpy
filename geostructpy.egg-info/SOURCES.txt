@@ -1,0 +1,9 @@
+README.md
+setup.py
+geostructpy/__init__.py
+geostructpy/index.py
+geostructpy.egg-info/PKG-INFO
+geostructpy.egg-info/SOURCES.txt
+geostructpy.egg-info/dependency_links.txt
+geostructpy.egg-info/requires.txt
+geostructpy.egg-info/top_level.txt

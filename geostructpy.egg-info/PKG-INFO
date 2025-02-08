@@ -1,0 +1,16 @@
+Metadata-Version: 2.2
+Name: geostructpy
+Version: 0.1
+Summary: This APEC internal use only for Geotechnical - Structural libraries
+Home-page: https://github.com/albertp16/apec-py
+Author: Albert Pamonag
+Author-email: albert@apeconsultancy.net
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Dist: matplotlib
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: requires-dist
+Dynamic: summary

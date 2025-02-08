@@ -1,70 +1,62 @@
-# geostructpy
+# geostructpy 🚧
 
-Academic / Research Open-source python libraries for Geotechnical Engineering for Structural Engineers. 
+**Geostructural Engineering Open-Source Library for Structural Engineers**
 
-Install package with, 
+[![PyPI version](https://img.shields.io/pypi/v/geostructpy?color=blue&label=PyPI)](https://pypi.org/project/geostructpy/)  
+[![License](https://img.shields.io/github/license/albertpamonag/geostructpy)](https://github.com/albertpamonag/geostructpy/blob/main/LICENSE)  
+[![Build Status](https://img.shields.io/github/actions/workflow/status/albertpamonag/geostructpy/ci.yml?branch=main)](https://github.com/albertpamonag/geostructpy/actions)  
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/albertpamonag/geostructpy/issues)  
 
-`pip install geostructpy`
+`geostructpy` is an open-source Python library for geotechnical engineering, designed specifically for structural engineers. It provides tools for analyzing and designing shallow and deep foundations, pile raft foundations, deep excavations, and soil-structure interaction. 🏗️
 
-## Shallow Foundation *(under-development)*
+## 🚀 Installation
 
-<ol>
-<li> Design for Ultimate Limit State
-  <ol>
-    <li> Estimation of Bearing Capacity </li>
-  </ol>
-</li>
-<li> Design for Serviceability Limit State
-  <ol>
-    <li> Estimation of Single Pile Settlement 
-      <ol>
-        <li>Immediate Settlement</i>
-        <li>Consolidation Settlement</i>
-      </ol>
-  </ol>
-</li>
-</ol>
+Install `geostructpy` using pip:
+```sh
+pip install geostructpy
+```
 
-## Design of Deep Foundations *(under-development)*
+## 📌 Features
 
-### Pile Foundation
+### Shallow Foundation *(Under Development)* 🏠
+- **Design for Ultimate Limit State**
+  - Estimation of Bearing Capacity
+- **Design for Serviceability Limit State**
+  - Estimation of Single Pile Settlement
+    - Immediate Settlement
+    - Consolidation Settlement
 
-<ol>
-<li> Static Design Method</li>
-<li> Pile Load Test</li>  
-<li> Design for Ultimate Limit State
-  <ol>
-    <li> Estimation of Ultimate Capacity of Piles and Pile Groups </li>
-    <li> Negative Skin Friction </li>
-  </ol>
-</li>
-<li> Design for Serviceability Limit State
-  <ol>
-    <li> Estimation of Single Pile Settlement</li>
-    <li> Estimation of Pile Group Settlement </li>
-  </ol>
-</li>
-</ol>
+### Design of Deep Foundations *(Under Development)* 🌍
 
-## Pile Raft Foundation *(under-development)*
+#### **Pile Foundation** 🔩
+- **Static Design Method**
+- **Pile Load Test**
+- **Design for Ultimate Limit State**
+  - Estimation of Ultimate Capacity of Piles and Pile Groups
+  - Negative Skin Friction
+- **Design for Serviceability Limit State**
+  - Estimation of Single Pile Settlement
+  - Estimation of Pile Group Settlement
 
-## Deep Excavation *(under-development)*
+### Pile Raft Foundation *(Under Development)* 🏗️
 
-## Soil Structure Interaction *(under-development)*
+### Deep Excavation *(Under Development)* ⛏️
 
-## References
-<ol>
-<li>Lecture Notes in Professional Master of Structural Design in Tall Buildings (PMTB) at Asian Institute Technology - Thailand </li>
-<li>Das, B., Sivakugan, N. (2017). Principle of Foundation Engineering (9th ed.). Cengage</li>
-<li>Poulos, H. (2017). Tall Building Foundation Design. CRC Press</li>
-</ol>
+### Soil-Structure Interaction *(Under Development)* 🌱
 
+## 📚 References
+- 📖 Lecture Notes from **Professional Master of Structural Design in Tall Buildings (PMTB)** at **Asian Institute of Technology (AIT), Thailand**
+- 📘 Das, B., Sivakugan, N. (2017). *Principles of Foundation Engineering* (9th ed.). Cengage
+- 📙 Poulos, H. (2017). *Tall Building Foundation Design*. CRC Press
 
-Developed by:
+## 👨‍💻 About the Developer
 
-**Albert Pamonag, M.Eng** <br>
-Currently enrolled in Professional Master of Structural Design in Tall Buildings (PMTB) at Asian Institute Technology - Thailand.<br>
-Completed in Master of Engineer in Civil Engineer specialization in Structural Engineering at De la Salle University - Manila.<br>
-Email: albertpamonag@gmail.com
+**Albert Pamonag, M.Eng**  
+- 🎓 Currently enrolled in **Professional Master of Structural Design in Tall Buildings (PMTB)** at **Asian Institute of Technology (AIT), Thailand**  
+- 🎓 Holds a **Master of Engineering in Civil Engineering**, specializing in **Structural Engineering**, from **De La Salle University - Manila**  
+- 📧 Contact: **[albertpamonag@gmail.com](mailto:albertpamonag@gmail.com)**  
 
+---
+
+🚀 Stay tuned for updates as this project evolves! Contributions and feedback are welcome. 🎯
 
