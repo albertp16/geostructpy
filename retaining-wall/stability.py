@@ -40,6 +40,7 @@ def calculate_sliding_safety(wall_data):
 
     # Earth pressure coefficient (Rankine)
     ka = (1 - math.sin(math.radians(theta))) / (1 + math.sin(math.radians(theta)))
+    print(f"Active Earth Pressure Coefficient (ka): {ka}")
 
     # Sliding forces
     h_active = 0.5 * gamma_soil * (stem_h + base_t) ** 2 * ka
@@ -60,24 +61,6 @@ def calculate_sliding_safety(wall_data):
     # Factor of Safety
     fs_sliding = friction_force / total_sliding_force
     fs_status = "PASS" if fs_sliding >= 1.5 else "FAIL"
-
-    # Append results to the original dictionary
-    wall_data["sliding_force"] = {
-        "ka": round(ka, 3),
-        "h_active": round(h_active, 3),
-        "h_eq": round(h_eq, 3),
-        "h_surcharge": round(h_surcharge, 3),
-        "total_sliding_force": round(total_sliding_force, 3)
-    }
-
-    wall_data["friction_force"] = {
-        "w_stem": round(w_stem, 3),
-        "w_base": round(w_base, 3),
-        "w_active": round(w_active, 3),
-        "w_surcharge": round(w_surcharge, 3),
-        "sum_w": round(sum_w, 3),
-        "friction_force": round(friction_force, 3)
-    }
 
     wall_data["factor_of_sliding_safety"] = {
         "fs": round(fs_sliding, 3),
