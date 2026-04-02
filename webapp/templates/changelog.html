@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Changelog - GeoStructPy{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Changelog</h2>
+
+    <h3>v0.2.1 &mdash; 2026-04-02</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>New:</strong> Micropile design module (AISC 360-22, ACI 318-25, 2024 IBC 1807.3)</li>
+        <li>Slenderness check, soil compression/tension capacity, lateral embedment depth</li>
+        <li>Concrete flexural &amp; axial P-M interaction diagram</li>
+        <li>Concrete shear capacity check</li>
+        <li>Rebar library (#6 through #18) with automatic properties</li>
+    </ul>
+
+    <h3>v0.2.0 &mdash; 2026-04-02</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>New:</strong> Lightweight Flask web application (Railway-ready deployment)</li>
+        <li><strong>New:</strong> Terzaghi (1943) bearing capacity calculator with interactive factor plots</li>
+        <li><strong>New:</strong> Meyerhof (1963) bearing capacity calculator with shape, depth, and inclination factors</li>
+        <li><strong>New:</strong> Mononobe-Okabe seismic earth pressure calculator with pressure distribution plots</li>
+        <li><strong>New:</strong> Retaining wall stability analysis (sliding, overturning, eccentricity checks)</li>
+        <li><strong>New:</strong> Theory &amp; Technical Notes page aligned with AIT CE75.05 lecture content</li>
+        <li><strong>New:</strong> Print report button on all calculator pages</li>
+        <li><strong>New:</strong> Disclaimer notice for APEC Consultancy team use</li>
+        <li><strong>Improved:</strong> Unified navigation and consistent UI across all modules</li>
+        <li><strong>Improved:</strong> MathJax rendering for step-by-step equation output</li>
+    </ul>
+
+    <h3>v0.1.0 &mdash; 2024</h3>
+    <ul style="line-height:1.8;">
+        <li>Initial release of geostructpy Python package</li>
+        <li>Mononobe-Okabe seismic earth pressure class (<code>geostructpy/monobe-okabe.py</code>)</li>
+        <li>Standalone Meyerhof bearing capacity factor visualization (HTML/Plotly)</li>
+        <li>Standalone Mononobe-Okabe calculator (HTML/Vue.js)</li>
+        <li>Shallow foundation ULS module with Terzaghi and Meyerhof factors</li>
+        <li>Retaining wall sliding safety calculation</li>
+    </ul>
+</div>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Theory & Technical Notes - GeoStructPy{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Theory &amp; Technical Notes</h2>
+    <p style="color:var(--muted);font-size:0.9em;">
+        Based on CE75.05 Geotechnical Engineering for Tall Buildings lecture notes (AIT, Dr. Geoff Chao, 2019)
+        and standard geotechnical references.
+    </p>
+</div>
+
+<!-- Bearing Capacity Theory -->
+<div class="card">
+    <h2>1. Bearing Capacity of Shallow Foundations</h2>
+
+    <h3>1.1 Modes of Bearing Capacity Failure</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>General Shear Failure</strong> &mdash; Most common type. Gradual settlement followed by sudden failure due to loss of interlocking resistance. Occurs in dense soils and rocks.</li>
+        <li><strong>Local Shear Failure</strong> &mdash; Intermediate between general and punching shear. Movement accompanied by sudden jerks. Occurs in medium-density soils.</li>
+        <li><strong>Punching Shear Failure</strong> &mdash; Shear zones never become well-defined, little surface heave. Occurs in very loose sand and weak clay.</li>
+    </ul>
+
+    <h3>1.2 Terzaghi (1943) Bearing Capacity Equation</h3>
+    <p>For a general shear failure of a shallow foundation, assuming homogeneous isotropic soil, horizontal ground surface, and failure zone below the base:</p>
+    \[ q_u = c'N_cS_c + qN_q + \tfrac{1}{2}\gamma B N_\gamma S_\gamma \]
+    <p>Where:</p>
+    <ul>
+        <li>\(q_u\) = ultimate bearing capacity (kPa)</li>
+        <li>\(c'\) = effective cohesion (kPa)</li>
+        <li>\(q = \gamma D_f\) = surcharge pressure at foundation level (kPa)</li>
+        <li>\(\gamma\) = unit weight of soil (kN/m&sup3;)</li>
+        <li>\(B\) = width of foundation (m)</li>
+        <li>\(N_c, N_q, N_\gamma\) = bearing capacity factors (functions of \(\phi'\))</li>
+    </ul>
+    <p><strong>Shape Factors (Terzaghi):</strong></p>
+    <table class="data-table" style="max-width:400px;">
+        <thead><tr><th>Foundation Type</th><th>\(S_c\)</th><th>\(S_\gamma\)</th></tr></thead>
+        <tbody>
+            <tr><td>Strip</td><td>1.0</td><td>1.0</td></tr>
+            <tr><td>Square</td><td>1.3</td><td>0.8</td></tr>
+            <tr><td>Circular</td><td>1.3</td><td>0.6</td></tr>
+        </tbody>
+    </table>
+
+    <h3>1.3 Meyerhof (1963) Bearing Capacity Equation</h3>
+    <p>Improved Terzaghi's equation by adding shape, depth, and load inclination factors. Addresses rectangular foundations and inclined loads:</p>
+    \[ q_u = c'N_cF_{cs}F_{cd}F_{ci} + qN_qF_{qs}F_{qd}F_{qi} + \tfrac{1}{2}\gamma BN_\gamma F_{\gamma s}F_{\gamma d}F_{\gamma i} \]
+
+    <h4>Shape Factors (De Beer, 1970)</h4>
+    \[ F_{cs} = 1 + \frac{B}{L}\frac{N_q}{N_c}, \quad F_{qs} = 1 + \frac{B}{L}\tan\phi', \quad F_{\gamma s} = 1 - 0.4\frac{B}{L} \]
+
+    <h4>Depth Factors (Hansen, 1970)</h4>
+    <p>For \(D_f/B \leq 1\):</p>
+    \[ F_{qd} = 1 + 2\tan\phi'(1-\sin\phi')^2 \frac{D_f}{B} \]
+    <p>For \(D_f/B > 1\):</p>
+    \[ F_{qd} = 1 + 2\tan\phi'(1-\sin\phi')^2 \arctan\left(\frac{D_f}{B}\right) \]
+    \[ F_{cd} = F_{qd} - \frac{1-F_{qd}}{N_q\tan\phi'}, \quad F_{\gamma d} = 1 \]
+
+    <h4>Load Inclination Factors (Meyerhof, 1963)</h4>
+    \[ F_{ci} = F_{qi} = \left(1 - \frac{\theta}{90^\circ}\right)^2, \quad F_{\gamma i} = \left(1 - \frac{\theta}{\phi'}\right)^2 \]
+    <p>where \(\theta\) is the angle of load inclination from vertical.</p>
+
+    <h3>1.4 Drained vs. Undrained Analysis</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>Saturated Fine Materials (Clay):</strong> Use undrained shear strength (\(c_u\), \(\phi = 0\)). The \(N_\gamma\) term drops out.</li>
+        <li><strong>Saturated Coarse Materials (Sand/Gravel):</strong> Use effective shear strength (\(c'=0\), \(\phi'\)). The \(N_c\) term drops out.</li>
+    </ul>
+</div>
+
+<!-- Limit State Design -->
+<div class="card">
+    <h2>2. Limit State Design Approach</h2>
+
+    <h3>2.1 Ultimate Limit State (ULS)</h3>
+    <p>The maximum load-carrying capacity of the foundation. Using the LRFD approach:</p>
+    \[ R_{dg} \geq E_d \]
+    <p>Where \(R_{dg} = \phi_g \times R_{ug}\) is the design geotechnical strength, \(\phi_g\) is the reduction factor (0.4 to 0.8 depending on site investigation extent), and \(E_d\) is the factored design load.</p>
+
+    <h3>2.2 Serviceability Limit State (SLS)</h3>
+    <p>Settlement and angular distortion criteria:</p>
+    \[ \rho_{max} \leq \rho_{all}, \quad \theta_{max} \leq \theta_{all} \]
+    <p>Common allowable angular distortion for tall buildings: \(\theta_{all} = 1/500 = 0.002\) (20% probability of damage).</p>
+
+    <h3>2.3 Settlement Components</h3>
+    \[ S_{TF} = S_e + S_c + S_s \]
+    <ul>
+        <li>\(S_e\) = Immediate (elastic) settlement &mdash; shear deformation under constant volume</li>
+        <li>\(S_c\) = Primary consolidation settlement &mdash; excess pore pressure dissipation</li>
+        <li>\(S_s\) = Secondary consolidation (creep) &mdash; time-related plastic adjustment</li>
+    </ul>
+
+    <h4>Immediate Settlement (Bowles, 1987)</h4>
+    \[ S_{e} = q_o(\alpha B') \frac{1-\mu_s^2}{E_s} I_s I_f \]
+    <p>Rigid foundation: \(S_{e(rigid)} \approx 0.93 \times S_{e(flexible, center)}\)</p>
+
+    <h4>Primary Consolidation Settlement</h4>
+    <p>Normally consolidated clay:</p>
+    \[ S_c = \frac{C_c H_c}{1+e_o} \log\frac{\sigma'_{vo} + \Delta\sigma}{\sigma'_{vo}} \]
+    <p>Overconsolidated clay (\(\sigma'_{vo} + \Delta\sigma \leq \sigma'_c\)):</p>
+    \[ S_c = \frac{C_s H_c}{1+e_o} \log\frac{\sigma'_{vo} + \Delta\sigma}{\sigma'_{vo}} \]
+</div>
+
+<!-- Seismic Earth Pressure -->
+<div class="card">
+    <h2>3. Mononobe-Okabe Seismic Earth Pressure Theory</h2>
+
+    <h3>3.1 Static Earth Pressure Coefficients (Coulomb)</h3>
+    <p>Active earth pressure coefficient:</p>
+    \[ K_a = \frac{\sin^2(\beta + \phi)}{\sin\beta\sin(\beta - \delta)\left[1 + \sqrt{\frac{\sin(\phi+\delta)\sin(\phi-\alpha)}{\sin(\beta-\delta)\sin(\beta+\alpha)}}\right]^2} \]
+    <p>Passive earth pressure coefficient:</p>
+    \[ K_p = \frac{\sin^2(\beta - \phi)}{\sin\beta\sin(\beta + \delta)\left[1 - \sqrt{\frac{\sin(\phi+\delta)\sin(\phi+\alpha)}{\sin(\beta+\delta)\sin(\beta+\alpha)}}\right]^2} \]
+
+    <h3>3.2 Seismic Active Earth Pressure (Mononobe-Okabe)</h3>
+    <p>The Mononobe-Okabe method extends Coulomb's earth pressure theory to include seismic effects using pseudo-static horizontal and vertical accelerations:</p>
+    \[ K_{ae} = \frac{\sin^2(\beta + \phi - \theta)}{\cos\theta\sin\beta\sin(\beta - \delta - \theta)\left[1 + \sqrt{\frac{\sin(\phi+\delta)\sin(\phi-\alpha-\theta)}{\sin(\beta-\delta-\theta)\sin(\beta+\alpha)}}\right]^2} \]
+    <p>Where the seismic inclination angle:</p>
+    \[ \theta = \arctan\left(\frac{k_h}{1 - k_v}\right) \]
+    <p>and \(k_h\), \(k_v\) are the horizontal and vertical seismic coefficients.</p>
+
+    <h3>3.3 At-Rest Earth Pressure</h3>
+    \[ K_0 = 1 - \sin\phi \]
+
+    <h3>3.4 Parameters</h3>
+    <table class="data-table">
+        <thead><tr><th>Symbol</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td>\(\phi\)</td><td>Angle of internal friction of backfill soil</td></tr>
+            <tr><td>\(\beta\)</td><td>Angle of wall face from horizontal</td></tr>
+            <tr><td>\(\delta\)</td><td>Wall-soil friction angle</td></tr>
+            <tr><td>\(\alpha\)</td><td>Angle of backfill slope from horizontal</td></tr>
+            <tr><td>\(k_h, k_v\)</td><td>Horizontal and vertical seismic coefficients</td></tr>
+            <tr><td>\(\theta\)</td><td>Seismic inclination angle</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Retaining Wall Stability -->
+<div class="card">
+    <h2>4. Retaining Wall Stability</h2>
+
+    <h3>4.1 Rankine Earth Pressure</h3>
+    \[ K_a = \frac{1 - \sin\phi}{1 + \sin\phi}, \quad K_p = \frac{1 + \sin\phi}{1 - \sin\phi} \]
+    \[ P_a = \tfrac{1}{2}\gamma H^2 K_a \quad \text{(acting at } H/3 \text{ from base)} \]
+
+    <h3>4.2 Sliding Safety Factor</h3>
+    \[ FS_{sliding} = \frac{\mu W + cB + P_p}{P_a} \geq 1.5 \]
+
+    <h3>4.3 Overturning Safety Factor</h3>
+    \[ FS_{overturning} = \frac{\sum M_{resisting}}{\sum M_{overturning}} \geq 2.0 \]
+
+    <h3>4.4 Eccentricity Check</h3>
+    \[ e = \frac{B}{2} - \frac{M_R - M_O}{W} \leq \frac{B}{6} \]
+    <p>Base pressure distribution:</p>
+    \[ q_{max,min} = \frac{W}{B}\left(1 \pm \frac{6e}{B}\right) \]
+</div>
+
+<!-- References -->
+<div class="card">
+    <h2>References</h2>
+    <ol style="line-height:2;">
+        <li>Terzaghi, K. (1943). <em>Theoretical Soil Mechanics</em>. Wiley.</li>
+        <li>Meyerhof, G.G. (1963). Some recent research on the bearing capacity of foundations. <em>Canadian Geotechnical Journal</em>, 1(1), 16-26.</li>
+        <li>Das, B., Sivakugan, N. (2017). <em>Principles of Foundation Engineering</em> (9th ed.). Cengage.</li>
+        <li>Poulos, H. (2017). <em>Tall Building Foundation Design</em>. CRC Press.</li>
+        <li>Bowles, J.E. (1987). Elastic foundation settlements on sand deposits. <em>J. Geotech. Eng.</em>, ASCE, 113(8), 846-860.</li>
+        <li>Vesic, A.S. (1973). Analysis of ultimate loads of shallow foundations. <em>J. Soil Mech. Found. Div.</em>, ASCE, 99(SM1), 45-73.</li>
+        <li>Mononobe, N. &amp; Matsuo, H. (1929). On the determination of earth pressures during earthquakes. <em>Proc. World Engineering Congress</em>, Tokyo, Vol. 9.</li>
+        <li>Okabe, S. (1926). General theory of earth pressures. <em>J. Japan Society of Civil Engineers</em>, 12(1).</li>
+        <li>Chao, G. (2019). CE75.05 Geotechnical Engineering for Tall Buildings Lecture Notes, Asian Institute of Technology, Thailand.</li>
+    </ol>
+</div>
+{% endblock %}

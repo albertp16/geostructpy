@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GeoStructPy{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #f4f6f8;
+            --card: #fff;
+            --border: #dce1e6;
+            --text: #333;
+            --muted: #6c757d;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding-top: 60px;
+        }
+        .top-bar {
+            background: var(--primary);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+        }
+        .top-bar .brand {
+            color: #fff;
+            font-size: 1.2em;
+            font-weight: 700;
+            text-decoration: none;
+            margin-right: 30px;
+        }
+        .top-bar nav a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            margin-right: 18px;
+            font-size: 0.9em;
+            transition: color 0.2s;
+        }
+        .top-bar nav a:hover,
+        .top-bar nav a.active {
+            color: #fff;
+        }
+        .top-bar .right-nav {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .top-bar .right-nav a {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85em;
+            text-decoration: none;
+        }
+        .top-bar .right-nav a:hover { color: #fff; }
+        .page-container {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .card h3 {
+            font-size: 1.1em;
+            color: var(--primary);
+            margin-top: 18px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 24px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+            color: var(--muted);
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52,152,219,0.15);
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-right: 8px;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #1a252f; }
+        .btn-accent { background: var(--accent); }
+        .btn-accent:hover { background: #2980b9; }
+        .btn-print {
+            background: #27ae60;
+        }
+        .btn-print:hover { background: #219a52; }
+        .results-box {
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            padding: 16px 20px;
+            margin-top: 16px;
+            line-height: 1.8;
+        }
+        .disclaimer {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            font-size: 0.85em;
+            color: #856404;
+        }
+        .disclaimer strong { color: #664d03; }
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        table.data-table th,
+        table.data-table td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: center;
+        }
+        table.data-table th {
+            background: var(--primary);
+            color: #fff;
+        }
+        table.data-table tr:nth-child(even) { background: #f8f9fa; }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--muted);
+            font-size: 0.8em;
+            margin-top: 40px;
+        }
+        @media print {
+            .top-bar, .btn, .no-print { display: none !important; }
+            body { padding-top: 0; }
+            .page-container { max-width: 100%; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+        }
+        @media (max-width: 640px) {
+            .form-row { grid-template-columns: 1fr; }
+            .top-bar nav a { font-size: 0.8em; margin-right: 10px; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="top-bar">
+        <a class="brand" href="/">GeoStructPy</a>
+        <nav>
+            <a href="/mononobe-okabe" {% if request.path == '/mononobe-okabe' %}class="active"{% endif %}>Mononobe-Okabe</a>
+            <a href="/terzaghi" {% if request.path == '/terzaghi' %}class="active"{% endif %}>Terzaghi</a>
+            <a href="/meyerhof" {% if request.path == '/meyerhof' %}class="active"{% endif %}>Meyerhof</a>
+            <a href="/stability" {% if request.path == '/stability' %}class="active"{% endif %}>Wall Stability</a>
+            <a href="/micropile" {% if request.path == '/micropile' %}class="active"{% endif %}>Micropile</a>
+            <a href="/theory" {% if request.path == '/theory' %}class="active"{% endif %}>Theory</a>
+        </nav>
+        <div class="right-nav">
+            <a href="/changelog">Changelog</a>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <div class="disclaimer">
+            <strong>Disclaimer:</strong> This tool is intended for use by the APEC Consultancy team for preliminary geotechnical calculations only.
+            The developers assume no liability for design decisions made based on the output of this application.
+            All results must be verified by a qualified geotechnical or structural engineer before use in any project.
+        </div>
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+        GeoStructPy &copy; 2024&ndash;2026 Albert Pamonag | APEC Consultancy |
+        <a href="/changelog" style="color:var(--muted);">v0.2.0</a>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}GeoStructPy - Geotechnical Engineering Tools{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>GeoStructPy - Geotechnical Engineering Tools</h2>
+    <p>Open-source geotechnical calculation suite for structural engineers. Select a module below to get started.</p>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:16px; margin-top:20px;">
+        <a href="/mononobe-okabe" style="text-decoration:none;">
+            <div style="background:#eaf2f8; border:1px solid #aed6f1; border-radius:8px; padding:20px; text-align:center; transition:transform 0.2s;">
+                <h3 style="color:#2c3e50; margin:0 0 8px;">Mononobe-Okabe</h3>
+                <p style="color:#6c757d; font-size:0.85em; margin:0;">Seismic earth pressure analysis for retaining walls</p>
+            </div>
+        </a>
+        <a href="/terzaghi" style="text-decoration:none;">
+            <div style="background:#eafaf1; border:1px solid #a9dfbf; border-radius:8px; padding:20px; text-align:center;">
+                <h3 style="color:#2c3e50; margin:0 0 8px;">Terzaghi</h3>
+                <p style="color:#6c757d; font-size:0.85em; margin:0;">Bearing capacity for strip, square, and circular footings</p>
+            </div>
+        </a>
+        <a href="/meyerhof" style="text-decoration:none;">
+            <div style="background:#fef9e7; border:1px solid #f9e79f; border-radius:8px; padding:20px; text-align:center;">
+                <h3 style="color:#2c3e50; margin:0 0 8px;">Meyerhof</h3>
+                <p style="color:#6c757d; font-size:0.85em; margin:0;">Bearing capacity with shape, depth, and inclination factors</p>
+            </div>
+        </a>
+        <a href="/stability" style="text-decoration:none;">
+            <div style="background:#f5eef8; border:1px solid #d2b4de; border-radius:8px; padding:20px; text-align:center;">
+                <h3 style="color:#2c3e50; margin:0 0 8px;">Wall Stability</h3>
+                <p style="color:#6c757d; font-size:0.85em; margin:0;">Retaining wall sliding and overturning safety checks</p>
+            </div>
+        </a>
+        <a href="/micropile" style="text-decoration:none;">
+            <div style="background:#e8f6f3; border:1px solid #a2d9ce; border-radius:8px; padding:20px; text-align:center;">
+                <h3 style="color:#2c3e50; margin:0 0 8px;">Micropile</h3>
+                <p style="color:#6c757d; font-size:0.85em; margin:0;">Micropile design per AISC 360, ACI 318-25, and IBC 2024</p>
+            </div>
+        </a>
+        <a href="/theory" style="text-decoration:none;">
+            <div style="background:#fdf2e9; border:1px solid #f5cba7; border-radius:8px; padding:20px; text-align:center;">
+                <h3 style="color:#2c3e50; margin:0 0 8px;">Theory &amp; Notes</h3>
+                <p style="color:#6c757d; font-size:0.85em; margin:0;">Technical background on bearing capacity and earth pressure methods</p>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>References</h2>
+    <ul style="line-height:1.8;">
+        <li>Terzaghi, K. (1943). <em>Theoretical Soil Mechanics</em>. Wiley.</li>
+        <li>Meyerhof, G.G. (1963). Some recent research on the bearing capacity of foundations. <em>Canadian Geotechnical Journal</em>, 1(1), 16-26.</li>
+        <li>Das, B., Sivakugan, N. (2017). <em>Principles of Foundation Engineering</em> (9th ed.). Cengage.</li>
+        <li>Poulos, H. (2017). <em>Tall Building Foundation Design</em>. CRC Press.</li>
+        <li>Lecture Notes, CE75.05 Geotechnical Engineering for Tall Buildings, AIT Thailand (Dr. Geoff Chao, 2019).</li>
+    </ul>
+</div>
+{% endblock %}
