@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Micropile Design - GeoStructPy{% endblock %}
 {% block content %}
+{% raw %}
 <div id="app">
     <div class="card">
         <h2>Micropile Design Calculator</h2>
         <p style="color:var(--muted);font-size:0.9em;">
-            High-capacity small-diameter pile design per AISC 360-22, ACI 318-25, and 2024 IBC 1807.3.
+            High-capacity small-diameter pile design per NSCP 2015, AISC 14th Edition, and ACI 318-14/19.
             Steel casing capacity is not included (potential corrosion). Reinforcing bar is at center of pile.
         </p>
         <div class="form-row">
@@ -151,6 +152,7 @@
         </table>
     </div>
 </div>
+{% endraw %}
 {% endblock %}
 
 {% block scripts %}

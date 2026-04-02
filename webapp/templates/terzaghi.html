@@ -138,13 +138,29 @@ createApp({
         },
         plotFactors() {
             const angles = Array.from({length:51}, (_,i) => i);
+            const phi = this.p.phi;
+            const nc = interp(T_NC, phi), nq = interp(T_NQ, phi), ny = interp(T_NY, phi);
+            const xmin = 0.1; // log axis minimum
+
+            // Dashed projection lines: horizontal from y-axis to point, vertical from point down to x-axis
+            const projLines = [];
+            [[nc,'#2980b9'],[nq,'#e67e22'],[ny,'#27ae60']].forEach(([val,col]) => {
+                if (val > 0) {
+                    // Horizontal: from y-axis (xmin) to the point at phi
+                    projLines.push({x:[xmin,val], y:[phi,phi], mode:'lines', line:{color:col,width:1,dash:'dash'}, showlegend:false, hoverinfo:'skip'});
+                    // Vertical: from the point down to x-axis (phi=0)
+                    projLines.push({x:[val,val], y:[phi,0], mode:'lines', line:{color:col,width:1,dash:'dash'}, showlegend:false, hoverinfo:'skip'});
+                }
+            });
+
             Plotly.newPlot('bc-plot', [
                 {x: T_NC, y: angles, mode:'lines', name:'Nc', line:{color:'#2980b9',width:2}},
                 {x: T_NQ, y: angles, mode:'lines', name:'Nq', line:{color:'#e67e22',width:2}},
                 {x: T_NY, y: angles, mode:'lines', name:'N\u03B3', line:{color:'#27ae60',width:2}},
-                {x: [interp(T_NC, this.p.phi)], y: [this.p.phi], mode:'markers', name:'Current Nc', marker:{size:10,color:'#2980b9',symbol:'diamond'}},
-                {x: [interp(T_NQ, this.p.phi)], y: [this.p.phi], mode:'markers', name:'Current Nq', marker:{size:10,color:'#e67e22',symbol:'diamond'}},
-                {x: [interp(T_NY, this.p.phi)], y: [this.p.phi], mode:'markers', name:'Current N\u03B3', marker:{size:10,color:'#27ae60',symbol:'diamond'}}
+                ...projLines,
+                {x: [nc], y: [phi], mode:'markers', name:'Nc='+nc.toFixed(1), marker:{size:10,color:'#2980b9',symbol:'diamond'}},
+                {x: [nq], y: [phi], mode:'markers', name:'Nq='+nq.toFixed(1), marker:{size:10,color:'#e67e22',symbol:'diamond'}},
+                {x: [ny], y: [phi], mode:'markers', name:'N\u03B3='+ny.toFixed(1), marker:{size:10,color:'#27ae60',symbol:'diamond'}}
             ], {
                 title:'Terzaghi Bearing Capacity Factors',
                 xaxis:{title:'Bearing Capacity Factor', type:'log', range:[-1,3.2]},
