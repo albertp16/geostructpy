@@ -20,7 +20,7 @@ A lightweight Flask-based web app with interactive calculators, step-by-step equ
 | **Meyerhof** | Bearing capacity with shape, depth, and load inclination factors | Meyerhof (1963) |
 | **Mononobe-Okabe** | Seismic active/passive earth pressure coefficients | Mononobe-Okabe (1929) |
 | **Wall Stability** | Retaining wall sliding, overturning, and eccentricity checks | Rankine earth pressure |
-| **Micropile** | Micropile design with slenderness, soil capacity, lateral, flexural/axial, and shear checks | AISC 360-22, ACI 318-25, IBC 2024 |
+| **Micropile** | Micropile design with slenderness, soil capacity, lateral, flexural/axial, and shear checks | NSCP 2015, AISC 14th Ed., ACI 318-14/19 |
 | **Theory & Notes** | Technical background on all implemented methods | AIT CE75.05 lecture notes |
 
 ### How to Run the App
@@ -67,9 +67,15 @@ webapp/
     meyerhof.html     # Meyerhof bearing capacity calculator
     mononobe_okabe.html  # Seismic earth pressure calculator
     stability.html    # Retaining wall stability analysis
-    micropile.html    # Micropile design (AISC/ACI/IBC)
+    micropile.html    # Micropile design (NSCP/AISC/ACI)
     theory.html       # Technical notes & equations
     changelog.html    # Version history
+  static/js/
+    terzaghi.js       # Terzaghi calculation engine
+    meyerhof.js       # Meyerhof calculation engine
+    mononobe_okabe.js # Mononobe-Okabe calculation engine
+    stability.js      # Retaining wall stability engine
+    micropile.js      # Micropile design engine
 ```
 
 ## Python Library
@@ -107,12 +113,12 @@ pip install geostructpy
 - Secondary consolidation settlement
 
 **Micropile Design**
-- Slenderness check per AISC 360-22 E2/D1 (KL/r < 200)
-- Soil compression and tension capacity per ACI 318-25 13.3.1.1
-- Lateral soil capacity and required embedment depth per 2024 IBC 1807.3
-- Concrete flexural and axial capacity with P-M interaction diagram
-- Concrete shear capacity per ACI 318-25 22.5
-- Rebar library (#6 through #18) with automatic bar properties
+- Slenderness check per AISC 14th Ed. E2/D1 (KL/r < 200)
+- Soil compression and tension capacity per ACI 318-14/19
+- Lateral soil capacity and required embedment depth per NSCP 2015
+- Concrete flexural and axial capacity with P-M interaction diagram (ACI 318-14 Sec. 21.2)
+- Concrete shear capacity per ACI 318-14/19 Sec. 22.5
+- Metric rebar library (10 mm through 40 mm) with LRFD load combinations
 
 **Deep Foundations** *(Under Development)*
 - Pile foundation design
