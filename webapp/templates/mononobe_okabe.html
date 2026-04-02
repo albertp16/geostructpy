@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Mononobe-Okabe Calculator - GeoStructPy{% endblock %}
 {% block content %}
-<div id="app">
+<div>
+    <form method="POST" action="/mononobe-okabe">
     <div class="card">
         <h2>Mononobe-Okabe Seismic Earth Pressure Calculator</h2>
         <div class="form-row">
@@ -9,82 +10,66 @@
                 <h3>Embankment Parameters</h3>
                 <div class="form-group">
                     <label>Unit Weight of Soil, &gamma;<sub>moist</sub> (kN/m&sup3;)</label>
-                    <input type="number" step="0.1" v-model.number="p.soil_weight">
+                    <input type="number" step="0.1" name="soil_weight" value="{{ params.soil_weight }}">
                 </div>
                 <div class="form-group">
                     <label>Height of Embankment, H (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.h_wall">
+                    <input type="number" step="0.01" name="h_wall" value="{{ params.h_wall }}">
                 </div>
                 <div class="form-group">
                     <label>Angle of Embankment Slope, &alpha; (deg)</label>
-                    <input type="number" step="0.1" v-model.number="p.alpha">
+                    <input type="number" step="0.1" name="alpha" value="{{ params.alpha }}">
                 </div>
                 <div class="form-group">
                     <label>Angle of Internal Friction, &phi; (deg)</label>
-                    <input type="number" step="0.1" v-model.number="p.phi">
+                    <input type="number" step="0.1" name="phi" value="{{ params.phi }}">
                 </div>
                 <div class="form-group">
                     <label>Angle of Wall Face from Horizontal, &beta; (deg)</label>
-                    <input type="number" step="0.1" v-model.number="p.beta">
+                    <input type="number" step="0.1" name="beta" value="{{ params.beta }}">
                 </div>
                 <div class="form-group">
                     <label>Wall-Soil Friction Angle, &delta; (deg)</label>
-                    <input type="number" step="0.1" v-model.number="p.delta">
+                    <input type="number" step="0.1" name="delta" value="{{ params.delta }}">
                 </div>
             </div>
             <div>
                 <h3>Seismic Parameters</h3>
                 <div class="form-group">
                     <label>Peak Ground Acceleration, PGA (g)</label>
-                    <input type="number" step="0.01" v-model.number="p.pga">
+                    <input type="number" step="0.01" name="pga" value="{{ params.pga }}">
                 </div>
                 <div class="form-group">
                     <label>Horizontal Seismic Coefficient, k<sub>h</sub></label>
-                    <input type="number" step="0.01" v-model.number="p.kh">
+                    <input type="number" step="0.01" name="kh" value="{{ params.kh }}">
                 </div>
                 <div class="form-group">
                     <label>Vertical Seismic Coefficient, k<sub>v</sub></label>
-                    <input type="number" step="0.01" v-model.number="p.kv">
-                </div>
-
-                <h3>Surcharge Parameters</h3>
-                <div class="form-group">
-                    <label>Type of Surcharge Loading</label>
-                    <select v-model="p.surcharge_type">
-                        <option>None</option>
-                        <option>Uniform</option>
-                        <option>Line</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Surcharge Load, q (kN/m&sup2;)</label>
-                    <input type="number" step="0.1" v-model.number="p.surcharge_load">
-                </div>
-                <div class="form-group">
-                    <label>Equivalent Height of Surcharge, H<sub>s</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.surcharge_height">
+                    <input type="number" step="0.01" name="kv" value="{{ params.kv }}">
                 </div>
             </div>
         </div>
 
         <div class="no-print">
-            <button class="btn btn-accent" @click="calculate">Calculate</button>
-            <button class="btn" @click="saveParams">Save</button>
-            <button class="btn" @click="loadParams">Load</button>
-            <button class="btn btn-print" @click="printReport()">Print Report</button>
+            <input type="submit" class="btn btn-accent" value="Calculate">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
         </div>
     </div>
+    </form>
 
-    <div class="card" v-if="results.length">
+    {% if results %}
+    <div class="card">
         <h2>Results</h2>
         <div class="results-box">
-            <div v-for="r in results" v-html="r"></div>
+            {% for r in results.results %}
+            <div>{{ r|safe }}</div>
+            {% endfor %}
         </div>
         <div id="pressure-plot" style="margin-top:16px;"></div>
     </div>
+    <script>
+        Plotly.newPlot('pressure-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
+    </script>
+    {% endif %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="/static/js/mononobe_okabe.js"></script>
 {% endblock %}

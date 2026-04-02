@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GeoStructPy{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
@@ -223,9 +222,16 @@
 
     <footer>
         GeoStructPy &copy; 2024&ndash;2026 Albert Pamonag | APEC Consultancy |
-        <a href="/changelog" style="color:var(--muted);">v0.2.0</a>
+        <a href="/changelog" style="color:var(--muted);">v0.3.0</a>
     </footer>
 
     {% block scripts %}{% endblock %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.MathJax && MathJax.typeset) {
+                MathJax.startup.promise.then(function() { MathJax.typeset(); });
+            }
+        });
+    </script>
 </body>
 </html>

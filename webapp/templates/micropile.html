@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Micropile Design - GeoStructPy{% endblock %}
 {% block content %}
-{% raw %}
-<div id="app">
+<div>
+    <form method="POST" action="/micropile" id="micropile-form">
     <div class="card">
         <h2>Micropile Design Calculator (Metric)</h2>
         <p style="color:var(--muted);font-size:0.9em;">
@@ -14,59 +14,61 @@
                 <h3>Section Properties</h3>
                 <div class="form-group">
                     <label>Section Diameter, D (mm)</label>
-                    <input type="number" step="10" v-model.number="p.D">
+                    <input type="number" step="10" name="D" value="{{ params.D }}">
                 </div>
                 <div class="form-group">
                     <label>Center Reinforcing Bar Diameter, d<sub>b</sub> (mm)</label>
-                    <select v-model.number="p.db">
-                        <option v-for="d in barSizes" :value="d">{{ d }} mm</option>
+                    <select name="db">
+                        {% for d in bar_sizes %}
+                        <option value="{{ d }}" {% if params.db == d %}selected{% endif %}>{{ d }} mm</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Number of Center Bars, n</label>
-                    <input type="number" step="1" min="1" v-model.number="p.nbar">
+                    <input type="number" step="1" min="1" name="nbar" value="{{ params.nbar }}">
                 </div>
                 <div class="form-group">
                     <label>Rebar Yield Stress, f<sub>y</sub> (MPa)</label>
-                    <input type="number" step="5" v-model.number="p.fy">
+                    <input type="number" step="5" name="fy" value="{{ params.fy }}">
                 </div>
                 <div class="form-group">
                     <label>Concrete Strength, f'<sub>c</sub> (MPa)</label>
-                    <input type="number" step="1" v-model.number="p.fc">
+                    <input type="number" step="1" name="fc" value="{{ params.fc }}">
                 </div>
                 <div class="form-group">
                     <label>Concrete Cover, cc (mm)</label>
-                    <input type="number" step="5" v-model.number="p.cc">
+                    <input type="number" step="5" name="cc" value="{{ params.cc }}">
                 </div>
             </div>
             <div>
                 <h3>Soil &amp; Embedment</h3>
                 <div class="form-group">
                     <label>Restrained at Grade?</label>
-                    <select v-model.number="p.restrained">
-                        <option :value="1">Yes</option>
-                        <option :value="0">No</option>
+                    <select name="restrained">
+                        <option value="1" {% if params.restrained == 1 %}selected{% endif %}>Yes</option>
+                        <option value="0" {% if params.restrained == 0 %}selected{% endif %}>No</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Allowable Rock End Bearing, Q<sub>a</sub> (kPa)</label>
-                    <input type="number" step="10" v-model.number="p.Qa">
+                    <input type="number" step="10" name="Qa" value="{{ params.Qa }}">
                 </div>
                 <div class="form-group">
                     <label>Allowable Skin Friction, F<sub>a</sub> (kPa)</label>
-                    <input type="number" step="1" v-model.number="p.Fa">
+                    <input type="number" step="1" name="Fa" value="{{ params.Fa }}">
                 </div>
                 <div class="form-group">
                     <label>Lateral Soil Capacity, P<sub>p</sub> (kPa/m)</label>
-                    <input type="number" step="1" v-model.number="p.Pp">
+                    <input type="number" step="1" name="Pp" value="{{ params.Pp }}">
                 </div>
                 <div class="form-group">
                     <label>Height Above Grade, H (m)</label>
-                    <input type="number" step="0.1" v-model.number="p.H">
+                    <input type="number" step="0.1" name="H" value="{{ params.H }}">
                 </div>
                 <div class="form-group">
                     <label>Total Embedment, d (m)</label>
-                    <input type="number" step="0.5" v-model.number="p.d">
+                    <input type="number" step="0.5" name="d" value="{{ params.d }}">
                 </div>
             </div>
         </div>
@@ -78,7 +80,8 @@
         <p style="color:var(--muted);font-size:0.85em;">
             Enter factored loads for each combination. The governing (maximum) values will be used for design checks.
         </p>
-        <table class="data-table" style="font-size:0.9em;">
+        <input type="hidden" name="lc_count" id="lc_count" value="{{ load_combos|length }}">
+        <table class="data-table" style="font-size:0.9em;" id="lc-table">
             <thead>
                 <tr>
                     <th style="width:40px;">#</th>
@@ -90,105 +93,149 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="(lc, idx) in loadCombos" :style="idx === govIdx ? 'background:#fff3cd' : ''">
-                    <td>{{ idx + 1 }}</td>
-                    <td><input type="text" v-model="lc.label" style="border:none;width:100%;padding:2px 4px;background:transparent;"></td>
-                    <td><input type="number" step="0.1" v-model.number="lc.Pu" style="width:100%;text-align:center;"></td>
-                    <td><input type="number" step="0.1" v-model.number="lc.Vu" style="width:100%;text-align:center;"></td>
-                    <td><input type="number" step="0.1" v-model.number="lc.Mu" style="width:100%;text-align:center;"></td>
-                    <td class="no-print"><button style="cursor:pointer;border:none;background:none;color:#e74c3c;" @click="removeLc(idx)">x</button></td>
+                {% for lc in load_combos %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><input type="text" name="lc_label_{{ loop.index0 }}" value="{{ lc.label }}" style="border:none;width:100%;padding:2px 4px;background:transparent;"></td>
+                    <td><input type="number" step="0.1" name="lc_Pu_{{ loop.index0 }}" value="{{ lc.Pu }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="lc_Vu_{{ loop.index0 }}" value="{{ lc.Vu }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="lc_Mu_{{ loop.index0 }}" value="{{ lc.Mu }}" style="width:100%;text-align:center;"></td>
+                    <td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removeRow(this)">x</button></td>
                 </tr>
+                {% endfor %}
             </tbody>
+            {% if results %}
             <tfoot>
                 <tr style="font-weight:bold;background:#eaf2f8;">
                     <td colspan="2">Governing (max absolute)</td>
-                    <td>{{ f(gov.Pu,1) }}</td>
-                    <td>{{ f(gov.Vu,1) }}</td>
-                    <td>{{ f(gov.Mu,1) }}</td>
+                    <td>{{ "%.1f"|format(results.gov.Pu) }}</td>
+                    <td>{{ "%.1f"|format(results.gov.Vu) }}</td>
+                    <td>{{ "%.1f"|format(results.gov.Mu) }}</td>
                     <td class="no-print"></td>
                 </tr>
             </tfoot>
+            {% endif %}
         </table>
         <div class="no-print" style="margin-top:8px;">
-            <button class="btn" @click="addLc" style="font-size:0.85em;padding:6px 14px;">+ Add Combination</button>
+            <button type="button" class="btn" onclick="addRow()" style="font-size:0.85em;padding:6px 14px;">+ Add Combination</button>
         </div>
     </div>
 
     <div class="no-print" style="margin-bottom:16px;">
-        <button class="btn btn-accent" @click="calculate">Calculate</button>
-        <button class="btn btn-print" @click="window.print()">Print Report</button>
+        <input type="submit" class="btn btn-accent" value="Calculate">
+        <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
     </div>
+    </form>
 
+    {% if results %}
     <!-- Input Summary -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>Input Data &amp; Design Summary</h2>
         <div class="results-box">
-            <div v-html="summaryReport"></div>
+            <div>{{ results.summaryReport|safe }}</div>
         </div>
     </div>
 
     <!-- Slenderness -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>1. Minimum Slenderness Check (AISC 14th Ed. E2 / D1)</h2>
         <div class="results-box">
-            <div v-html="slendernessReport"></div>
+            <div>{{ results.slendernessReport|safe }}</div>
         </div>
     </div>
 
     <!-- Soil Capacity -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>2. Soil Compression / Tension Capacity (ACI 318-14/19)</h2>
         <div class="results-box">
-            <div v-html="soilReport"></div>
+            <div>{{ results.soilReport|safe }}</div>
         </div>
     </div>
 
     <!-- Lateral Capacity -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>3. Soil Lateral Capacity (NSCP 2015)</h2>
         <div class="results-box">
-            <div v-html="lateralReport"></div>
+            <div>{{ results.lateralReport|safe }}</div>
         </div>
     </div>
 
     <!-- Flexural & Axial -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>4. Concrete Flexural &amp; Axial Capacity (ACI 318-14/19)</h2>
         <div class="results-box">
-            <div v-html="flexuralReport"></div>
+            <div>{{ results.flexuralReport|safe }}</div>
         </div>
         <div id="interaction-plot" style="margin-top:16px;"></div>
     </div>
 
     <!-- Shear -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>5. Concrete Shear Capacity (ACI 318-14/19 Sec. 22.5)</h2>
         <div class="results-box">
-            <div v-html="shearReport"></div>
+            <div>{{ results.shearReport|safe }}</div>
         </div>
     </div>
 
     <!-- Overall -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>Design Summary</h2>
         <table class="data-table">
             <thead><tr><th>Check</th><th>Demand</th><th>Capacity</th><th>Status</th></tr></thead>
             <tbody>
-                <tr v-for="row in summaryTable">
+                {% for row in results.summaryTable %}
+                <tr>
                     <td>{{ row.check }}</td>
                     <td>{{ row.demand }}</td>
                     <td>{{ row.capacity }}</td>
-                    <td :style="{color: row.pass ? '#27ae60':'#e74c3c', fontWeight:'bold'}">{{ row.pass ? 'PASS':'FAIL' }}</td>
+                    <td style="color:{{ '#27ae60' if row.pass else '#e74c3c' }};font-weight:bold;">{{ 'PASS' if row.pass else 'FAIL' }}</td>
                 </tr>
+                {% endfor %}
             </tbody>
         </table>
-        <p v-if="allPass" style="color:#27ae60;font-weight:bold;margin-top:12px;font-size:1.1em;">THE DESIGN IS ADEQUATE.</p>
-        <p v-else style="color:#e74c3c;font-weight:bold;margin-top:12px;font-size:1.1em;">DESIGN DOES NOT PASS ALL CHECKS.</p>
+        {% if results.allPass %}
+        <p style="color:#27ae60;font-weight:bold;margin-top:12px;font-size:1.1em;">THE DESIGN IS ADEQUATE.</p>
+        {% else %}
+        <p style="color:#e74c3c;font-weight:bold;margin-top:12px;font-size:1.1em;">DESIGN DOES NOT PASS ALL CHECKS.</p>
+        {% endif %}
     </div>
-</div>
-{% endraw %}
-{% endblock %}
 
-{% block scripts %}
-<script src="/static/js/micropile.js"></script>
+    <script>
+        Plotly.newPlot('interaction-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
+    </script>
+    {% endif %}
+</div>
+
+<script>
+function addRow() {
+    var tbody = document.querySelector('#lc-table tbody');
+    var count = tbody.rows.length;
+    var row = tbody.insertRow();
+    row.innerHTML =
+        '<td>' + (count + 1) + '</td>' +
+        '<td><input type="text" name="lc_label_' + count + '" value="New Combination" style="border:none;width:100%;padding:2px 4px;background:transparent;"></td>' +
+        '<td><input type="number" step="0.1" name="lc_Pu_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.1" name="lc_Vu_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.1" name="lc_Mu_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
+        '<td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removeRow(this)">x</button></td>';
+    document.getElementById('lc_count').value = count + 1;
+}
+function removeRow(btn) {
+    var tbody = document.querySelector('#lc-table tbody');
+    if (tbody.rows.length > 1) {
+        btn.closest('tr').remove();
+        // Re-index
+        var rows = tbody.rows;
+        for (var i = 0; i < rows.length; i++) {
+            rows[i].cells[0].textContent = i + 1;
+            var inputs = rows[i].querySelectorAll('input');
+            inputs[0].name = 'lc_label_' + i;
+            inputs[1].name = 'lc_Pu_' + i;
+            inputs[2].name = 'lc_Vu_' + i;
+            inputs[3].name = 'lc_Mu_' + i;
+        }
+        document.getElementById('lc_count').value = rows.length;
+    }
+}
+</script>
 {% endblock %}

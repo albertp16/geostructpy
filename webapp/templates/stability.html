@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Retaining Wall Stability - GeoStructPy{% endblock %}
 {% block content %}
-{% raw %}
-<div id="app">
+<div>
+    <form method="POST" action="/stability">
     <div class="card">
         <h2>Cantilever Retaining Wall Stability Analysis</h2>
         <p style="color:var(--muted);font-size:0.9em;">
@@ -14,66 +14,68 @@
                 <h3>Wall Geometry</h3>
                 <div class="form-group">
                     <label>Height Above Ground, h<sub>1</sub> (m)</label>
-                    <input type="number" step="0.1" v-model.number="p.h1">
+                    <input type="number" step="0.1" name="h1" value="{{ params.h1 }}">
                 </div>
                 <div class="form-group">
                     <label>Height Below Ground, h<sub>2</sub> (m)</label>
-                    <input type="number" step="0.1" v-model.number="p.h2">
+                    <input type="number" step="0.1" name="h2" value="{{ params.h2 }}">
                 </div>
                 <div class="form-group">
                     <label>Stem Thickness, t<sub>stem</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.t_stem">
+                    <input type="number" step="0.01" name="t_stem" value="{{ params.t_stem }}">
                 </div>
                 <div class="form-group">
                     <label>Base Thickness, t<sub>base</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.t_base">
+                    <input type="number" step="0.01" name="t_base" value="{{ params.t_base }}">
                 </div>
                 <div class="form-group">
                     <label>Total Base Width, b<sub>base</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.b_base">
+                    <input type="number" step="0.01" name="b_base" value="{{ params.b_base }}">
                 </div>
                 <div class="form-group">
                     <label>Heel Width, b<sub>heel</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.b_heel">
+                    <input type="number" step="0.01" name="b_heel" value="{{ params.b_heel }}">
                 </div>
             </div>
             <div>
                 <h3>Soil &amp; Material Properties</h3>
                 <div class="form-group">
                     <label>Soil Unit Weight, &gamma;<sub>s</sub> (kN/m&sup3;)</label>
-                    <input type="number" step="0.1" v-model.number="p.gamma_s">
+                    <input type="number" step="0.1" name="gamma_s" value="{{ params.gamma_s }}">
                 </div>
                 <div class="form-group">
                     <label>Soil Friction Angle, &phi; (deg)</label>
-                    <input type="number" step="0.1" v-model.number="p.phi">
+                    <input type="number" step="0.1" name="phi" value="{{ params.phi }}">
                 </div>
                 <div class="form-group">
                     <label>Soil-Concrete Friction Coefficient, &mu;</label>
-                    <input type="number" step="0.01" v-model.number="p.mu">
+                    <input type="number" step="0.01" name="mu" value="{{ params.mu }}">
                 </div>
                 <div class="form-group">
                     <label>Allowable Soil Bearing, q<sub>all</sub> (kPa)</label>
-                    <input type="number" step="1" v-model.number="p.q_bearing">
+                    <input type="number" step="1" name="q_bearing" value="{{ params.q_bearing }}">
                 </div>
                 <div class="form-group">
                     <label>Concrete Unit Weight, &gamma;<sub>c</sub> (kN/m&sup3;)</label>
-                    <input type="number" step="0.1" v-model.number="p.gamma_c">
+                    <input type="number" step="0.1" name="gamma_c" value="{{ params.gamma_c }}">
                 </div>
                 <div class="form-group">
                     <label>Surcharge, q (kPa)</label>
-                    <input type="number" step="0.1" v-model.number="p.q">
+                    <input type="number" step="0.1" name="q" value="{{ params.q }}">
                 </div>
             </div>
         </div>
 
         <div class="no-print">
-            <button class="btn btn-accent" @click="calculate">Calculate</button>
-            <button class="btn btn-print" @click="window.print()">Print Report</button>
+            <input type="submit" class="btn btn-accent" value="Calculate">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
         </div>
     </div>
+    </form>
 
+    {% if results %}
     <!-- Wall Diagram -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>Wall Diagram &amp; Pressure Distribution</h2>
         <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px;">
             <div id="wall-plot"></div>
@@ -82,38 +84,44 @@
     </div>
 
     <!-- Results -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>Results</h2>
         <div class="results-box">
-            <div v-html="report"></div>
+            <div>{{ results.report|safe }}</div>
         </div>
     </div>
 
     <!-- Summary Table -->
-    <div class="card" v-if="computed">
+    <div class="card">
         <h2>Design Summary</h2>
         <table class="data-table">
             <thead>
                 <tr><th>Check</th><th>Driving</th><th>Resisting</th><th>FS / Value</th><th>Required</th><th>Status</th></tr>
             </thead>
             <tbody>
-                <tr v-for="row in summary">
+                {% for row in results.summary %}
+                <tr>
                     <td>{{ row.name }}</td>
                     <td>{{ row.driving }}</td>
                     <td>{{ row.resisting }}</td>
                     <td><strong>{{ row.fs }}</strong></td>
                     <td>{{ row.req }}</td>
-                    <td :style="{color: row.pass ? '#27ae60' : '#e74c3c', fontWeight:'bold'}">{{ row.pass ? 'PASS' : 'FAIL' }}</td>
+                    <td style="color:{{ '#27ae60' if row.pass else '#e74c3c' }};font-weight:bold;">{{ 'PASS' if row.pass else 'FAIL' }}</td>
                 </tr>
+                {% endfor %}
             </tbody>
         </table>
-        <p v-if="allPass" style="color:#27ae60;font-weight:bold;margin-top:12px;font-size:1.1em;">THE WALL DESIGN IS ADEQUATE.</p>
-        <p v-else style="color:#e74c3c;font-weight:bold;margin-top:12px;font-size:1.1em;">DESIGN DOES NOT PASS ALL CHECKS.</p>
+        {% if results.allPass %}
+        <p style="color:#27ae60;font-weight:bold;margin-top:12px;font-size:1.1em;">THE WALL DESIGN IS ADEQUATE.</p>
+        {% else %}
+        <p style="color:#e74c3c;font-weight:bold;margin-top:12px;font-size:1.1em;">DESIGN DOES NOT PASS ALL CHECKS.</p>
+        {% endif %}
     </div>
-</div>
-{% endraw %}
-{% endblock %}
 
-{% block scripts %}
-<script src="/static/js/stability.js"></script>
+    <script>
+        Plotly.newPlot('wall-plot', {{ results.wall_traces|tojson }}, {{ results.wall_layout|tojson }}, {responsive: true, displayModeBar: false});
+        Plotly.newPlot('pressure-plot', {{ results.pressure_traces|tojson }}, {{ results.pressure_layout|tojson }}, {responsive: true, displayModeBar: false});
+    </script>
+    {% endif %}
+</div>
 {% endblock %}

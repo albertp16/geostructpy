@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Meyerhof Bearing Capacity - GeoStructPy{% endblock %}
 {% block content %}
-<div id="app">
+<div>
+    <form method="POST" action="/meyerhof">
     <div class="card">
         <h2>Meyerhof (1963) Bearing Capacity Calculator</h2>
         <p style="color:var(--muted);font-size:0.9em;">
@@ -12,67 +13,69 @@
                 <h3>Soil Parameters</h3>
                 <div class="form-group">
                     <label>Cohesion, c' (kPa)</label>
-                    <input type="number" step="0.1" v-model.number="p.c">
+                    <input type="number" step="0.1" name="c" value="{{ params.c }}">
                 </div>
                 <div class="form-group">
                     <label>Unit Weight, &gamma; (kN/m&sup3;)</label>
-                    <input type="number" step="0.1" v-model.number="p.gamma">
+                    <input type="number" step="0.1" name="gamma" value="{{ params.gamma }}">
                 </div>
                 <div class="form-group">
                     <label>Friction Angle, &phi;' (deg)</label>
-                    <input type="number" step="1" min="0" max="50" v-model.number="p.phi">
+                    <input type="number" step="1" min="0" max="50" name="phi" value="{{ params.phi }}">
                 </div>
                 <div class="form-group">
                     <label>Load Inclination, &theta; (deg from vertical)</label>
-                    <input type="number" step="0.1" v-model.number="p.theta">
+                    <input type="number" step="0.1" name="theta" value="{{ params.theta }}">
                 </div>
             </div>
             <div>
                 <h3>Foundation Parameters</h3>
                 <div class="form-group">
                     <label>Foundation Shape</label>
-                    <select v-model="p.shape">
-                        <option value="strip">Strip (L >> B)</option>
-                        <option value="rectangular">Rectangular</option>
-                        <option value="square">Square</option>
-                        <option value="circular">Circular</option>
+                    <select name="shape" id="shape-select" onchange="document.getElementById('L-group').style.display = this.value==='rectangular' ? '' : 'none';">
+                        <option value="strip" {% if params.shape == 'strip' %}selected{% endif %}>Strip (L >> B)</option>
+                        <option value="rectangular" {% if params.shape == 'rectangular' %}selected{% endif %}>Rectangular</option>
+                        <option value="square" {% if params.shape == 'square' %}selected{% endif %}>Square</option>
+                        <option value="circular" {% if params.shape == 'circular' %}selected{% endif %}>Circular</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Width, B (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.B">
+                    <input type="number" step="0.01" name="B" value="{{ params.B }}">
                 </div>
-                <div class="form-group" v-if="p.shape==='rectangular'">
+                <div class="form-group" id="L-group" style="{% if params.shape != 'rectangular' %}display:none;{% endif %}">
                     <label>Length, L (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.L">
+                    <input type="number" step="0.01" name="L" value="{{ params.L }}">
                 </div>
                 <div class="form-group">
                     <label>Depth of Foundation, D<sub>f</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.Df">
+                    <input type="number" step="0.01" name="Df" value="{{ params.Df }}">
                 </div>
                 <div class="form-group">
                     <label>Factor of Safety, FS</label>
-                    <input type="number" step="0.1" v-model.number="p.FS">
+                    <input type="number" step="0.1" name="FS" value="{{ params.FS }}">
                 </div>
             </div>
         </div>
 
         <div class="no-print">
-            <button class="btn btn-accent" @click="calculate">Calculate</button>
-            <button class="btn btn-print" @click="window.print()">Print Report</button>
+            <input type="submit" class="btn btn-accent" value="Calculate">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
         </div>
     </div>
+    </form>
 
-    <div class="card" v-if="computed">
+    {% if results %}
+    <div class="card">
         <h2>Results</h2>
         <div class="results-box">
-            <div v-html="report"></div>
+            <div>{{ results.report|safe }}</div>
         </div>
         <div id="mey-plot" style="margin-top:16px;"></div>
     </div>
+    <script>
+        Plotly.newPlot('mey-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
+    </script>
+    {% endif %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="/static/js/meyerhof.js"></script>
 {% endblock %}
