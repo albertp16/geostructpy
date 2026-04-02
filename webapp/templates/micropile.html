@@ -4,7 +4,7 @@
 {% raw %}
 <div id="app">
     <div class="card">
-        <h2>Micropile Design Calculator</h2>
+        <h2>Micropile Design Calculator (Metric)</h2>
         <p style="color:var(--muted);font-size:0.9em;">
             High-capacity small-diameter pile design per NSCP 2015, AISC 14th Edition, and ACI 318-14/19.
             Steel casing capacity is not included (potential corrosion). Reinforcing bar is at center of pile.
@@ -13,40 +13,30 @@
             <div>
                 <h3>Section Properties</h3>
                 <div class="form-group">
-                    <label>Section Diameter, D (in)</label>
-                    <input type="number" step="0.5" v-model.number="p.D">
+                    <label>Section Diameter, D (mm)</label>
+                    <input type="number" step="10" v-model.number="p.D">
                 </div>
                 <div class="form-group">
-                    <label>Center Reinforcing Bar (#)</label>
-                    <select v-model.number="p.barNum">
-                        <option :value="n" v-for="n in [6,7,8,9,10,11,14,18]">#{{ n }}</option>
+                    <label>Center Reinforcing Bar Diameter, d<sub>b</sub> (mm)</label>
+                    <select v-model.number="p.db">
+                        <option v-for="d in barSizes" :value="d">{{ d }} mm</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Rebar Yield Stress, f<sub>y</sub> (ksi)</label>
-                    <input type="number" step="1" v-model.number="p.fy">
+                    <label>Number of Center Bars, n</label>
+                    <input type="number" step="1" min="1" v-model.number="p.nbar">
                 </div>
                 <div class="form-group">
-                    <label>Concrete Strength, f'<sub>c</sub> (ksi)</label>
-                    <input type="number" step="0.5" v-model.number="p.fc">
+                    <label>Rebar Yield Stress, f<sub>y</sub> (MPa)</label>
+                    <input type="number" step="5" v-model.number="p.fy">
                 </div>
                 <div class="form-group">
-                    <label>&beta;<sub>1</sub> (max concrete stress factor)</label>
-                    <input type="number" step="0.01" v-model.number="p.beta1">
-                </div>
-
-                <h3>Service Loads (ASD)</h3>
-                <div class="form-group">
-                    <label>Axial Load, P (kips) [+ compression, - tension]</label>
-                    <input type="number" step="0.1" v-model.number="p.P">
+                    <label>Concrete Strength, f'<sub>c</sub> (MPa)</label>
+                    <input type="number" step="1" v-model.number="p.fc">
                 </div>
                 <div class="form-group">
-                    <label>Moment, M (ft-kips)</label>
-                    <input type="number" step="0.01" v-model.number="p.M">
-                </div>
-                <div class="form-group">
-                    <label>Shear, F (kips)</label>
-                    <input type="number" step="0.01" v-model.number="p.F">
+                    <label>Concrete Cover, cc (mm)</label>
+                    <input type="number" step="5" v-model.number="p.cc">
                 </div>
             </div>
             <div>
@@ -59,32 +49,74 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Allowable Rock End Bearing, Q<sub>a</sub> (ksf)</label>
-                    <input type="number" step="1" v-model.number="p.Qa">
+                    <label>Allowable Rock End Bearing, Q<sub>a</sub> (kPa)</label>
+                    <input type="number" step="10" v-model.number="p.Qa">
                 </div>
                 <div class="form-group">
-                    <label>Allowable Skin Friction, F<sub>a</sub> (ksf)</label>
-                    <input type="number" step="0.1" v-model.number="p.Fa">
+                    <label>Allowable Skin Friction, F<sub>a</sub> (kPa)</label>
+                    <input type="number" step="1" v-model.number="p.Fa">
                 </div>
                 <div class="form-group">
-                    <label>Lateral Soil Capacity, P<sub>p</sub> (ksf/ft)</label>
-                    <input type="number" step="0.01" v-model.number="p.Pp">
+                    <label>Lateral Soil Capacity, P<sub>p</sub> (kPa/m)</label>
+                    <input type="number" step="1" v-model.number="p.Pp">
                 </div>
                 <div class="form-group">
-                    <label>Height Above Grade, H (ft)</label>
+                    <label>Height Above Grade, H (m)</label>
                     <input type="number" step="0.1" v-model.number="p.H">
                 </div>
                 <div class="form-group">
-                    <label>Total Embedment, d (ft)</label>
+                    <label>Total Embedment, d (m)</label>
                     <input type="number" step="0.5" v-model.number="p.d">
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="no-print">
-            <button class="btn btn-accent" @click="calculate">Calculate</button>
-            <button class="btn btn-print" @click="window.print()">Print Report</button>
+    <!-- LRFD Load Combinations Table -->
+    <div class="card">
+        <h2>LRFD Load Combinations</h2>
+        <p style="color:var(--muted);font-size:0.85em;">
+            Enter factored loads for each combination. The governing (maximum) values will be used for design checks.
+        </p>
+        <table class="data-table" style="font-size:0.9em;">
+            <thead>
+                <tr>
+                    <th style="width:40px;">#</th>
+                    <th>Load Combination</th>
+                    <th style="width:110px;">P<sub>u</sub> (kN)</th>
+                    <th style="width:110px;">V<sub>u</sub> (kN)</th>
+                    <th style="width:110px;">M<sub>u</sub> (kN-m)</th>
+                    <th style="width:50px;" class="no-print"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(lc, idx) in loadCombos" :style="idx === govIdx ? 'background:#fff3cd' : ''">
+                    <td>{{ idx + 1 }}</td>
+                    <td><input type="text" v-model="lc.label" style="border:none;width:100%;padding:2px 4px;background:transparent;"></td>
+                    <td><input type="number" step="0.1" v-model.number="lc.Pu" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" v-model.number="lc.Vu" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" v-model.number="lc.Mu" style="width:100%;text-align:center;"></td>
+                    <td class="no-print"><button style="cursor:pointer;border:none;background:none;color:#e74c3c;" @click="removeLc(idx)">x</button></td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr style="font-weight:bold;background:#eaf2f8;">
+                    <td colspan="2">Governing (max absolute)</td>
+                    <td>{{ f(gov.Pu,1) }}</td>
+                    <td>{{ f(gov.Vu,1) }}</td>
+                    <td>{{ f(gov.Mu,1) }}</td>
+                    <td class="no-print"></td>
+                </tr>
+            </tfoot>
+        </table>
+        <div class="no-print" style="margin-top:8px;">
+            <button class="btn" @click="addLc" style="font-size:0.85em;padding:6px 14px;">+ Add Combination</button>
         </div>
+    </div>
+
+    <div class="no-print" style="margin-bottom:16px;">
+        <button class="btn btn-accent" @click="calculate">Calculate</button>
+        <button class="btn btn-print" @click="window.print()">Print Report</button>
     </div>
 
     <!-- Input Summary -->
@@ -97,7 +129,7 @@
 
     <!-- Slenderness -->
     <div class="card" v-if="computed">
-        <h2>1. Minimum Slenderness Check (AISC 360-22 E2 / D1)</h2>
+        <h2>1. Minimum Slenderness Check (AISC 14th Ed. E2 / D1)</h2>
         <div class="results-box">
             <div v-html="slendernessReport"></div>
         </div>
@@ -105,7 +137,7 @@
 
     <!-- Soil Capacity -->
     <div class="card" v-if="computed">
-        <h2>2. Soil Compression / Tension Capacity (ACI 318-25 13.3.1.1)</h2>
+        <h2>2. Soil Compression / Tension Capacity (ACI 318-14/19)</h2>
         <div class="results-box">
             <div v-html="soilReport"></div>
         </div>
@@ -113,7 +145,7 @@
 
     <!-- Lateral Capacity -->
     <div class="card" v-if="computed">
-        <h2>3. Soil Lateral Capacity (2024 IBC 1807.3)</h2>
+        <h2>3. Soil Lateral Capacity (NSCP 2015)</h2>
         <div class="results-box">
             <div v-html="lateralReport"></div>
         </div>
@@ -121,7 +153,7 @@
 
     <!-- Flexural & Axial -->
     <div class="card" v-if="computed">
-        <h2>4. Concrete Flexural &amp; Axial Capacity</h2>
+        <h2>4. Concrete Flexural &amp; Axial Capacity (ACI 318-14/19)</h2>
         <div class="results-box">
             <div v-html="flexuralReport"></div>
         </div>
@@ -130,7 +162,7 @@
 
     <!-- Shear -->
     <div class="card" v-if="computed">
-        <h2>5. Concrete Shear Capacity (ACI 318-25 10 &amp; 22.5)</h2>
+        <h2>5. Concrete Shear Capacity (ACI 318-14/19 Sec. 22.5)</h2>
         <div class="results-box">
             <div v-html="shearReport"></div>
         </div>
@@ -150,6 +182,8 @@
                 </tr>
             </tbody>
         </table>
+        <p v-if="allPass" style="color:#27ae60;font-weight:bold;margin-top:12px;font-size:1.1em;">THE DESIGN IS ADEQUATE.</p>
+        <p v-else style="color:#e74c3c;font-weight:bold;margin-top:12px;font-size:1.1em;">DESIGN DOES NOT PASS ALL CHECKS.</p>
     </div>
 </div>
 {% endraw %}
@@ -159,341 +193,368 @@
 <script>
 const { createApp } = Vue;
 
-// Rebar data: barNum -> { db (in), Ab (in²) }
-const REBAR = {
-    6:  {db:0.750, Ab:0.44},
-    7:  {db:0.875, Ab:0.60},
-    8:  {db:1.000, Ab:0.79},
-    9:  {db:1.128, Ab:1.00},
-    10: {db:1.270, Ab:1.27},
-    11: {db:1.410, Ab:1.56},
-    14: {db:1.693, Ab:2.25},
-    18: {db:2.257, Ab:4.00}
-};
-
 createApp({
     data() {
         return {
+            barSizes: [10, 12, 16, 20, 25, 28, 32, 36, 40],
             p: {
-                D: 8, barNum: 18, fy: 60, fc: 5, beta1: 0.85,
-                P: 79, M: 0.2, F: 0.18,
-                restrained: 0, Qa: 147, Fa: 0.5, Pp: 0.35,
-                H: 3, d: 30
+                D: 200, db: 25, nbar: 1, fy: 415, fc: 30, cc: 45,
+                restrained: 0, Qa: 7000, Fa: 24, Pp: 17, H: 0.91, d: 9.14
             },
+            loadCombos: [
+                { label: '1.2D + 1.6L',             Pu: 535, Vu: 1, Mu: 0 },
+                { label: '1.2D + 1.0L + 1.0E',      Pu: 480, Vu: 5, Mu: 2 },
+                { label: '0.9D + 1.0E',             Pu: 320, Vu: 5, Mu: 2 },
+                { label: '1.2D + 1.6L + 0.5S',      Pu: 535, Vu: 1, Mu: 0 }
+            ],
             computed: false,
-            summaryReport: '',
-            slendernessReport: '',
-            soilReport: '',
-            lateralReport: '',
-            flexuralReport: '',
-            shearReport: '',
-            summaryTable: []
+            summaryReport: '', slendernessReport: '', soilReport: '',
+            lateralReport: '', flexuralReport: '', shearReport: '',
+            summaryTable: [], allPass: false
         };
     },
+    computed: {
+        gov() {
+            let Pu = 0, Vu = 0, Mu = 0;
+            for (const lc of this.loadCombos) {
+                if (Math.abs(lc.Pu) > Math.abs(Pu)) Pu = lc.Pu;
+                if (Math.abs(lc.Vu) > Math.abs(Vu)) Vu = lc.Vu;
+                if (Math.abs(lc.Mu) > Math.abs(Mu)) Mu = lc.Mu;
+            }
+            return { Pu, Vu, Mu };
+        },
+        govIdx() {
+            let max = 0, idx = 0;
+            this.loadCombos.forEach((lc, i) => {
+                const v = Math.abs(lc.Pu) + Math.abs(lc.Vu)*10 + Math.abs(lc.Mu)*10;
+                if (v > max) { max = v; idx = i; }
+            });
+            return idx;
+        }
+    },
     methods: {
-        f(v, d=2) { return v.toFixed(d); },
+        f(v, d=2) { return Number(v).toFixed(d); },
+        addLc() { this.loadCombos.push({ label: 'New Combination', Pu: 0, Vu: 0, Mu: 0 }); },
+        removeLc(i) { if (this.loadCombos.length > 1) this.loadCombos.splice(i, 1); },
+
         calculate() {
             const p = this.p;
-            const bar = REBAR[p.barNum];
-            const db = bar.db;
-            const Ab = bar.Ab;
-            const D = p.D;           // in
-            const D_ft = D / 12;     // ft
-            const r = D / 4;         // radius of gyration for circular section (approx D/4)
-            const Ag = Math.PI * D * D / 4;  // gross area in²
-            const fc_psi = p.fc * 1000;
-            const Ec = 57 * Math.sqrt(fc_psi); // psi
-            const Ec_ksi = Ec / 1000;
-            const Es = 29000; // ksi
-            const beta_e = 1.0;
+            const D = p.D;           // mm
+            const D_m = D / 1000;    // m
+            const R = D / 2;         // mm
+            const db = p.db;         // mm
+            const Ab = Math.PI * db * db / 4 * p.nbar; // mm²
+            const Ag = Math.PI * D * D / 4;  // mm²
+            const cc = p.cc;
+            const fc = p.fc;         // MPa
+            const fy = p.fy;         // MPa
+            const Es = 200000;       // MPa
             const ecu = 0.003;
+            const ey = fy / Es;
+
+            // Tie diameter
+            const tie = db <= 32 ? 10 : 12;
+            const dprime = cc + tie + db / 2;  // mm (from compression face to bar center)
+            const deff = D - dprime;            // mm (effective depth)
+
+            // Beta1 per ACI 318-14/19
+            let beta1;
+            if (fc <= 28) beta1 = 0.85;
+            else beta1 = Math.max(0.85 - 0.05 * (fc - 28) / 7, 0.65);
+
+            // Ec
+            const Ec = 4700 * Math.sqrt(fc); // MPa
+
+            // Governing loads from LRFD table
+            const Pu = this.gov.Pu;  // kN
+            const Vu = this.gov.Vu;  // kN
+            const Mu = this.gov.Mu;  // kN-m
 
             // ===== SUMMARY =====
-            let sum = `<table class="data-table" style="max-width:500px;">`;
-            sum += `<tr><td style="text-align:left">Section Diameter, D</td><td>${D} in (${this.f(D*25.4,0)} mm)</td></tr>`;
-            sum += `<tr><td style="text-align:left">Center Bar</td><td>#${p.barNum} (A<sub>b</sub> = ${Ab} in&sup2;)</td></tr>`;
-            sum += `<tr><td style="text-align:left">f<sub>y</sub></td><td>${p.fy} ksi (${this.f(p.fy*6.895,0)} MPa)</td></tr>`;
-            sum += `<tr><td style="text-align:left">f'<sub>c</sub></td><td>${p.fc} ksi (${this.f(p.fc*6.895,0)} MPa)</td></tr>`;
-            sum += `<tr><td style="text-align:left">&beta;<sub>1</sub></td><td>${p.beta1} (${this.f(p.beta1*p.fc,2)} ksi on AISC, 1.0 on ACI)</td></tr>`;
-            sum += `<tr><td style="text-align:left">Service Axial P</td><td>${p.P} kips (${this.f(p.P*4.448,0)} kN), ASD</td></tr>`;
-            sum += `<tr><td style="text-align:left">Service Moment M</td><td>${p.M} ft-kips (${this.f(p.M*1.356,1)} kN-m), ASD</td></tr>`;
-            sum += `<tr><td style="text-align:left">Service Shear F</td><td>${p.F} kips (${this.f(p.F*4.448,1)} kN), ASD</td></tr>`;
-            sum += `<tr><td style="text-align:left">Height Above Grade, H</td><td>${p.H} ft (${this.f(p.H*0.3048,2)} m)</td></tr>`;
-            sum += `<tr><td style="text-align:left">Total Embedment, d</td><td>${p.d} ft (${this.f(p.d*0.3048,2)} m)</td></tr>`;
+            let sum = `<table class="data-table" style="max-width:550px;">`;
+            sum += `<tr><td style="text-align:left">Section Diameter, D</td><td>${D} mm</td></tr>`;
+            sum += `<tr><td style="text-align:left">Center Bar</td><td>${p.nbar} - ${db} mm (A<sub>s</sub> = ${this.f(Ab,0)} mm&sup2;)</td></tr>`;
+            sum += `<tr><td style="text-align:left">f<sub>y</sub></td><td>${fy} MPa</td></tr>`;
+            sum += `<tr><td style="text-align:left">f'<sub>c</sub></td><td>${fc} MPa</td></tr>`;
+            sum += `<tr><td style="text-align:left">&beta;<sub>1</sub></td><td>${this.f(beta1,4)}</td></tr>`;
+            sum += `<tr><td style="text-align:left">E<sub>c</sub></td><td>${this.f(Ec,0)} MPa</td></tr>`;
+            sum += `<tr><td style="text-align:left">d<sub>eff</sub></td><td>${this.f(deff,1)} mm</td></tr>`;
+            sum += `<tr><td style="text-align:left">d'</td><td>${this.f(dprime,1)} mm</td></tr>`;
+            sum += `<tr><td style="text-align:left">Height Above Grade, H</td><td>${p.H} m</td></tr>`;
+            sum += `<tr><td style="text-align:left">Total Embedment, d</td><td>${p.d} m</td></tr>`;
+            sum += `<tr style="font-weight:bold"><td style="text-align:left">Governing P<sub>u</sub></td><td>${this.f(Pu,1)} kN</td></tr>`;
+            sum += `<tr style="font-weight:bold"><td style="text-align:left">Governing V<sub>u</sub></td><td>${this.f(Vu,1)} kN</td></tr>`;
+            sum += `<tr style="font-weight:bold"><td style="text-align:left">Governing M<sub>u</sub></td><td>${this.f(Mu,1)} kN-m</td></tr>`;
             sum += `</table>`;
             this.summaryReport = sum;
 
-            // ===== 1. SLENDERNESS (AISC 360-22 E2/D1) =====
-            const K = p.restrained ? 1 : 1;
-            const L_ft = p.restrained ? p.H : (p.H + p.d);
-            const L_in = L_ft * 12;
-            const KLr = (K * L_in) / r;
+            // ===== 1. SLENDERNESS (AISC 14th E2/D1) =====
+            const K = 1;
+            const r_mm = D / 4;  // radius of gyration for circular
+            const L_mm = (p.restrained ? p.H : (p.H + p.d)) * 1000;
+            const KLr = (K * L_mm) / r_mm;
             const slenderOK = KLr < 200;
 
-            let sl = `\\[ \\frac{KL}{r} = \\frac{${K} \\times ${this.f(L_in,0)}}{${this.f(r,1)}} = ${this.f(KLr)} \\]`;
-            sl += `\\[ \\frac{KL}{r} = ${this.f(KLr)} \\quad ${slenderOK ? '<' : '\\geq'} \\quad 200 \\quad \\textbf{[${slenderOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
-            sl += `<p>where K = ${K}, L = ${L_ft} ft, r = D/4 = ${this.f(r,1)} in</p>`;
+            let sl = `\\[ \\frac{KL}{r} = \\frac{${K} \\times ${this.f(L_mm,0)}}{${this.f(r_mm,1)}} = ${this.f(KLr)} \\]`;
+            sl += `\\[ ${this.f(KLr)} \\quad ${slenderOK ? '<' : '\\geq'} \\quad 200 \\quad \\textbf{[${slenderOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
+            sl += `<p>where K = ${K}, L = ${this.f(L_mm/1000,2)} m = ${this.f(L_mm,0)} mm, r = D/4 = ${this.f(r_mm,1)} mm</p>`;
             this.slendernessReport = sl;
 
-            // ===== 2. SOIL COMPRESSION / TENSION (ACI 318-25 13.3.1.1) =====
-            const Qa_kips = p.Qa * Math.PI * (D_ft * D_ft) / 4;
-            const skin_total = Math.PI * D_ft * p.Fa * p.d;
-            const endBearing = p.Qa * Math.PI * (D_ft * D_ft) / 4;
+            // ===== 2. SOIL COMPRESSION / TENSION =====
+            const Ag_m2 = Math.PI * D_m * D_m / 4;
+            const perim_m = Math.PI * D_m;
+            const skin_total = perim_m * p.Fa * p.d;  // kN (Fa in kPa * d in m * perimeter)
+            const endBearing = p.Qa * Ag_m2;           // kN (Qa in kPa * area m²)
+            const Pc_capacity = skin_total + endBearing;
 
-            // Compression capacity
-            const Pc_capacity = Math.PI * D_ft * p.d * p.Fa + endBearing;
-            // Per the sheet: P + pi*D²/4 * [0.15(H+d) - 0.11d]
-            const pile_weight_factor = 0.15 * (p.H + p.d) - 0.11 * p.d;
-            const P_demand_comp = p.P + Math.PI * (D_ft * D_ft) / 4 * pile_weight_factor;
+            // Pile self-weight (approx 24 kN/m³ concrete)
+            const Wpile = 24 * Ag_m2 * (p.H + p.d);
+            const P_demand_comp = Pu + Wpile;
 
-            // Tension capacity check
-            const T_demand = Math.max(0, -p.P);
-            const T_capacity = Math.PI * D_ft * p.d * p.Fa;
+            const T_demand = Math.max(0, -Pu);
+            const T_capacity = skin_total;
 
             const soilCompOK = P_demand_comp <= Pc_capacity;
             const soilTensOK = T_demand <= T_capacity;
 
             let so = `<h4>Compression Check</h4>`;
-            so += `\\[ P + \\frac{\\pi D^2}{4}[0.15(H+d) - 0.11d] = ${this.f(P_demand_comp)} \\text{ kips} \\]`;
-            so += `\\[ \\pi D \\cdot d \\cdot F_a + \\frac{\\pi D^2}{4} Q_a = ${this.f(skin_total)} + ${this.f(endBearing)} = ${this.f(Pc_capacity)} \\text{ kips} \\]`;
-            so += `\\[ ${this.f(P_demand_comp)} \\quad ${soilCompOK ? '<' : '\\geq'} \\quad ${this.f(Pc_capacity)} \\quad \\textbf{[${soilCompOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
-
+            so += `\\[ P_u + W_{pile} = ${this.f(Pu,1)} + ${this.f(Wpile,1)} = ${this.f(P_demand_comp,1)} \\text{ kN} \\]`;
+            so += `\\[ \\pi D \\cdot d \\cdot F_a + \\frac{\\pi D^2}{4} Q_a = ${this.f(skin_total,1)} + ${this.f(endBearing,1)} = ${this.f(Pc_capacity,1)} \\text{ kN} \\]`;
+            so += `\\[ ${this.f(P_demand_comp,1)} \\quad ${soilCompOK ? '<' : '\\geq'} \\quad ${this.f(Pc_capacity,1)} \\quad \\textbf{[${soilCompOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
             so += `<h4>Tension Check</h4>`;
-            so += `\\[ T = ${this.f(T_demand)} \\text{ kips} \\quad ${soilTensOK ? '<' : '\\geq'} \\quad \\pi D \\cdot d \\cdot F_a = ${this.f(T_capacity)} \\text{ kips} \\quad \\textbf{[${soilTensOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
+            so += `\\[ T = ${this.f(T_demand,1)} \\text{ kN} \\quad ${soilTensOK ? '<' : '\\geq'} \\quad \\pi D \\cdot d \\cdot F_a = ${this.f(T_capacity,1)} \\text{ kN} \\quad \\textbf{[${soilTensOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
             this.soilReport = so;
 
-            // ===== 3. LATERAL CAPACITY (2024 IBC 1807.3) =====
+            // ===== 3. LATERAL CAPACITY (NSCP 2015) =====
             const d_third = p.d / 3;
-            const S3 = 2 * p.Pp * Math.min(p.d, 12);       // lateral bearing at bottom
-            const S1 = 2 * p.Pp * Math.min(d_third, 12);    // lateral bearing at d/3
+            const S3 = 2 * p.Pp * Math.min(p.d, 3.66);
+            const S1 = 2 * p.Pp * Math.min(d_third, 3.66);
 
-            const A_lat = 2.34 * p.P / (D_ft * S1 + 0.001);  // corrected per sheet: A = 2.34P/(bS1)
-            const h = p.H;
-
-            // Required depth for nonconstrained (simplified from IBC 1807.3)
             let d_req;
             if (p.restrained) {
-                d_req = Math.sqrt(4.25 * p.F * h / (D_ft * S3 + 0.001));
+                d_req = Math.sqrt(4.25 * (Vu) * p.H / (D_m * S3 + 0.001));
             } else {
-                // Nonconstrained: d = A/2 * [1 + sqrt(1 + 4.36h/A)]
-                const A_nc = 2.34 * p.F / (D_ft * S1 + 0.001);
-                d_req = (A_nc / 2) * (1 + Math.sqrt(1 + 4.36 * h / (A_nc + 0.001)));
+                const A_nc = 2.34 * (Vu) / (D_m * S1 + 0.001);
+                d_req = (A_nc / 2) * (1 + Math.sqrt(1 + 4.36 * p.H / (A_nc + 0.001)));
             }
-
             const lateralOK = d_req <= p.d;
 
-            let la = `\\[ S_3 = 2 P_p \\min(d, 12') = 2 \\times ${p.Pp} \\times \\min(${p.d}, 12) = ${this.f(S3)} \\text{ ksf} \\]`;
-            la += `\\[ S_1 = 2 P_p \\min(d/3, 12') = 2 \\times ${p.Pp} \\times \\min(${this.f(d_third)}, 12) = ${this.f(S1)} \\text{ ksf} \\]`;
+            let la = `\\[ S_3 = 2 P_p \\min(d,\\, 3.66\\text{m}) = ${this.f(S3)} \\text{ kPa} \\]`;
+            la += `\\[ S_1 = 2 P_p \\min(d/3,\\, 3.66\\text{m}) = ${this.f(S1)} \\text{ kPa} \\]`;
             la += `<h4>Required Embedment Depth</h4>`;
-            if (p.restrained) {
-                la += `<p>Constrained condition:</p>`;
-                la += `\\[ d_{req} = \\sqrt{\\frac{4.25 P h}{b S_3}} = ${this.f(d_req)} \\text{ ft} \\]`;
-            } else {
-                la += `<p>Nonconstrained condition:</p>`;
-                la += `\\[ d_{req} = \\frac{A}{2}\\left[1 + \\sqrt{1 + \\frac{4.36h}{A}}\\right] \\]`;
-                la += `<p>where \\(A = 2.34P/(bS_1)\\)</p>`;
-                la += `\\[ d_{req} = ${this.f(d_req)} \\text{ ft} \\]`;
-            }
-            la += `\\[ d_{req} = ${this.f(d_req)} \\text{ ft} \\quad ${lateralOK ? '<' : '\\geq'} \\quad d = ${p.d} \\text{ ft} \\quad \\textbf{[${lateralOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
+            la += `\\[ d_{req} = ${this.f(d_req)} \\text{ m} \\quad ${lateralOK ? '<' : '\\geq'} \\quad d = ${p.d} \\text{ m} \\quad \\textbf{[${lateralOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
             this.lateralReport = la;
 
-            // ===== 4. FLEXURAL & AXIAL (P-M Interaction) =====
-            // Build interaction diagram for circular section with single center bar
-            // Using simplified Whitney stress block approach
-            const R = D / 2;  // in
-            const fc_prime = p.fc; // ksi
-            const beta1 = p.beta1;
-            const fy = p.fy;
+            // ===== 4. P-M INTERACTION DIAGRAM (ACI 318-14/19) =====
+            // Based on the notebook approach: vary neutral axis depth c
+            const nom_P = [], nom_M = [], ult_P = [], ult_M = [], phi_list = [];
+            const Ast = Ab;  // single bar or bar group at center
+            const Asc = Ast;
 
-            // Generate interaction diagram points
-            const phiMn_pts = [];
-            const phiPn_pts = [];
+            // c varies from large (pure compression) down to small (pure tension region)
+            const c_vals = [];
+            for (let c = D * 1.5; c >= D * 0.05; c -= D * 0.01) c_vals.push(c);
 
-            // Pure compression (phi = 0.65)
-            const Pn_max = 0.85 * fc_prime * (Ag - Ab) + fy * Ab;
-            const phi_comp = 0.65;
-            phiPn_pts.push(phi_comp * 0.80 * Pn_max);  // ACI max with 0.80 factor
-            phiMn_pts.push(0);
+            for (const c of c_vals) {
+                const a = beta1 * c;
 
-            // Vary neutral axis depth c from large to small
-            for (let ci = D * 2; ci >= 0.1; ci -= 0.1) {
-                const a = beta1 * ci;
-                // Compression block area for circular section
-                // A_comp = area of circular segment with depth = a
-                let Ac;
+                // Strains
+                const es = ecu * (deff - c) / c;      // tension bar strain
+                const es_prime = ecu * (c - dprime) / c; // compression bar strain
+                const fs = Math.min(fy, Math.max(-fy, es * Es));
+                const fs_prime = Math.min(fy, Math.max(-fy, es_prime * Es));
+
+                // Forces (in N, then /1000 = kN)
+                const Cc = 0.85 * fc * Math.min(a, D) * D / 1000;  // simplified rectangular for circular
+                // For circular section: approximate with equivalent rectangle (conservative)
+                // Better: use circular segment area
+                let Ac_seg;
                 if (a >= D) {
-                    Ac = Ag;
+                    Ac_seg = Ag;
                 } else if (a <= 0) {
-                    Ac = 0;
+                    Ac_seg = 0;
                 } else {
-                    // Circular segment area: R² * arccos((R-a)/R) - (R-a)*sqrt(2*R*a - a²)
-                    const val = (R - a) / R;
-                    const clamped = Math.max(-1, Math.min(1, val));
-                    Ac = R * R * Math.acos(clamped) - (R - a) * Math.sqrt(Math.max(0, 2 * R * a - a * a));
+                    const val = Math.max(-1, Math.min(1, (R - a) / R));
+                    Ac_seg = R * R * Math.acos(val) - (R - a) * Math.sqrt(Math.max(0, 2 * R * a - a * a));
                 }
+                const Cc_circ = 0.85 * fc * Ac_seg / 1000;  // kN
 
-                // Centroid of compression block from top
-                let yc_bar;
-                if (a >= D) {
-                    yc_bar = R;  // centroid at center
-                } else if (a <= 0) {
-                    yc_bar = 0;
-                } else {
-                    // Centroid of circular segment from chord
-                    const h_seg = a;
-                    if (Ac > 0.001) {
-                        // First moment about top: using integration result
-                        // ybar from top of circle = (2/3) * (2Ra - a²)^(3/2) / Ac  (approximate)
-                        const chord_half = Math.sqrt(Math.max(0, 2 * R * h_seg - h_seg * h_seg));
-                        yc_bar = a - (2 * chord_half * chord_half * chord_half) / (3 * Ac + 0.001) * (1/3);
-                        // Better approximation: numeric
-                        yc_bar = a / 2;  // simplified centroid
-                    } else {
-                        yc_bar = 0;
-                    }
-                }
+                const T = Ast * Math.min(fy, Math.abs(fs)) * Math.sign(fs) / 1000;    // kN
+                const Cs = Asc * (Math.min(fy, Math.abs(fs_prime)) * Math.sign(fs_prime) - 0.85 * fc) / 1000;
 
-                // Concrete compression force
-                const Cc = 0.85 * fc_prime * Ac;
+                const Pn = Cc_circ + Cs - T;  // kN
 
-                // Steel strain (bar at center, distance from top = R)
-                const es = ecu * (ci - R) / ci;
-                let fs;
-                if (Math.abs(es) >= fy / Es) {
-                    fs = Math.sign(es) * fy;
-                } else {
-                    fs = es * Es;
-                }
-                // If bar is in compression zone, subtract displaced concrete
-                const Fs = fs * Ab - (a >= R ? 0.85 * fc_prime * Ab : 0);
+                // Moment about center of section
+                // Centroid of circular segment from top
+                let yc;
+                if (Ac_seg > 1) {
+                    const chord = Math.sqrt(Math.max(0, 2 * R * Math.min(a, D) - Math.min(a, D) ** 2));
+                    yc = (2 * chord ** 3) / (3 * Ac_seg);
+                    yc = Math.min(a, D) / 2;  // simplified
+                } else { yc = 0; }
+                const arm_cc = R - yc;                    // mm from center
+                const arm_cs = R - dprime;               // mm from center (compression bar)
+                const arm_t = deff - R;                  // mm from center (tension bar)
 
-                // Forces about geometric center
-                const Pn = Cc + Fs;
-                // Moment about center
-                const Mn_cc = Cc * (R - yc_bar);  // concrete moment arm from center
-                const Mn_s = 0;  // bar at center, no moment contribution from steel about center
-                const Mn = Mn_cc + Mn_s;
+                const Mn = (Cc_circ * arm_cc + Cs * arm_cs + T * arm_t) / 1000; // kN-m (mm -> m /1000)
 
-                // Determine phi based on strain in extreme tension fiber
-                // Extreme tension steel = bar at center for single bar
-                const et = es;  // tension strain (negative = compression)
+                // Phi factor per ACI 318-14 Sec. 21.2
                 let phi;
-                const ety = fy / Es;
-                if (et <= -ety) {
-                    // Tension controlled
-                    phi = 0.9;
-                } else if (et >= ety) {
-                    // Compression controlled
-                    phi = 0.65;
+                if (es >= 0.005) {
+                    phi = 0.90;  // tension controlled
+                } else if (es <= ey) {
+                    phi = 0.65;  // compression controlled
                 } else {
-                    // Transition
-                    phi = 0.65 + (0.9 - 0.65) * (et + ety) / (2 * ety);
-                    phi = Math.max(0.65, Math.min(0.9, phi));
+                    phi = 0.65 + 0.25 * (es - ey) / (0.005 - ey);  // transition
+                    phi = Math.max(0.65, Math.min(0.90, phi));
                 }
 
-                const phiPn = phi * Pn / 1000;  // convert to kips (from lb if using psi) -- already ksi so /1 stays kips
-                const phiMn = phi * Mn / 12;  // in-kips to ft-kips
+                const ecc = Pn !== 0 ? Math.abs(Mn / Pn * 1000) : 9999; // mm
+                if (ecc > 1.5 * D) continue;
 
-                if (phiPn < -Pn_max * 0.9) continue; // skip extreme tension
-                phiPn_pts.push(phiPn);
-                phiMn_pts.push(Math.abs(phiMn));
+                nom_P.push(Pn);
+                nom_M.push(Math.abs(Mn));
+                ult_P.push(phi * Pn);
+                ult_M.push(phi * Math.abs(Mn));
+                phi_list.push(phi);
             }
 
-            // Pure tension
-            const Pn_tension = -fy * Ab;
-            phiPn_pts.push(0.9 * Pn_tension);
-            phiMn_pts.push(0);
+            // Pure compression cap (0.80 factor per ACI)
+            const Pn_max = (0.85 * fc * (Ag - Ab) + fy * Ab) / 1000; // kN
+            const Pn_max_capped = 0.80 * Pn_max;
 
-            // Find capacity at the design load
-            // Design point: Pu = P (ASD, so approximate with 1.0 factor for now)
-            // The sheet shows Pu = 120.3 kips for P=79 (LRFD factor ~1.52)
-            const Pu = p.P * 1.52;  // approximate LRFD factor
-            const Mu = p.M * 1.52;  // approximate
+            // Cap all points at Pn_max
+            for (let i = 0; i < ult_P.length; i++) {
+                if (ult_P[i] > 0.65 * Pn_max_capped) {
+                    ult_P[i] = Math.min(ult_P[i], 0.65 * Pn_max_capped);
+                }
+            }
 
-            // Find phiMn at Pu by interpolating the interaction diagram
+            // Find phiMn at Pu by interpolating
             let phiMn_at_Pu = 0;
-            for (let i = 0; i < phiPn_pts.length - 1; i++) {
-                const p1 = phiPn_pts[i], p2 = phiPn_pts[i+1];
-                const m1 = phiMn_pts[i], m2 = phiMn_pts[i+1];
+            for (let i = 0; i < ult_P.length - 1; i++) {
+                const p1 = ult_P[i], p2 = ult_P[i + 1];
+                const m1 = ult_M[i], m2 = ult_M[i + 1];
                 if ((p1 >= Pu && p2 <= Pu) || (p1 <= Pu && p2 >= Pu)) {
                     const t = (Pu - p1) / (p2 - p1 + 0.0001);
                     phiMn_at_Pu = m1 + t * (m2 - m1);
                     break;
                 }
             }
-
             const flexOK = phiMn_at_Pu >= Mu;
 
             let fl = `<h4>Material Properties</h4>`;
-            fl += `\\[ E_c = 57\\sqrt{f'_c} = 57\\sqrt{${this.f(fc_psi,0)}} = ${this.f(Ec,0)} \\text{ psi} = ${this.f(Ec_ksi,0)} \\text{ ksi} \\]`;
-            fl += `\\[ E_s = ${Es} \\text{ ksi}, \\quad \\beta_e = ${beta_e}, \\quad \\varepsilon_{cu} = ${ecu} \\]`;
-            fl += `\\[ A_g = \\frac{\\pi D^2}{4} = ${this.f(Ag)} \\text{ in}^2, \\quad A_b = ${Ab} \\text{ in}^2 \\text{ (#${p.barNum})} \\]`;
-
-            fl += `<h4>Factored Loads (LRFD, approx. 1.52x ASD)</h4>`;
-            fl += `\\[ P_u = ${this.f(Pu)} \\text{ kips} \\quad (${this.f(Pu*4.448,0)} \\text{ kN}) \\]`;
-            fl += `\\[ M_u = ${this.f(Mu)} \\text{ ft-kips} \\quad (${this.f(Mu*1.356,1)} \\text{ kN-m}) \\]`;
-
+            fl += `\\[ E_c = 4700\\sqrt{f'_c} = 4700\\sqrt{${fc}} = ${this.f(Ec,0)} \\text{ MPa} \\]`;
+            fl += `\\[ E_s = ${Es} \\text{ MPa}, \\quad \\beta_1 = ${this.f(beta1,4)}, \\quad \\varepsilon_{cu} = ${ecu} \\]`;
+            fl += `\\[ A_g = \\frac{\\pi D^2}{4} = ${this.f(Ag,0)} \\text{ mm}^2, \\quad A_s = ${this.f(Ab,0)} \\text{ mm}^2 \\]`;
             fl += `<h4>Interaction Diagram Check</h4>`;
-            fl += `\\[ \\phi M_{nc} \\text{ @ } P_u = ${this.f(phiMn_at_Pu)} \\text{ ft-kips} \\]`;
-            fl += `\\[ \\phi M_{nc} = ${this.f(phiMn_at_Pu)} \\quad ${flexOK ? '>' : '<'} \\quad M_u = ${this.f(Mu)} \\quad \\textbf{[${flexOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
+            fl += `\\[ \\phi M_n \\text{ @ } P_u = ${this.f(Pu,1)} \\text{ kN} \\Rightarrow \\phi M_n = ${this.f(phiMn_at_Pu,1)} \\text{ kN-m} \\]`;
+            fl += `\\[ \\phi M_n = ${this.f(phiMn_at_Pu,1)} \\quad ${flexOK ? '>' : '<'} \\quad M_u = ${this.f(Mu,1)} \\quad \\textbf{[${flexOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
             this.flexuralReport = fl;
 
-            // ===== 5. SHEAR (ACI 318-25 10 & 22.5) =====
-            const Vc = 2 * Math.sqrt(fc_psi) * Ag / 1000;  // kips (2*sqrt(f'c)*Ag)
+            // ===== 5. SHEAR (ACI 318-14/19 Sec. 22.5) =====
+            // Vc = (1/6)*sqrt(f'c)*Ag (metric, N)
+            const Vc = (1 / 6) * Math.sqrt(fc) * Ag / 1000;  // kN
             const phi_v = 0.75;
             const phiVn = phi_v * Vc;
-            const Vu = p.F * 1.52;
-            const shearOK = phiVn >= Vu;
+            const shearOK = phiVn >= Math.abs(Vu);
 
-            let sh = `\\[ V_c = 2\\sqrt{f'_c} \\cdot A_g = 2\\sqrt{${this.f(fc_psi,0)}} \\times ${this.f(Ag)} = ${this.f(Vc * 1000 / 1000, 2)} \\text{ kips} \\]`;
-            sh += `\\[ \\phi V_n = \\phi(V_s + V_c) = ${phi_v} \\times ${this.f(Vc)} = ${this.f(phiVn)} \\text{ kips} \\]`;
-            sh += `\\[ V_u = ${this.f(Vu)} \\text{ kips} \\quad ${shearOK ? '<' : '\\geq'} \\quad \\phi V_n = ${this.f(phiVn)} \\text{ kips} \\quad \\textbf{[${shearOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
+            let sh = `\\[ V_c = \\frac{1}{6}\\sqrt{f'_c} \\cdot A_g = \\frac{1}{6}\\sqrt{${fc}} \\times ${this.f(Ag,0)} = ${this.f(Vc,1)} \\text{ kN} \\]`;
+            sh += `\\[ \\phi V_n = ${phi_v} \\times ${this.f(Vc,1)} = ${this.f(phiVn,1)} \\text{ kN} \\]`;
+            sh += `\\[ V_u = ${this.f(Math.abs(Vu),1)} \\text{ kN} \\quad ${shearOK ? '<' : '\\geq'} \\quad \\phi V_n = ${this.f(phiVn,1)} \\text{ kN} \\quad \\textbf{[${shearOK ? 'Satisfactory' : 'FAIL'}]} \\]`;
             this.shearReport = sh;
 
             // ===== SUMMARY TABLE =====
             this.summaryTable = [
                 { check: 'Slenderness (KL/r < 200)', demand: this.f(KLr), capacity: '200', pass: slenderOK },
-                { check: 'Soil Compression', demand: this.f(P_demand_comp) + ' kips', capacity: this.f(Pc_capacity) + ' kips', pass: soilCompOK },
-                { check: 'Soil Tension', demand: this.f(T_demand) + ' kips', capacity: this.f(T_capacity) + ' kips', pass: soilTensOK },
-                { check: 'Lateral Embedment', demand: this.f(d_req) + ' ft', capacity: p.d + ' ft', pass: lateralOK },
-                { check: 'Flexural (P-M Interaction)', demand: this.f(Mu) + ' ft-k', capacity: this.f(phiMn_at_Pu) + ' ft-k', pass: flexOK },
-                { check: 'Shear (ACI 318-25)', demand: this.f(Vu) + ' kips', capacity: this.f(phiVn) + ' kips', pass: shearOK }
+                { check: 'Soil Compression', demand: this.f(P_demand_comp,1) + ' kN', capacity: this.f(Pc_capacity,1) + ' kN', pass: soilCompOK },
+                { check: 'Soil Tension', demand: this.f(T_demand,1) + ' kN', capacity: this.f(T_capacity,1) + ' kN', pass: soilTensOK },
+                { check: 'Lateral Embedment', demand: this.f(d_req,2) + ' m', capacity: p.d + ' m', pass: lateralOK },
+                { check: 'Flexural (P-M)', demand: this.f(Mu,1) + ' kN-m', capacity: this.f(phiMn_at_Pu,1) + ' kN-m', pass: flexOK },
+                { check: 'Shear', demand: this.f(Math.abs(Vu),1) + ' kN', capacity: this.f(phiVn,1) + ' kN', pass: shearOK }
             ];
-
+            this.allPass = this.summaryTable.every(r => r.pass);
             this.computed = true;
+
             this.$nextTick(() => {
                 if (window.MathJax) MathJax.typeset();
-                this.plotInteraction(phiMn_pts, phiPn_pts, Mu, Pu);
+                this.plotInteraction(nom_M, nom_P, ult_M, ult_P, phi_list, Mu, Pu);
             });
         },
 
-        plotInteraction(mn, pn, Mu, Pu) {
-            // Separate tension-controlled and compression-controlled regions
-            // Balanced point is approximately where phi transitions
-            const trace_main = {
-                x: mn, y: pn,
-                mode: 'lines',
-                name: 'Interaction Diagram',
-                line: { color: '#2c3e50', width: 2 }
-            };
+        plotInteraction(nomM, nomP, ultM, ultP, phis, Mu, Pu) {
+            // Split ultimate curve into compression-controlled, transition, and tension-controlled
+            const comp_M = [], comp_P = [], trans_M = [], trans_P = [], tens_M = [], tens_P = [];
+            for (let i = 0; i < ultP.length; i++) {
+                if (phis[i] <= 0.65) {
+                    comp_M.push(ultM[i]); comp_P.push(ultP[i]);
+                } else if (phis[i] >= 0.90) {
+                    tens_M.push(ultM[i]); tens_P.push(ultP[i]);
+                } else {
+                    trans_M.push(ultM[i]); trans_P.push(ultP[i]);
+                }
+            }
 
-            const trace_point = {
-                x: [Math.abs(Mu)], y: [Pu],
-                mode: 'markers',
-                name: 'Design Point (Pu, Mu)',
-                marker: { size: 10, color: '#e74c3c', symbol: 'square' }
-            };
+            // Make sure zones connect
+            if (comp_M.length && trans_M.length) {
+                trans_M.unshift(comp_M[comp_M.length-1]); trans_P.unshift(comp_P[comp_P.length-1]);
+            }
+            if (trans_M.length && tens_M.length) {
+                tens_M.unshift(trans_M[trans_M.length-1]); tens_P.unshift(trans_P[trans_P.length-1]);
+            }
 
-            Plotly.newPlot('interaction-plot', [trace_main, trace_point], {
-                title: 'P-M Interaction Diagram',
-                xaxis: { title: '\u03D5 Mn (ft-kips)' },
-                yaxis: { title: '\u03D5 Pn (kips)' },
-                height: 450,
-                margin: { t: 40, r: 30, b: 50, l: 60 },
-                shapes: [
-                    { type: 'line', x0: 0, x1: Math.max(...mn)*1.1, y0: 0, y1: 0, line: { color: '#ccc', dash: 'dot' } }
+            const traces = [
+                // Nominal (dashed, lighter)
+                {x: nomM, y: nomP, mode:'lines', name:'Nominal (Pn, Mn)', line:{color:'#bdc3c7',width:1.5,dash:'dot'}, hoverinfo:'skip'},
+                // Ultimate - compression controlled
+                {x: comp_M, y: comp_P, mode:'lines', name:'Compression Controlled', line:{color:'#2c3e50',width:2.5,dash:'dash'}, fill:'none'},
+                // Ultimate - transition
+                {x: trans_M, y: trans_P, mode:'lines', name:'Transition', line:{color:'#e74c3c',width:2.5}, fill:'none'},
+                // Ultimate - tension controlled
+                {x: tens_M, y: tens_P, mode:'lines', name:'Tension Controlled', line:{color:'#2c3e50',width:2.5}, fill:'none'},
+            ];
+
+            // All load combination points
+            const lcPts_x = [], lcPts_y = [], lcLabels = [];
+            for (const lc of this.loadCombos) {
+                lcPts_x.push(Math.abs(lc.Mu));
+                lcPts_y.push(lc.Pu);
+                lcLabels.push(lc.label);
+            }
+            traces.push({
+                x: lcPts_x, y: lcPts_y, mode:'markers+text',
+                name:'Load Combinations',
+                text: lcLabels,
+                textposition: 'top right',
+                textfont: {size:9, color:'#7f8c8d'},
+                marker:{size:8, color:'#e74c3c', symbol:'square'}
+            });
+
+            // Governing point (larger)
+            traces.push({
+                x: [Math.abs(Mu)], y: [Pu], mode:'markers',
+                name:'Governing (Pu=' + this.f(Pu,0) + ', Mu=' + this.f(Mu,1) + ')',
+                marker:{size:12, color:'#e74c3c', symbol:'diamond', line:{width:2, color:'#c0392b'}}
+            });
+
+            const maxM = Math.max(...ultM, ...nomM, Math.abs(Mu)) * 1.15;
+            const maxP = Math.max(...ultP, ...nomP, Pu) * 1.15;
+            const minP = Math.min(...ultP, ...nomP, 0, Pu) * 1.15;
+
+            Plotly.newPlot('interaction-plot', traces, {
+                title: {text:'P-M Interaction Diagram', font:{size:15,color:'#2c3e50'}},
+                xaxis: {title:'\u03D5 Mn (kN-m)', range:[0, maxM], gridcolor:'#ecf0f1', zeroline:true, zerolinecolor:'#bdc3c7'},
+                yaxis: {title:'\u03D5 Pn (kN)', range:[minP, maxP], gridcolor:'#ecf0f1', zeroline:true, zerolinecolor:'#bdc3c7', zerolinewidth:2},
+                height: 500,
+                margin: {t:50, r:40, b:60, l:70},
+                legend: {orientation:'h', y:-0.2, x:0.5, xanchor:'center', font:{size:10}},
+                plot_bgcolor: '#fafbfc',
+                paper_bgcolor: '#fff',
+                annotations: [
+                    {x: Math.abs(Mu), y: Pu, xref:'x', yref:'y', text:'Design Point', showarrow:true,
+                     arrowhead:2, ax:40, ay:-30, font:{size:11, color:'#e74c3c'}}
                 ]
-            }, { responsive: true });
+            }, {responsive: true});
         }
     }
 }).mount('#app');
