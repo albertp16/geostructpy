@@ -264,8 +264,17 @@ def spt_ucs_view():
 
         results = spt_depth.calculate(boreholes)
 
+    # Prepare JSON for Handsontable
+    boreholes_json = []
+    for bh in boreholes:
+        boreholes_json.append({
+            'name': bh['name'],
+            'data': [[pt['depth'], pt['value']] for pt in bh['data']],
+        })
+
     return render_template("spt_ucs.html",
-                           boreholes=boreholes, results=results)
+                           boreholes=boreholes, boreholes_json=boreholes_json,
+                           results=results)
 
 
 @app.route("/changelog")

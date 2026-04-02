@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block title %}SPT &amp; UCS Charts - GeoStructPy{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.css">
+<script src="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.js"></script>
+<style>
+    .htCore td, .htCore th { font-size: 0.85em; }
+    .handsontable .htDimmed { color: #333; }
+</style>
+{% endblock %}
 {% block content %}
 <div>
     <form method="POST" action="/spt-ucs" id="spt-form">
@@ -16,46 +24,11 @@
         </p>
     </div>
 
-    <!-- Borehole data tables -->
+    <!-- Hidden fields populated on submit -->
     <input type="hidden" name="bh_count" id="bh_count" value="{{ boreholes|length }}">
+    <div id="hidden-fields"></div>
 
-    {% for bh in boreholes %}
-    {% set bh_idx = loop.index0 %}
-    <div class="card borehole-card" id="bh-card-{{ bh_idx }}">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <h3 style="margin:0;">
-                <input type="text" name="bh_name_{{ bh_idx }}" value="{{ bh.name }}"
-                       style="border:none;font-size:1em;font-weight:bold;color:var(--primary);background:transparent;width:200px;">
-            </h3>
-            <button type="button" class="no-print" style="cursor:pointer;border:none;background:none;color:#e74c3c;font-size:1.2em;"
-                    onclick="removeBorehole({{ bh_idx }})">Remove</button>
-        </div>
-        <input type="hidden" name="bh_pt_count_{{ bh_idx }}" id="bh_pt_count_{{ bh_idx }}" value="{{ bh.data|length }}">
-        <table class="data-table" style="font-size:0.9em;max-width:400px;" id="bh-table-{{ bh_idx }}">
-            <thead>
-                <tr>
-                    <th style="width:50px;">#</th>
-                    <th>Depth (m)</th>
-                    <th>SPT N-value</th>
-                    <th style="width:40px;" class="no-print"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pt in bh.data %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td><input type="number" step="0.1" name="bh_{{ bh_idx }}_depth_{{ loop.index0 }}" value="{{ pt.depth }}" style="width:100%;text-align:center;"></td>
-                    <td><input type="number" step="0.1" name="bh_{{ bh_idx }}_val_{{ loop.index0 }}" value="{{ pt.value }}" style="width:100%;text-align:center;"></td>
-                    <td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <div class="no-print" style="margin-top:6px;">
-            <button type="button" class="btn" onclick="addPt({{ bh_idx }})" style="font-size:0.8em;padding:4px 10px;">+ Add Point</button>
-        </div>
-    </div>
-    {% endfor %}
+    <div id="bh-containers"></div>
 
     <div class="no-print" style="margin-bottom:16px;">
         <button type="button" class="btn" onclick="addBorehole()">+ Add Borehole</button>
@@ -111,61 +84,108 @@
 </div>
 
 <script>
-function addPt(bhIdx) {
-    var tbody = document.querySelector('#bh-table-' + bhIdx + ' tbody');
-    var count = tbody.rows.length;
-    var row = tbody.insertRow();
-    row.innerHTML =
-        '<td>' + (count + 1) + '</td>' +
-        '<td><input type="number" step="0.1" name="bh_' + bhIdx + '_depth_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
-        '<td><input type="number" step="0.1" name="bh_' + bhIdx + '_val_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
-        '<td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td>';
-    document.getElementById('bh_pt_count_' + bhIdx).value = count + 1;
-}
-function removePt(btn) {
-    var tr = btn.closest('tr');
-    var tbody = tr.parentNode;
-    var card = btn.closest('.borehole-card');
-    var bhIdx = card.id.replace('bh-card-', '');
-    if (tbody.rows.length > 1) {
-        tr.remove();
-        var rows = tbody.rows;
-        for (var i = 0; i < rows.length; i++) {
-            rows[i].cells[0].textContent = i + 1;
-            var inputs = rows[i].querySelectorAll('input');
-            inputs[0].name = 'bh_' + bhIdx + '_depth_' + i;
-            inputs[1].name = 'bh_' + bhIdx + '_val_' + i;
-        }
-        document.getElementById('bh_pt_count_' + bhIdx).value = rows.length;
-    }
-}
-function addBorehole() {
-    var count = parseInt(document.getElementById('bh_count').value);
-    var container = document.getElementById('spt-form');
-    var submitDiv = container.querySelector('.no-print:last-of-type');
+var bhData = {{ boreholes_json|tojson }};
+var hotInstances = [];
+
+function createBoreholeCard(idx, name, data) {
+    var container = document.getElementById('bh-containers');
     var card = document.createElement('div');
     card.className = 'card borehole-card';
-    card.id = 'bh-card-' + count;
+    card.id = 'bh-card-' + idx;
     card.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-        '<h3 style="margin:0;"><input type="text" name="bh_name_' + count + '" value="BH-' + (count+1) + '" style="border:none;font-size:1em;font-weight:bold;color:var(--primary);background:transparent;width:200px;"></h3>' +
-        '<button type="button" class="no-print" style="cursor:pointer;border:none;background:none;color:#e74c3c;font-size:1.2em;" onclick="removeBorehole(' + count + ')">Remove</button>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+        '<h3 style="margin:0;"><input type="text" class="bh-name-input" data-idx="' + idx + '" value="' + name + '" style="border:none;font-size:1em;font-weight:bold;color:var(--primary);background:transparent;width:200px;"></h3>' +
+        '<button type="button" class="no-print" style="cursor:pointer;border:none;background:none;color:#e74c3c;font-size:1.2em;" onclick="removeBorehole(' + idx + ')">Remove</button>' +
         '</div>' +
-        '<input type="hidden" name="bh_pt_count_' + count + '" id="bh_pt_count_' + count + '" value="3">' +
-        '<table class="data-table" style="font-size:0.9em;max-width:400px;" id="bh-table-' + count + '">' +
-        '<thead><tr><th style="width:50px;">#</th><th>Depth (m)</th><th>SPT N-value</th><th style="width:40px;" class="no-print"></th></tr></thead>' +
-        '<tbody>' +
-        '<tr><td>1</td><td><input type="number" step="0.1" name="bh_' + count + '_depth_0" value="1.5" style="width:100%;text-align:center;"></td><td><input type="number" step="0.1" name="bh_' + count + '_val_0" value="0" style="width:100%;text-align:center;"></td><td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td></tr>' +
-        '<tr><td>2</td><td><input type="number" step="0.1" name="bh_' + count + '_depth_1" value="3" style="width:100%;text-align:center;"></td><td><input type="number" step="0.1" name="bh_' + count + '_val_1" value="0" style="width:100%;text-align:center;"></td><td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td></tr>' +
-        '<tr><td>3</td><td><input type="number" step="0.1" name="bh_' + count + '_depth_2" value="4.5" style="width:100%;text-align:center;"></td><td><input type="number" step="0.1" name="bh_' + count + '_val_2" value="0" style="width:100%;text-align:center;"></td><td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td></tr>' +
-        '</tbody></table>' +
-        '<div class="no-print" style="margin-top:6px;"><button type="button" class="btn" onclick="addPt(' + count + ')" style="font-size:0.8em;padding:4px 10px;">+ Add Point</button></div>';
-    submitDiv.parentNode.insertBefore(card, submitDiv);
-    document.getElementById('bh_count').value = count + 1;
+        '<div id="hot-bh-' + idx + '" style="max-width:320px;"></div>';
+    container.appendChild(card);
+
+    var hotEl = document.getElementById('hot-bh-' + idx);
+    var hot = new Handsontable(hotEl, {
+        data: data,
+        colHeaders: ['Depth (m)', 'SPT N-value'],
+        columns: [
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}}
+        ],
+        colWidths: [120, 120],
+        rowHeaders: true,
+        contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'undo', 'redo'],
+        minRows: 1,
+        minSpareRows: 1,
+        licenseKey: 'non-commercial-and-evaluation',
+        stretchH: 'none',
+        height: 'auto',
+    });
+    hotInstances[idx] = hot;
 }
+
+// Initialize from server data
+for (var i = 0; i < bhData.length; i++) {
+    createBoreholeCard(i, bhData[i].name, bhData[i].data);
+}
+
+var nextBhIdx = bhData.length;
+
+function addBorehole() {
+    var defaultData = [[1.5, 0], [3.0, 0], [4.5, 0]];
+    createBoreholeCard(nextBhIdx, 'BH-' + (nextBhIdx + 1), defaultData);
+    nextBhIdx++;
+}
+
 function removeBorehole(idx) {
     var card = document.getElementById('bh-card-' + idx);
-    if (card) card.remove();
+    if (card) {
+        if (hotInstances[idx]) {
+            hotInstances[idx].destroy();
+            hotInstances[idx] = null;
+        }
+        card.remove();
+    }
 }
+
+function syncBeforeSubmit() {
+    var hiddenDiv = document.getElementById('hidden-fields');
+    hiddenDiv.innerHTML = '';
+    var cards = document.querySelectorAll('.borehole-card');
+    document.getElementById('bh_count').value = cards.length;
+
+    for (var c = 0; c < cards.length; c++) {
+        var card = cards[c];
+        var idx = parseInt(card.id.replace('bh-card-', ''));
+        var nameInput = card.querySelector('.bh-name-input');
+        var name = nameInput ? nameInput.value : 'BH-' + (c + 1);
+        var hot = hotInstances[idx];
+        if (!hot) continue;
+
+        var data = hot.getSourceData();
+        // Filter out empty rows
+        var validRows = [];
+        for (var r = 0; r < data.length; r++) {
+            if (data[r][0] !== null && data[r][0] !== '' && data[r][1] !== null && data[r][1] !== '') {
+                validRows.push(data[r]);
+            }
+        }
+
+        addHidden('bh_name_' + c, name);
+        addHidden('bh_pt_count_' + c, validRows.length);
+        for (var p = 0; p < validRows.length; p++) {
+            addHidden('bh_' + c + '_depth_' + p, validRows[p][0]);
+            addHidden('bh_' + c + '_val_' + p, validRows[p][1]);
+        }
+    }
+}
+
+function addHidden(name, val) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = name;
+    inp.value = val;
+    document.getElementById('hidden-fields').appendChild(inp);
+}
+
+document.getElementById('spt-form').addEventListener('submit', function(e) {
+    syncBeforeSubmit();
+});
 </script>
 {% endblock %}
