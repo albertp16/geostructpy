@@ -22,7 +22,7 @@
         <div id="hot-container" style="overflow-x:auto;margin-bottom:12px;"></div>
 
         <div class="no-print" style="margin-top:12px;">
-            <input type="submit" class="btn btn-accent" value="Generate Midas Parameters" onclick="syncBeforeSubmit()">
+            <input type="submit" class="btn btn-accent" value="Generate Midas Parameters">
             <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
         </div>
     </div>
@@ -30,6 +30,23 @@
     <!-- Hidden fields populated by Handsontable on submit -->
     <div id="hidden-fields"></div>
     </form>
+
+    {% if profile_chart and software_table %}
+    <div style="display:grid; grid-template-columns:350px 1fr; gap:16px; align-items:start;">
+        <div class="card" style="padding:12px;">
+            <div id="soil-profile"></div>
+        </div>
+        <div class="card">
+            <div class="results-box">
+                {{ software_table|safe }}
+            </div>
+        </div>
+    </div>
+    <script>
+        var profileData = {{ profile_chart|tojson }};
+        Plotly.newPlot('soil-profile', profileData.traces, profileData.layout, {responsive: true, displayModeBar: false});
+    </script>
+    {% endif %}
 
     {% if results %}
     {% for layer in results %}
@@ -48,11 +65,11 @@ var initialData = {{ layers_json|tojson }};
 var container = document.getElementById('hot-container');
 var hot = new Handsontable(container, {
     data: initialData,
-    colHeaders: ['#', 'Layer Name', 'Depth (m)', 'Description', 'SPT N', '\u03c6 (deg)', 'c (kPa)', 'E (kPa)', '\u03bd', '\u03b3 (kN/m\u00b3)', 'MC (%)', 'Gs'],
+    colHeaders: ['#', 'Layer Name', 'Thickness (m)', 'Description', 'SPT N', '\u03c6 (deg)', 'c (kPa)', 'E (kPa)', '\u03bd', '\u03b3 (kN/m\u00b3)', 'MC (%)', 'Gs'],
     columns: [
         {data: 'row_num', type: 'numeric', readOnly: true, className: 'htCenter htDimmed'},
         {data: 'name', type: 'text'},
-        {data: 'depth', type: 'text'},
+        {data: 'thickness', type: 'numeric', numericFormat: {pattern: '0.00'}},
         {data: 'description', type: 'text'},
         {data: 'spt', type: 'numeric', numericFormat: {pattern: '0'}},
         {data: 'phi', type: 'numeric', numericFormat: {pattern: '0.0'}},
@@ -72,10 +89,9 @@ var hot = new Handsontable(container, {
     stretchH: 'none',
     height: 'auto',
     afterChange: function() {
-        // Update row numbers
         var data = this.getSourceData();
         for (var i = 0; i < data.length; i++) {
-            if (data[i].name || data[i].depth || data[i].spt) {
+            if (data[i].name || data[i].thickness || data[i].spt) {
                 data[i].row_num = i + 1;
             }
         }
@@ -89,14 +105,14 @@ function syncBeforeSubmit() {
     var validRows = [];
     for (var i = 0; i < data.length; i++) {
         var r = data[i];
-        if (!r.name && !r.depth && !r.description) continue;
+        if (!r.name && !r.thickness && !r.description) continue;
         validRows.push(r);
     }
     document.getElementById('layer_count').value = validRows.length;
     for (var i = 0; i < validRows.length; i++) {
         var r = validRows[i];
         addHidden('ly_name_' + i, r.name || 'LAYER ' + (i+1));
-        addHidden('ly_depth_' + i, r.depth || '');
+        addHidden('ly_thickness_' + i, r.thickness || 3.0);
         addHidden('ly_desc_' + i, r.description || '');
         addHidden('ly_spt_' + i, r.spt || 0);
         addHidden('ly_phi_' + i, r.phi || 0);

@@ -178,11 +178,12 @@ def micropile_view():
 @app.route("/slope-stability", methods=["GET", "POST"])
 def slope_stability_view():
     default_layers = [
-        dict(name='LAYER 1', depth='0.00-3.00', description='Sandy SILT', spt=7, phi=21, cohesion=0, E=11000, nu=0.2, gamma=13.27, moisture_content=22.64, Gs=2.65),
-        dict(name='LAYER 2', depth='3.00-6.00', description='Sandy lean CLAY', spt=10, phi=0, cohesion=30, E=11500, nu=0.2, gamma=14.63, moisture_content=45.26, Gs=2.65),
-        dict(name='LAYER 3', depth='6.00-13.00', description='Sandy SILT', spt=12, phi=0, cohesion=37, E=7500, nu=0.2, gamma=17.19, moisture_content=46.37, Gs=2.65),
+        dict(name='LAYER 1', thickness=3.0, description='Sandy SILT', spt=7, phi=21, cohesion=0, E=11000, nu=0.2, gamma=13.27, moisture_content=22.64, Gs=2.65),
+        dict(name='LAYER 2', thickness=3.0, description='Sandy lean CLAY', spt=10, phi=0, cohesion=30, E=11500, nu=0.2, gamma=14.63, moisture_content=45.26, Gs=2.65),
+        dict(name='LAYER 3', thickness=7.0, description='Sandy SILT', spt=12, phi=0, cohesion=37, E=7500, nu=0.2, gamma=17.19, moisture_content=46.37, Gs=2.65),
     ]
     results = None
+    computed = None
     layers = default_layers
 
     if request.method == "POST":
@@ -191,7 +192,7 @@ def slope_stability_view():
         for i in range(lc):
             layers.append(dict(
                 name=request.form.get(f'ly_name_{i}', f'LAYER {i+1}'),
-                depth=request.form.get(f'ly_depth_{i}', ''),
+                thickness=_float(f'ly_thickness_{i}', 3.0),
                 description=request.form.get(f'ly_desc_{i}', ''),
                 spt=_float(f'ly_spt_{i}', 0),
                 phi=_float(f'ly_phi_{i}', 30),
@@ -214,7 +215,7 @@ def slope_stability_view():
         layers_json.append({
             'row_num': i + 1,
             'name': ly['name'],
-            'depth': ly['depth'],
+            'thickness': ly['thickness'],
             'description': ly['description'],
             'spt': ly['spt'],
             'phi': ly['phi'],
@@ -226,8 +227,17 @@ def slope_stability_view():
             'Gs': ly['Gs'],
         })
 
+    # Build soil profile chart and software table
+    profile_chart = None
+    software_table = None
+    if computed:
+        profile_chart = slope_stability.build_soil_profile(computed)
+        software_table = slope_stability.build_software_table(computed)
+
     return render_template("slope_stability.html", layers=layers,
-                           layers_json=layers_json, results=results)
+                           layers_json=layers_json, results=results,
+                           profile_chart=profile_chart,
+                           software_table=software_table)
 
 
 @app.route("/spt-ucs", methods=["GET", "POST"])

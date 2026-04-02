@@ -38,17 +38,19 @@
     </form>
 
     {% if results %}
-    <div class="card">
-        <h2>1. Measured SPT N values (N) vs. Depth</h2>
-        <div id="chart-spt"></div>
-    </div>
-    <div class="card">
-        <h2>2. Corrected SPT N values (N<sub>60</sub>) vs. Depth</h2>
-        <div id="chart-n60"></div>
-    </div>
-    <div class="card">
-        <h2>3. Unconfined Compressive Strength (UCS) vs. Depth</h2>
-        <div id="chart-ucs"></div>
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">1. SPT N vs. Depth</h3>
+            <div id="chart-spt"></div>
+        </div>
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">2. N<sub>60</sub> vs. Depth</h3>
+            <div id="chart-n60"></div>
+        </div>
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">3. UCS vs. Depth</h3>
+            <div id="chart-ucs"></div>
+        </div>
     </div>
 
     {% if results.summaries %}
@@ -76,9 +78,10 @@
 
     <script>
         var charts = {{ results.charts|tojson }};
-        Plotly.newPlot('chart-spt', charts.spt.traces, charts.spt.layout, {responsive: true});
-        Plotly.newPlot('chart-n60', charts.n60.traces, charts.n60.layout, {responsive: true});
-        Plotly.newPlot('chart-ucs', charts.ucs.traces, charts.ucs.layout, {responsive: true});
+        var compactLayout = {margin: {t: 40, r: 10, b: 30, l: 50}, legend: {x: 0, y: -0.15, orientation: 'h'}, height: 500};
+        Plotly.newPlot('chart-spt', charts.spt.traces, Object.assign({}, charts.spt.layout, compactLayout), {responsive: true});
+        Plotly.newPlot('chart-n60', charts.n60.traces, Object.assign({}, charts.n60.layout, compactLayout), {responsive: true});
+        Plotly.newPlot('chart-ucs', charts.ucs.traces, Object.assign({}, charts.ucs.layout, compactLayout), {responsive: true});
     </script>
     {% endif %}
 </div>
