@@ -7,6 +7,7 @@ Intended for APEC Consultancy team use.
 from flask import Flask, render_template, request
 
 from calculators import terzaghi, meyerhof, mononobe_okabe, stability, micropile
+from calculators import slope_stability, spt_depth
 
 app = Flask(__name__)
 
@@ -172,6 +173,82 @@ def micropile_view():
     return render_template("micropile.html",
                            params=params, results=results,
                            load_combos=load_combos, bar_sizes=bar_sizes)
+
+
+@app.route("/slope-stability", methods=["GET", "POST"])
+def slope_stability_view():
+    default_layers = [
+        dict(name='LAYER 1', depth='0.00-3.00', description='Sandy SILT', spt=7, phi=21, cohesion=0, E=11000, nu=0.2, gamma=13.27, moisture_content=22.64, Gs=2.65),
+        dict(name='LAYER 2', depth='3.00-6.00', description='Sandy lean CLAY', spt=10, phi=0, cohesion=30, E=11500, nu=0.2, gamma=14.63, moisture_content=45.26, Gs=2.65),
+        dict(name='LAYER 3', depth='6.00-13.00', description='Sandy SILT', spt=12, phi=0, cohesion=37, E=7500, nu=0.2, gamma=17.19, moisture_content=46.37, Gs=2.65),
+    ]
+    results = None
+    layers = default_layers
+
+    if request.method == "POST":
+        lc = int(_float('layer_count', 0))
+        layers = []
+        for i in range(lc):
+            layers.append(dict(
+                name=request.form.get(f'ly_name_{i}', f'LAYER {i+1}'),
+                depth=request.form.get(f'ly_depth_{i}', ''),
+                description=request.form.get(f'ly_desc_{i}', ''),
+                spt=_float(f'ly_spt_{i}', 0),
+                phi=_float(f'ly_phi_{i}', 30),
+                cohesion=_float(f'ly_c_{i}', 0),
+                E=_float(f'ly_E_{i}', 10000),
+                nu=_float(f'ly_nu_{i}', 0.3),
+                gamma=_float(f'ly_gamma_{i}', 18),
+                moisture_content=_float(f'ly_mc_{i}', 0),
+                Gs=_float(f'ly_Gs_{i}', 2.65),
+            ))
+        if not layers:
+            layers = default_layers
+
+        computed = slope_stability.calculate(layers)
+        results = [slope_stability.build_report(ly) for ly in computed]
+
+    return render_template("slope_stability.html", layers=layers, results=results)
+
+
+@app.route("/spt-ucs", methods=["GET", "POST"])
+def spt_ucs_view():
+    default_boreholes = [
+        {'name': 'BH-01', 'data': [
+            {'depth': 1.5, 'value': 38}, {'depth': 3, 'value': 13},
+            {'depth': 4.5, 'value': 17}, {'depth': 6, 'value': 14},
+            {'depth': 7.5, 'value': 25}, {'depth': 9, 'value': 21},
+        ]},
+        {'name': 'BH-02', 'data': [
+            {'depth': 1.5, 'value': 63}, {'depth': 3, 'value': 46},
+            {'depth': 4.5, 'value': 20}, {'depth': 6, 'value': 11},
+            {'depth': 7.5, 'value': 12}, {'depth': 9, 'value': 25},
+        ]},
+    ]
+    results = None
+    boreholes = default_boreholes
+    chart_type = 'spt'
+
+    if request.method == "POST":
+        chart_type = request.form.get('chart_type', 'spt')
+        bh_count = int(_float('bh_count', 0))
+        boreholes = []
+        for b in range(bh_count):
+            name = request.form.get(f'bh_name_{b}', f'BH-{b+1}')
+            pt_count = int(_float(f'bh_pt_count_{b}', 0))
+            data = []
+            for p in range(pt_count):
+                d = _float(f'bh_{b}_depth_{p}', 0)
+                v = _float(f'bh_{b}_val_{p}', 0)
+                data.append({'depth': d, 'value': v})
+            boreholes.append({'name': name, 'data': data})
+        if not boreholes:
+            boreholes = default_boreholes
+
+        results = spt_depth.calculate(boreholes, chart_type)
+
+    return render_template("spt_ucs.html",
+                           boreholes=boreholes, results=results, chart_type=chart_type)
 
 
 @app.route("/changelog")

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Slope Stability Parameters - GeoStructPy{% endblock %}
+{% block content %}
+<div>
+    <form method="POST" action="/slope-stability" id="slope-form">
+    <div class="card">
+        <h2>Slope Stability Parameters (Midas GTS NX Input)</h2>
+        <p style="color:var(--muted);font-size:0.9em;">
+            Enter soil layer properties from borehole data. Computes derived parameters for Midas GTS NX
+            Mohr-Coulomb material model: General, Porous, and Non-Linear tabs.
+        </p>
+
+        <input type="hidden" name="layer_count" id="layer_count" value="{{ layers|length }}">
+
+        <div style="overflow-x:auto;">
+        <table class="data-table" style="font-size:0.85em;" id="layer-table">
+            <thead>
+                <tr>
+                    <th style="width:30px;">#</th>
+                    <th style="min-width:100px;">Layer Name</th>
+                    <th style="min-width:90px;">Depth (m)</th>
+                    <th style="min-width:140px;">Description</th>
+                    <th style="width:60px;">SPT N</th>
+                    <th style="width:70px;">&phi; (deg)</th>
+                    <th style="width:80px;">c (kPa)</th>
+                    <th style="width:90px;">E (kPa)</th>
+                    <th style="width:60px;">&nu;</th>
+                    <th style="width:80px;">&gamma; (kN/m&sup3;)</th>
+                    <th style="width:60px;">MC (%)</th>
+                    <th style="width:60px;">Gs</th>
+                    <th style="width:50px;" class="no-print"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ly in layers %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><input type="text" name="ly_name_{{ loop.index0 }}" value="{{ ly.name }}" style="width:100%;border:none;padding:2px 4px;background:transparent;"></td>
+                    <td><input type="text" name="ly_depth_{{ loop.index0 }}" value="{{ ly.depth }}" style="width:100%;border:none;padding:2px 4px;background:transparent;"></td>
+                    <td><input type="text" name="ly_desc_{{ loop.index0 }}" value="{{ ly.description }}" style="width:100%;border:none;padding:2px 4px;background:transparent;"></td>
+                    <td><input type="number" step="1" name="ly_spt_{{ loop.index0 }}" value="{{ ly.spt }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="ly_phi_{{ loop.index0 }}" value="{{ ly.phi }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="ly_c_{{ loop.index0 }}" value="{{ ly.cohesion }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="100" name="ly_E_{{ loop.index0 }}" value="{{ ly.E }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.01" name="ly_nu_{{ loop.index0 }}" value="{{ ly.nu }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="ly_gamma_{{ loop.index0 }}" value="{{ ly.gamma }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="ly_mc_{{ loop.index0 }}" value="{{ ly.moisture_content }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.01" name="ly_Gs_{{ loop.index0 }}" value="{{ ly.Gs }}" style="width:100%;text-align:center;"></td>
+                    <td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removeLayerRow(this)">x</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        <div class="no-print" style="margin-top:8px;">
+            <button type="button" class="btn" onclick="addLayerRow()" style="font-size:0.85em;padding:6px 14px;">+ Add Layer</button>
+        </div>
+
+        <div class="no-print" style="margin-top:12px;">
+            <input type="submit" class="btn btn-accent" value="Generate Midas Parameters">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
+        </div>
+    </div>
+    </form>
+
+    {% if results %}
+    {% for layer in results %}
+    <div class="card">
+        <div class="results-box">
+            {{ layer|safe }}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<script>
+function addLayerRow() {
+    var tbody = document.querySelector('#layer-table tbody');
+    var count = tbody.rows.length;
+    var row = tbody.insertRow();
+    row.innerHTML =
+        '<td>' + (count + 1) + '</td>' +
+        '<td><input type="text" name="ly_name_' + count + '" value="LAYER ' + (count+1) + '" style="width:100%;border:none;padding:2px 4px;background:transparent;"></td>' +
+        '<td><input type="text" name="ly_depth_' + count + '" value="" style="width:100%;border:none;padding:2px 4px;background:transparent;"></td>' +
+        '<td><input type="text" name="ly_desc_' + count + '" value="" style="width:100%;border:none;padding:2px 4px;background:transparent;"></td>' +
+        '<td><input type="number" step="1" name="ly_spt_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.1" name="ly_phi_' + count + '" value="30" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.1" name="ly_c_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="100" name="ly_E_' + count + '" value="10000" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.01" name="ly_nu_' + count + '" value="0.3" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.1" name="ly_gamma_' + count + '" value="18" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.1" name="ly_mc_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
+        '<td><input type="number" step="0.01" name="ly_Gs_' + count + '" value="2.65" style="width:100%;text-align:center;"></td>' +
+        '<td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removeLayerRow(this)">x</button></td>';
+    document.getElementById('layer_count').value = count + 1;
+}
+function removeLayerRow(btn) {
+    var tbody = document.querySelector('#layer-table tbody');
+    if (tbody.rows.length > 1) {
+        btn.closest('tr').remove();
+        var rows = tbody.rows;
+        for (var i = 0; i < rows.length; i++) {
+            rows[i].cells[0].textContent = i + 1;
+            var inputs = rows[i].querySelectorAll('input');
+            for (var j = 0; j < inputs.length; j++) {
+                inputs[j].name = inputs[j].name.replace(/_\d+$/, '_' + i);
+            }
+        }
+        document.getElementById('layer_count').value = rows.length;
+    }
+}
+</script>
+{% endblock %}
