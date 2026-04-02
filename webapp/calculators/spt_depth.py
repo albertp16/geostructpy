@@ -5,19 +5,8 @@ def _f(v, d=2):
     return f"{v:.{d}f}"
 
 
-def calculate(boreholes, chart_type='spt'):
-    """
-    boreholes: list of dicts, each:
-        {
-            'name': 'BH-01',
-            'data': [
-                {'depth': 1.5, 'value': 38},
-                ...
-            ]
-        }
-    chart_type: 'spt' | 'n60' | 'ucs'
-    Returns chart traces/layout and summary table.
-    """
+def _build_chart(boreholes, chart_type):
+    """Build a single Plotly chart for the given chart_type."""
     colors = ['#e6a817', '#2c3e50', '#2980b9', '#27ae60', '#8e44ad',
               '#e67e22', '#1abc9c', '#c0392b', '#d35400', '#7f8c8d']
     symbols = ['triangle-up', 'square', 'circle', 'diamond',
@@ -42,8 +31,19 @@ def calculate(boreholes, chart_type='spt'):
     for i, bh in enumerate(boreholes):
         col = colors[i % len(colors)]
         sym = symbols[i % len(symbols)]
-        depths = [-pt['depth'] for pt in bh['data'] if pt.get('value') is not None]
-        values = [pt['value'] for pt in bh['data'] if pt.get('value') is not None]
+        raw_data = bh['data']
+
+        if chart_type == 'n60':
+            # N60 = N * (Er/60) where Er=72% for safety hammer (common)
+            depths = [-pt['depth'] for pt in raw_data if pt.get('value') is not None]
+            values = [round(pt['value'] * 72 / 60, 1) for pt in raw_data if pt.get('value') is not None]
+        elif chart_type == 'ucs':
+            # UCS ≈ 12.5 * N60 (kPa) — empirical correlation for cohesive soils
+            depths = [-pt['depth'] for pt in raw_data if pt.get('value') is not None]
+            values = [round(pt['value'] * 72 / 60 * 12.5, 1) for pt in raw_data if pt.get('value') is not None]
+        else:
+            depths = [-pt['depth'] for pt in raw_data if pt.get('value') is not None]
+            values = [pt['value'] for pt in raw_data if pt.get('value') is not None]
 
         all_depths.extend(depths)
         all_values.extend(values)
@@ -64,21 +64,19 @@ def calculate(boreholes, chart_type='spt'):
             max_d = max(all_depths)
             traces.append({
                 "x": [median_val, median_val], "y": [max_d + 1, min_d - 1],
-                "mode": "lines", "name": "Median Line",
+                "mode": "lines", "name": f"Median = {_f(median_val, 1)} kPa",
                 "line": {"color": "#27ae60", "width": 2.5},
             })
 
-    # Y-axis range
     if all_depths:
-        y_min = min(min(all_depths) - 1, -30)
+        y_min = min(min(all_depths) - 1, -12)
         y_max = 1
     else:
-        y_min = -30
+        y_min = -12
         y_max = 1
 
-    # X-axis range
     if all_values:
-        x_max = max(all_values) * 1.1
+        x_max = max(all_values) * 1.15
     else:
         x_max = 100
 
@@ -97,7 +95,7 @@ def calculate(boreholes, chart_type='spt'):
             "dtick": 1,
             "gridcolor": "#ddd",
         },
-        "height": 650,
+        "height": 600,
         "margin": {"t": 80, "r": 40, "b": 40, "l": 70},
         "legend": {"x": 1.02, "y": 0.5, "xanchor": "left",
                    "bordercolor": "#333", "borderwidth": 1},
@@ -105,7 +103,21 @@ def calculate(boreholes, chart_type='spt'):
         "paper_bgcolor": "white",
     }
 
-    # Summary stats
+    return {'traces': traces, 'layout': layout}
+
+
+def calculate(boreholes, chart_type='spt'):
+    """
+    Generate all 3 charts (SPT N, N60, UCS) from the same borehole data.
+    Returns chart data for all three plus summary statistics.
+    """
+    charts = {
+        'spt': _build_chart(boreholes, 'spt'),
+        'n60': _build_chart(boreholes, 'n60'),
+        'ucs': _build_chart(boreholes, 'ucs'),
+    }
+
+    # Summary stats (based on raw SPT N values)
     summaries = []
     for bh in boreholes:
         vals = [pt['value'] for pt in bh['data'] if pt.get('value') is not None]
@@ -121,8 +133,6 @@ def calculate(boreholes, chart_type='spt'):
             })
 
     return {
-        'chart_traces': traces,
-        'chart_layout': layout,
+        'charts': charts,
         'summaries': summaries,
-        'chart_type': chart_type,
     }

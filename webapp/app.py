@@ -208,7 +208,26 @@ def slope_stability_view():
         computed = slope_stability.calculate(layers)
         results = [slope_stability.build_report(ly) for ly in computed]
 
-    return render_template("slope_stability.html", layers=layers, results=results)
+    # Prepare JSON for Handsontable
+    layers_json = []
+    for i, ly in enumerate(layers):
+        layers_json.append({
+            'row_num': i + 1,
+            'name': ly['name'],
+            'depth': ly['depth'],
+            'description': ly['description'],
+            'spt': ly['spt'],
+            'phi': ly['phi'],
+            'cohesion': ly['cohesion'],
+            'E': ly['E'],
+            'nu': ly['nu'],
+            'gamma': ly['gamma'],
+            'moisture_content': ly['moisture_content'],
+            'Gs': ly['Gs'],
+        })
+
+    return render_template("slope_stability.html", layers=layers,
+                           layers_json=layers_json, results=results)
 
 
 @app.route("/spt-ucs", methods=["GET", "POST"])
@@ -227,10 +246,8 @@ def spt_ucs_view():
     ]
     results = None
     boreholes = default_boreholes
-    chart_type = 'spt'
 
     if request.method == "POST":
-        chart_type = request.form.get('chart_type', 'spt')
         bh_count = int(_float('bh_count', 0))
         boreholes = []
         for b in range(bh_count):
@@ -245,10 +262,10 @@ def spt_ucs_view():
         if not boreholes:
             boreholes = default_boreholes
 
-        results = spt_depth.calculate(boreholes, chart_type)
+        results = spt_depth.calculate(boreholes)
 
     return render_template("spt_ucs.html",
-                           boreholes=boreholes, results=results, chart_type=chart_type)
+                           boreholes=boreholes, results=results)
 
 
 @app.route("/changelog")

@@ -7,49 +7,36 @@
         <h2>SPT &amp; UCS Graph Maker</h2>
         <p style="color:var(--muted);font-size:0.9em;">
             Generate professional SPT N-value, corrected N<sub>60</sub>, and UCS vs Depth charts for geotechnical reports.
-            Add multiple boreholes with depth-value pairs.
+            Enter raw SPT N-values per borehole &mdash; all three charts are generated automatically.
         </p>
-
-        <div class="form-row" style="grid-template-columns:1fr 2fr;">
-            <div>
-                <div class="form-group">
-                    <label>Chart Type</label>
-                    <select name="chart_type">
-                        <option value="spt" {% if chart_type == 'spt' %}selected{% endif %}>SPT N-value (N)</option>
-                        <option value="n60" {% if chart_type == 'n60' %}selected{% endif %}>Corrected SPT (N<sub>60</sub>)</option>
-                        <option value="ucs" {% if chart_type == 'ucs' %}selected{% endif %}>UCS / q<sub>u</sub> (kPa)</option>
-                    </select>
-                </div>
-            </div>
-            <div>
-                <p style="color:var(--muted);font-size:0.85em;margin-top:24px;">
-                    Depths are plotted as negative values (below ground). Each borehole gets a unique color and symbol.
-                    {% if chart_type == 'ucs' %}A median line is automatically added for UCS charts.{% endif %}
-                </p>
-            </div>
-        </div>
+        <p style="color:var(--muted);font-size:0.85em;">
+            <strong>Correlations used:</strong>
+            N<sub>60</sub> = N &times; (E<sub>r</sub>/60), where E<sub>r</sub> = 72% (safety hammer) &nbsp;|&nbsp;
+            UCS &asymp; 12.5 &times; N<sub>60</sub> (kPa)
+        </p>
     </div>
 
     <!-- Borehole data tables -->
     <input type="hidden" name="bh_count" id="bh_count" value="{{ boreholes|length }}">
 
     {% for bh in boreholes %}
-    <div class="card borehole-card" id="bh-card-{{ loop.index0 }}">
+    {% set bh_idx = loop.index0 %}
+    <div class="card borehole-card" id="bh-card-{{ bh_idx }}">
         <div style="display:flex;align-items:center;justify-content:space-between;">
             <h3 style="margin:0;">
-                <input type="text" name="bh_name_{{ loop.index0 }}" value="{{ bh.name }}"
+                <input type="text" name="bh_name_{{ bh_idx }}" value="{{ bh.name }}"
                        style="border:none;font-size:1em;font-weight:bold;color:var(--primary);background:transparent;width:200px;">
             </h3>
             <button type="button" class="no-print" style="cursor:pointer;border:none;background:none;color:#e74c3c;font-size:1.2em;"
-                    onclick="removeBorehole({{ loop.index0 }})">Remove</button>
+                    onclick="removeBorehole({{ bh_idx }})">Remove</button>
         </div>
-        <input type="hidden" name="bh_pt_count_{{ loop.index0 }}" id="bh_pt_count_{{ loop.index0 }}" value="{{ bh.data|length }}">
-        <table class="data-table" style="font-size:0.9em;max-width:400px;" id="bh-table-{{ loop.index0 }}">
+        <input type="hidden" name="bh_pt_count_{{ bh_idx }}" id="bh_pt_count_{{ bh_idx }}" value="{{ bh.data|length }}">
+        <table class="data-table" style="font-size:0.9em;max-width:400px;" id="bh-table-{{ bh_idx }}">
             <thead>
                 <tr>
                     <th style="width:50px;">#</th>
                     <th>Depth (m)</th>
-                    <th>Value</th>
+                    <th>SPT N-value</th>
                     <th style="width:40px;" class="no-print"></th>
                 </tr>
             </thead>
@@ -57,38 +44,46 @@
                 {% for pt in bh.data %}
                 <tr>
                     <td>{{ loop.index }}</td>
-                    <td><input type="number" step="0.1" name="bh_{{ loop.parent.loop.index0 }}_depth_{{ loop.index0 }}" value="{{ pt.depth }}" style="width:100%;text-align:center;"></td>
-                    <td><input type="number" step="0.1" name="bh_{{ loop.parent.loop.index0 }}_val_{{ loop.index0 }}" value="{{ pt.value }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="bh_{{ bh_idx }}_depth_{{ loop.index0 }}" value="{{ pt.depth }}" style="width:100%;text-align:center;"></td>
+                    <td><input type="number" step="0.1" name="bh_{{ bh_idx }}_val_{{ loop.index0 }}" value="{{ pt.value }}" style="width:100%;text-align:center;"></td>
                     <td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         <div class="no-print" style="margin-top:6px;">
-            <button type="button" class="btn" onclick="addPt({{ loop.index0 }})" style="font-size:0.8em;padding:4px 10px;">+ Add Point</button>
+            <button type="button" class="btn" onclick="addPt({{ bh_idx }})" style="font-size:0.8em;padding:4px 10px;">+ Add Point</button>
         </div>
     </div>
     {% endfor %}
 
     <div class="no-print" style="margin-bottom:16px;">
         <button type="button" class="btn" onclick="addBorehole()">+ Add Borehole</button>
-        <input type="submit" class="btn btn-accent" value="Generate Chart">
+        <input type="submit" class="btn btn-accent" value="Generate Charts">
         <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
     </div>
     </form>
 
     {% if results %}
     <div class="card">
-        <h2>{{ results.chart_layout.title }}</h2>
-        <div id="main-chart"></div>
+        <h2>1. Measured SPT N values (N) vs. Depth</h2>
+        <div id="chart-spt"></div>
+    </div>
+    <div class="card">
+        <h2>2. Corrected SPT N values (N<sub>60</sub>) vs. Depth</h2>
+        <div id="chart-n60"></div>
+    </div>
+    <div class="card">
+        <h2>3. Unconfined Compressive Strength (UCS) vs. Depth</h2>
+        <div id="chart-ucs"></div>
     </div>
 
     {% if results.summaries %}
     <div class="card">
-        <h2>Summary Statistics</h2>
+        <h2>Summary Statistics (Raw SPT N)</h2>
         <table class="data-table">
             <thead>
-                <tr><th>Borehole</th><th>Points</th><th>Max Depth (m)</th><th>Min</th><th>Max</th><th>Average</th></tr>
+                <tr><th>Borehole</th><th>Points</th><th>Max Depth (m)</th><th>Min N</th><th>Max N</th><th>Avg N</th></tr>
             </thead>
             <tbody>
                 {% for s in results.summaries %}
@@ -107,7 +102,10 @@
     {% endif %}
 
     <script>
-        Plotly.newPlot('main-chart', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
+        var charts = {{ results.charts|tojson }};
+        Plotly.newPlot('chart-spt', charts.spt.traces, charts.spt.layout, {responsive: true});
+        Plotly.newPlot('chart-n60', charts.n60.traces, charts.n60.layout, {responsive: true});
+        Plotly.newPlot('chart-ucs', charts.ucs.traces, charts.ucs.layout, {responsive: true});
     </script>
     {% endif %}
 </div>
@@ -155,7 +153,7 @@ function addBorehole() {
         '</div>' +
         '<input type="hidden" name="bh_pt_count_' + count + '" id="bh_pt_count_' + count + '" value="3">' +
         '<table class="data-table" style="font-size:0.9em;max-width:400px;" id="bh-table-' + count + '">' +
-        '<thead><tr><th style="width:50px;">#</th><th>Depth (m)</th><th>Value</th><th style="width:40px;" class="no-print"></th></tr></thead>' +
+        '<thead><tr><th style="width:50px;">#</th><th>Depth (m)</th><th>SPT N-value</th><th style="width:40px;" class="no-print"></th></tr></thead>' +
         '<tbody>' +
         '<tr><td>1</td><td><input type="number" step="0.1" name="bh_' + count + '_depth_0" value="1.5" style="width:100%;text-align:center;"></td><td><input type="number" step="0.1" name="bh_' + count + '_val_0" value="0" style="width:100%;text-align:center;"></td><td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td></tr>' +
         '<tr><td>2</td><td><input type="number" step="0.1" name="bh_' + count + '_depth_1" value="3" style="width:100%;text-align:center;"></td><td><input type="number" step="0.1" name="bh_' + count + '_val_1" value="0" style="width:100%;text-align:center;"></td><td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removePt(this)">x</button></td></tr>' +
