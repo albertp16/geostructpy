@@ -6,6 +6,88 @@ def _f(v, d=2):
     return f"{v:.{d}f}"
 
 
+def _build_cross_section_svg(D, db, nbar, cc, tie):
+    """Generate SVG cross-section drawing of micropile."""
+    size = 320
+    cx, cy = size / 2, size / 2
+    pad = 45
+    scale = (size - 2 * pad) / D
+    R_px = D / 2 * scale
+    db_px = max(db / 2 * scale, 4)
+    tie_px = max(tie * scale, 2)
+    cc_px = cc * scale
+    dprime = cc + tie + db / 2
+    dprime_px = dprime * scale
+
+    svg = f'<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg" '
+    svg += f'style="max-width:{size}px;width:100%;height:auto;font-family:Arial,sans-serif;">\n'
+
+    # Concrete fill
+    svg += f'  <circle cx="{cx}" cy="{cy}" r="{R_px}" fill="#e8e8e8" stroke="#2c3e50" stroke-width="2"/>\n'
+
+    # Tie/spiral ring
+    tie_r = R_px - cc_px - tie_px / 2
+    if tie_r > 0:
+        svg += f'  <circle cx="{cx}" cy="{cy}" r="{tie_r}" fill="none" stroke="#7f8c8d" '
+        svg += f'stroke-width="{max(tie_px, 1.5)}" stroke-dasharray="6,3"/>\n'
+
+    # Rebar placement
+    if nbar == 1:
+        # Single center bar
+        svg += f'  <circle cx="{cx}" cy="{cy}" r="{db_px}" fill="#2c3e50" stroke="#1a1a1a" stroke-width="1"/>\n'
+    else:
+        # Distribute bars evenly on ring at d' from edge
+        bar_ring_r = R_px - dprime_px
+        if bar_ring_r < 0:
+            bar_ring_r = R_px * 0.3
+        for i in range(nbar):
+            angle = 2 * math.pi * i / nbar - math.pi / 2
+            bx = cx + bar_ring_r * math.cos(angle)
+            by = cy + bar_ring_r * math.sin(angle)
+            svg += f'  <circle cx="{bx:.1f}" cy="{by:.1f}" r="{db_px}" fill="#2c3e50" stroke="#1a1a1a" stroke-width="1"/>\n'
+
+    # --- Dimension lines ---
+    dim_color = "#e74c3c"
+    dim_font = 10
+
+    # D diameter (horizontal, above)
+    y_dim = cy - R_px - 18
+    x_left = cx - R_px
+    x_right = cx + R_px
+    # Line
+    svg += f'  <line x1="{x_left}" y1="{y_dim}" x2="{x_right}" y2="{y_dim}" stroke="{dim_color}" stroke-width="1"/>\n'
+    # Arrows
+    svg += f'  <polygon points="{x_left},{y_dim} {x_left+6},{y_dim-3} {x_left+6},{y_dim+3}" fill="{dim_color}"/>\n'
+    svg += f'  <polygon points="{x_right},{y_dim} {x_right-6},{y_dim-3} {x_right-6},{y_dim+3}" fill="{dim_color}"/>\n'
+    # Extension lines
+    svg += f'  <line x1="{x_left}" y1="{cy - R_px}" x2="{x_left}" y2="{y_dim - 4}" stroke="{dim_color}" stroke-width="0.5"/>\n'
+    svg += f'  <line x1="{x_right}" y1="{cy - R_px}" x2="{x_right}" y2="{y_dim - 4}" stroke="{dim_color}" stroke-width="0.5"/>\n'
+    # Label
+    svg += f'  <text x="{cx}" y="{y_dim - 4}" text-anchor="middle" font-size="{dim_font}" fill="{dim_color}" font-weight="bold">D = {D} mm</text>\n'
+
+    # cc cover dimension (right side)
+    cover_x1 = cx + R_px
+    cover_x2 = cx + R_px - cc_px
+    cover_y = cy + R_px + 20
+    svg += f'  <line x1="{cover_x2}" y1="{cover_y}" x2="{cover_x1}" y2="{cover_y}" stroke="#3498db" stroke-width="1"/>\n'
+    svg += f'  <polygon points="{cover_x1},{cover_y} {cover_x1-5},{cover_y-2.5} {cover_x1-5},{cover_y+2.5}" fill="#3498db"/>\n'
+    svg += f'  <polygon points="{cover_x2},{cover_y} {cover_x2+5},{cover_y-2.5} {cover_x2+5},{cover_y+2.5}" fill="#3498db"/>\n'
+    svg += f'  <text x="{(cover_x1+cover_x2)/2}" y="{cover_y + 13}" text-anchor="middle" font-size="9" fill="#3498db">cc={cc}mm</text>\n'
+
+    # Labels
+    svg += f'  <text x="{cx}" y="{cy + R_px + 38}" text-anchor="middle" font-size="10" fill="#2c3e50">'
+    svg += f'{nbar}-{db}mm bar | Tie {tie}mm</text>\n'
+
+    # Legend: concrete fill
+    svg += f'  <rect x="8" y="{size-18}" width="10" height="10" fill="#e8e8e8" stroke="#2c3e50" stroke-width="0.5"/>\n'
+    svg += f'  <text x="22" y="{size-9}" font-size="9" fill="#6c757d">Concrete</text>\n'
+    svg += f'  <circle cx="78" cy="{size-13}" r="5" fill="#2c3e50"/>\n'
+    svg += f'  <text x="87" y="{size-9}" font-size="9" fill="#6c757d">Rebar</text>\n'
+
+    svg += '</svg>'
+    return svg
+
+
 def calculate(D, db, nbar, fy, fc, cc, restrained, Qa, Fa, Pp, H, d, load_combos):
     D_m = D / 1000
     R = D / 2
@@ -261,11 +343,15 @@ def calculate(D, db, nbar, fy, fc, cc, restrained, Qa, Fa, Pp, H, d, load_combos
         ],
     }
 
+    # SVG cross section
+    cross_section_svg = _build_cross_section_svg(D, db, nbar, cc, tie)
+
     # Governing loads info for template
     gov = {'Pu': Pu, 'Vu': Vu, 'Mu': Mu}
 
     return {
         'summaryReport': sumr,
+        'crossSectionSvg': cross_section_svg,
         'slendernessReport': sl,
         'soilReport': so,
         'lateralReport': la,

@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Micropile Design - GeoStructPy{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.css">
+<script src="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.js"></script>
+<style>
+    .htCore td, .htCore th { font-size: 0.85em; }
+    .handsontable .htDimmed { color: #333; }
+</style>
+{% endblock %}
 {% block content %}
 <div>
     <form method="POST" action="/micropile" id="micropile-form">
@@ -74,52 +82,28 @@
         </div>
     </div>
 
-    <!-- LRFD Load Combinations Table -->
+    <!-- LRFD Load Combinations - Handsontable -->
     <div class="card">
         <h2>LRFD Load Combinations</h2>
         <p style="color:var(--muted);font-size:0.85em;">
             Enter factored loads for each combination. The governing (maximum) values will be used for design checks.
+            Right-click to add/remove rows.
         </p>
         <input type="hidden" name="lc_count" id="lc_count" value="{{ load_combos|length }}">
-        <table class="data-table" style="font-size:0.9em;" id="lc-table">
-            <thead>
-                <tr>
-                    <th style="width:40px;">#</th>
-                    <th>Load Combination</th>
-                    <th style="width:110px;">P<sub>u</sub> (kN)</th>
-                    <th style="width:110px;">V<sub>u</sub> (kN)</th>
-                    <th style="width:110px;">M<sub>u</sub> (kN-m)</th>
-                    <th style="width:50px;" class="no-print"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for lc in load_combos %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td><input type="text" name="lc_label_{{ loop.index0 }}" value="{{ lc.label }}" style="border:none;width:100%;padding:2px 4px;background:transparent;"></td>
-                    <td><input type="number" step="0.1" name="lc_Pu_{{ loop.index0 }}" value="{{ lc.Pu }}" style="width:100%;text-align:center;"></td>
-                    <td><input type="number" step="0.1" name="lc_Vu_{{ loop.index0 }}" value="{{ lc.Vu }}" style="width:100%;text-align:center;"></td>
-                    <td><input type="number" step="0.1" name="lc_Mu_{{ loop.index0 }}" value="{{ lc.Mu }}" style="width:100%;text-align:center;"></td>
-                    <td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removeRow(this)">x</button></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            {% if results %}
-            <tfoot>
-                <tr style="font-weight:bold;background:#eaf2f8;">
-                    <td colspan="2">Governing (max absolute)</td>
-                    <td>{{ "%.1f"|format(results.gov.Pu) }}</td>
-                    <td>{{ "%.1f"|format(results.gov.Vu) }}</td>
-                    <td>{{ "%.1f"|format(results.gov.Mu) }}</td>
-                    <td class="no-print"></td>
-                </tr>
-            </tfoot>
-            {% endif %}
+        <div id="hot-lc" style="overflow-x:auto;margin-bottom:8px;"></div>
+        {% if results %}
+        <table class="data-table" style="max-width:600px;font-size:0.85em;">
+            <thead><tr><th colspan="2">Governing (max absolute)</th>
+                <th>P<sub>u</sub> = {{ "%.1f"|format(results.gov.Pu) }} kN</th>
+                <th>V<sub>u</sub> = {{ "%.1f"|format(results.gov.Vu) }} kN</th>
+                <th>M<sub>u</sub> = {{ "%.1f"|format(results.gov.Mu) }} kN-m</th>
+            </tr></thead>
         </table>
-        <div class="no-print" style="margin-top:8px;">
-            <button type="button" class="btn" onclick="addRow()" style="font-size:0.85em;padding:6px 14px;">+ Add Combination</button>
-        </div>
+        {% endif %}
     </div>
+
+    <!-- Hidden fields for load combos -->
+    <div id="hidden-lc"></div>
 
     <div class="no-print" style="margin-bottom:16px;">
         <input type="submit" class="btn btn-accent" value="Calculate">
@@ -128,11 +112,17 @@
     </form>
 
     {% if results %}
-    <!-- Input Summary -->
+    <!-- Cross Section + Input Summary side by side -->
     <div class="card">
         <h2>Input Data &amp; Design Summary</h2>
-        <div class="results-box">
-            <div>{{ results.summaryReport|safe }}</div>
+        <div style="display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start;">
+            <div style="text-align:center;">
+                <h3 style="font-size:1em; margin:0 0 8px;">Cross Section</h3>
+                {{ results.crossSectionSvg|safe }}
+            </div>
+            <div class="results-box">
+                {{ results.summaryReport|safe }}
+            </div>
         </div>
     </div>
 
@@ -207,35 +197,57 @@
 </div>
 
 <script>
-function addRow() {
-    var tbody = document.querySelector('#lc-table tbody');
-    var count = tbody.rows.length;
-    var row = tbody.insertRow();
-    row.innerHTML =
-        '<td>' + (count + 1) + '</td>' +
-        '<td><input type="text" name="lc_label_' + count + '" value="New Combination" style="border:none;width:100%;padding:2px 4px;background:transparent;"></td>' +
-        '<td><input type="number" step="0.1" name="lc_Pu_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
-        '<td><input type="number" step="0.1" name="lc_Vu_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
-        '<td><input type="number" step="0.1" name="lc_Mu_' + count + '" value="0" style="width:100%;text-align:center;"></td>' +
-        '<td class="no-print"><button type="button" style="cursor:pointer;border:none;background:none;color:#e74c3c;" onclick="removeRow(this)">x</button></td>';
-    document.getElementById('lc_count').value = count + 1;
-}
-function removeRow(btn) {
-    var tbody = document.querySelector('#lc-table tbody');
-    if (tbody.rows.length > 1) {
-        btn.closest('tr').remove();
-        // Re-index
-        var rows = tbody.rows;
-        for (var i = 0; i < rows.length; i++) {
-            rows[i].cells[0].textContent = i + 1;
-            var inputs = rows[i].querySelectorAll('input');
-            inputs[0].name = 'lc_label_' + i;
-            inputs[1].name = 'lc_Pu_' + i;
-            inputs[2].name = 'lc_Vu_' + i;
-            inputs[3].name = 'lc_Mu_' + i;
-        }
-        document.getElementById('lc_count').value = rows.length;
+var lcData = {{ combos_json|tojson }};
+
+var hotLc = new Handsontable(document.getElementById('hot-lc'), {
+    data: lcData,
+    colHeaders: ['Load Combination', 'P<sub>u</sub> (kN)', 'V<sub>u</sub> (kN)', 'M<sub>u</sub> (kN-m)'],
+    columns: [
+        {type: 'text'},
+        {type: 'numeric', numericFormat: {pattern: '0.0'}},
+        {type: 'numeric', numericFormat: {pattern: '0.0'}},
+        {type: 'numeric', numericFormat: {pattern: '0.0'}}
+    ],
+    colWidths: [220, 110, 110, 110],
+    rowHeaders: true,
+    contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'undo', 'redo'],
+    minRows: 1,
+    minSpareRows: 1,
+    licenseKey: 'non-commercial-and-evaluation',
+    stretchH: 'none',
+    height: 'auto',
+});
+
+function syncLcBeforeSubmit() {
+    var data = hotLc.getSourceData();
+    var hiddenDiv = document.getElementById('hidden-lc');
+    hiddenDiv.innerHTML = '';
+    var validRows = [];
+    for (var i = 0; i < data.length; i++) {
+        var r = data[i];
+        if (!r[0] && !r[1] && !r[2] && !r[3]) continue;
+        validRows.push(r);
+    }
+    document.getElementById('lc_count').value = validRows.length;
+    for (var i = 0; i < validRows.length; i++) {
+        var r = validRows[i];
+        addHidden('lc_label_' + i, r[0] || 'Combination');
+        addHidden('lc_Pu_' + i, r[1] || 0);
+        addHidden('lc_Vu_' + i, r[2] || 0);
+        addHidden('lc_Mu_' + i, r[3] || 0);
     }
 }
+
+function addHidden(name, val) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = name;
+    inp.value = val;
+    document.getElementById('hidden-lc').appendChild(inp);
+}
+
+document.getElementById('micropile-form').addEventListener('submit', function(e) {
+    syncLcBeforeSubmit();
+});
 </script>
 {% endblock %}

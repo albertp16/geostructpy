@@ -170,9 +170,13 @@ def micropile_view():
             load_combos=load_combos,
         )
 
+    # Prepare JSON for Handsontable
+    combos_json = [[lc['label'], lc['Pu'], lc['Vu'], lc['Mu']] for lc in load_combos]
+
     return render_template("micropile.html",
                            params=params, results=results,
-                           load_combos=load_combos, bar_sizes=bar_sizes)
+                           load_combos=load_combos, combos_json=combos_json,
+                           bar_sizes=bar_sizes)
 
 
 @app.route("/slope-stability", methods=["GET", "POST"])
