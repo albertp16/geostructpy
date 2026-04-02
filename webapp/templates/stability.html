@@ -4,59 +4,60 @@
 {% raw %}
 <div id="app">
     <div class="card">
-        <h2>Retaining Wall Stability Analysis</h2>
+        <h2>Cantilever Retaining Wall Stability Analysis</h2>
         <p style="color:var(--muted);font-size:0.9em;">
-            Checks sliding and overturning safety factors for gravity/cantilever retaining walls using Rankine earth pressure theory.
+            Stability checks for cantilever retaining walls: sliding, overturning, eccentricity, and bearing pressure.
+            Aligned with ACI SP-17 Chapter 2 methodology.
         </p>
         <div class="form-row">
             <div>
                 <h3>Wall Geometry</h3>
                 <div class="form-group">
-                    <label>Total Wall Height, H (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.H">
+                    <label>Height Above Ground, h<sub>1</sub> (m)</label>
+                    <input type="number" step="0.1" v-model.number="p.h1">
                 </div>
                 <div class="form-group">
-                    <label>Stem Thickness at Top, t<sub>top</sub> (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.t_top">
+                    <label>Height Below Ground, h<sub>2</sub> (m)</label>
+                    <input type="number" step="0.1" v-model.number="p.h2">
                 </div>
                 <div class="form-group">
-                    <label>Stem Thickness at Base, t<sub>base</sub> (m)</label>
+                    <label>Stem Thickness, t<sub>stem</sub> (m)</label>
+                    <input type="number" step="0.01" v-model.number="p.t_stem">
+                </div>
+                <div class="form-group">
+                    <label>Base Thickness, t<sub>base</sub> (m)</label>
                     <input type="number" step="0.01" v-model.number="p.t_base">
                 </div>
                 <div class="form-group">
-                    <label>Base Width, B (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.B">
+                    <label>Total Base Width, b<sub>base</sub> (m)</label>
+                    <input type="number" step="0.01" v-model.number="p.b_base">
                 </div>
                 <div class="form-group">
-                    <label>Base Thickness, D (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.D">
-                </div>
-                <div class="form-group">
-                    <label>Toe Length, a (m)</label>
-                    <input type="number" step="0.01" v-model.number="p.a">
+                    <label>Heel Width, b<sub>heel</sub> (m)</label>
+                    <input type="number" step="0.01" v-model.number="p.b_heel">
                 </div>
             </div>
             <div>
                 <h3>Soil &amp; Material Properties</h3>
                 <div class="form-group">
-                    <label>Backfill Unit Weight, &gamma;<sub>s</sub> (kN/m&sup3;)</label>
+                    <label>Soil Unit Weight, &gamma;<sub>s</sub> (kN/m&sup3;)</label>
                     <input type="number" step="0.1" v-model.number="p.gamma_s">
                 </div>
                 <div class="form-group">
-                    <label>Backfill Friction Angle, &phi; (deg)</label>
+                    <label>Soil Friction Angle, &phi; (deg)</label>
                     <input type="number" step="0.1" v-model.number="p.phi">
                 </div>
                 <div class="form-group">
-                    <label>Cohesion, c (kPa)</label>
-                    <input type="number" step="0.1" v-model.number="p.cohesion">
+                    <label>Soil-Concrete Friction Coefficient, &mu;</label>
+                    <input type="number" step="0.01" v-model.number="p.mu">
+                </div>
+                <div class="form-group">
+                    <label>Allowable Soil Bearing, q<sub>all</sub> (kPa)</label>
+                    <input type="number" step="1" v-model.number="p.q_bearing">
                 </div>
                 <div class="form-group">
                     <label>Concrete Unit Weight, &gamma;<sub>c</sub> (kN/m&sup3;)</label>
                     <input type="number" step="0.1" v-model.number="p.gamma_c">
-                </div>
-                <div class="form-group">
-                    <label>Base Friction Coefficient, &mu;</label>
-                    <input type="number" step="0.01" v-model.number="p.mu">
                 </div>
                 <div class="form-group">
                     <label>Surcharge, q (kPa)</label>
@@ -71,14 +72,29 @@
         </div>
     </div>
 
+    <!-- Wall Diagram -->
+    <div class="card" v-if="computed">
+        <h2>Wall Diagram &amp; Pressure Distribution</h2>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px;">
+            <div id="wall-plot"></div>
+            <div id="pressure-plot"></div>
+        </div>
+    </div>
+
+    <!-- Results -->
     <div class="card" v-if="computed">
         <h2>Results</h2>
         <div class="results-box">
             <div v-html="report"></div>
         </div>
-        <table class="data-table" style="margin-top:16px;">
+    </div>
+
+    <!-- Summary Table -->
+    <div class="card" v-if="computed">
+        <h2>Design Summary</h2>
+        <table class="data-table">
             <thead>
-                <tr><th>Check</th><th>Driving</th><th>Resisting</th><th>FS</th><th>Required</th><th>Status</th></tr>
+                <tr><th>Check</th><th>Driving</th><th>Resisting</th><th>FS / Value</th><th>Required</th><th>Status</th></tr>
             </thead>
             <tbody>
                 <tr v-for="row in summary">
@@ -91,144 +107,13 @@
                 </tr>
             </tbody>
         </table>
+        <p v-if="allPass" style="color:#27ae60;font-weight:bold;margin-top:12px;font-size:1.1em;">THE WALL DESIGN IS ADEQUATE.</p>
+        <p v-else style="color:#e74c3c;font-weight:bold;margin-top:12px;font-size:1.1em;">DESIGN DOES NOT PASS ALL CHECKS.</p>
     </div>
 </div>
 {% endraw %}
 {% endblock %}
 
 {% block scripts %}
-<script>
-const { createApp } = Vue;
-const DEG = Math.PI / 180;
-
-createApp({
-    data() {
-        return {
-            p: {
-                H: 4.0, t_top: 0.3, t_base: 0.5, B: 2.5, D: 0.5, a: 0.5,
-                gamma_s: 18, phi: 30, cohesion: 0, gamma_c: 24, mu: 0.5, q: 0
-            },
-            computed: false,
-            report: '',
-            summary: []
-        };
-    },
-    methods: {
-        f: (v, d=2) => v.toFixed(d),
-        calculate() {
-            const {H, t_top, t_base, B, D, a, gamma_s:gs, phi, cohesion:c, gamma_c:gc, mu, q} = this.p;
-
-            const Hstem = H - D;
-            const heel = B - a - t_base;
-
-            // Rankine active earth pressure coefficient
-            const Ka = (1 - Math.sin(phi * DEG)) / (1 + Math.sin(phi * DEG));
-            const Kp = (1 + Math.sin(phi * DEG)) / (1 - Math.sin(phi * DEG));
-
-            // Active earth pressure
-            const Pa_soil = 0.5 * gs * H * H * Ka;
-            const Pa_surcharge = q * H * Ka;
-            const Pa_total = Pa_soil + Pa_surcharge;
-
-            // Passive earth pressure (on toe side, embedded depth = D)
-            const Pp = 0.5 * gs * D * D * Kp + 2 * c * Math.sqrt(Kp) * D;
-
-            // Weights and moments about toe (point A)
-            const parts = [];
-            // 1. Rectangular stem
-            const W1 = gc * t_top * Hstem;
-            const x1 = a + t_top / 2;
-            parts.push({name:'Stem (rect)', W: W1, x: x1});
-
-            // 2. Triangular stem widening
-            const W2 = 0.5 * gc * (t_base - t_top) * Hstem;
-            const x2 = a + t_top + (t_base - t_top) / 3;
-            if (t_base > t_top) parts.push({name:'Stem (tri)', W: W2, x: x2});
-
-            // 3. Base slab
-            const W3 = gc * B * D;
-            const x3 = B / 2;
-            parts.push({name:'Base slab', W: W3, x: x3});
-
-            // 4. Soil on heel
-            const W4 = gs * heel * Hstem;
-            const x4 = a + t_base + heel / 2;
-            if (heel > 0) parts.push({name:'Soil on heel', W: W4, x: x4});
-
-            // 5. Surcharge on heel
-            const W5 = q * heel;
-            const x5 = x4;
-            if (q > 0 && heel > 0) parts.push({name:'Surcharge weight', W: W5, x: x5});
-
-            const Wt = parts.reduce((s, p) => s + p.W, 0);
-            const Mr = parts.reduce((s, p) => s + p.W * p.x, 0);
-
-            // Overturning moment about toe
-            const Mo_soil = Pa_soil * (H / 3);
-            const Mo_surcharge = Pa_surcharge * (H / 2);
-            const Mo = Mo_soil + Mo_surcharge;
-
-            // Resisting moment from passive
-            const Mr_passive = Pp * (D / 3);
-
-            // Sliding FS
-            const Fr = mu * Wt + c * B + Pp;
-            const Fd = Pa_total;
-            const FS_slide = Fr / Fd;
-
-            // Overturning FS
-            const FS_over = (Mr + Mr_passive) / Mo;
-
-            // Eccentricity check
-            const x_bar = (Mr - Mo) / Wt;
-            const e = B / 2 - x_bar;
-
-            // Base pressure
-            const q_max = (Wt / B) * (1 + 6 * e / B);
-            const q_min = (Wt / B) * (1 - 6 * e / B);
-
-            let r = `<h4>Rankine Earth Pressure Coefficients</h4>`;
-            r += `\\[ K_a = \\frac{1 - \\sin\\phi}{1 + \\sin\\phi} = ${this.f(Ka, 4)} \\]`;
-            r += `\\[ K_p = \\frac{1 + \\sin\\phi}{1 - \\sin\\phi} = ${this.f(Kp, 4)} \\]`;
-
-            r += `<h4>Active Earth Pressure</h4>`;
-            r += `\\[ P_{a,soil} = \\tfrac{1}{2}\\gamma H^2 K_a = ${this.f(Pa_soil)} \\text{ kN/m} \\]`;
-            if (q > 0) r += `\\[ P_{a,surcharge} = q H K_a = ${this.f(Pa_surcharge)} \\text{ kN/m} \\]`;
-            r += `\\[ P_{a,total} = ${this.f(Pa_total)} \\text{ kN/m} \\]`;
-
-            r += `<h4>Weight Components</h4>`;
-            r += `<table class="data-table"><thead><tr><th>Component</th><th>W (kN/m)</th><th>Arm x (m)</th><th>M<sub>R</sub> (kN&middot;m/m)</th></tr></thead><tbody>`;
-            for (const p of parts) {
-                r += `<tr><td>${p.name}</td><td>${this.f(p.W)}</td><td>${this.f(p.x)}</td><td>${this.f(p.W * p.x)}</td></tr>`;
-            }
-            r += `<tr style="font-weight:bold"><td>Total</td><td>${this.f(Wt)}</td><td></td><td>${this.f(Mr)}</td></tr>`;
-            r += `</tbody></table>`;
-
-            r += `<h4>Overturning Moment about Toe</h4>`;
-            r += `\\[ M_o = P_{a,soil} \\times \\frac{H}{3} + P_{a,surcharge} \\times \\frac{H}{2} = ${this.f(Mo)} \\text{ kN&middot;m/m} \\]`;
-
-            r += `<h4>Sliding Check</h4>`;
-            r += `\\[ FS_{sliding} = \\frac{\\mu W + cB + P_p}{P_a} = \\frac{${this.f(Fr)}}{${this.f(Fd)}} = ${this.f(FS_slide)} \\]`;
-
-            r += `<h4>Overturning Check</h4>`;
-            r += `\\[ FS_{overturning} = \\frac{M_R + M_{R,passive}}{M_o} = \\frac{${this.f(Mr + Mr_passive)}}{${this.f(Mo)}} = ${this.f(FS_over)} \\]`;
-
-            r += `<h4>Eccentricity &amp; Base Pressure</h4>`;
-            r += `\\[ \\bar{x} = \\frac{M_R - M_o}{W} = ${this.f(x_bar)} \\text{ m} \\]`;
-            r += `\\[ e = \\frac{B}{2} - \\bar{x} = ${this.f(e)} \\text{ m} \\quad (B/6 = ${this.f(B/6)}) \\quad ${Math.abs(e) <= B/6 ? '\\checkmark' : '\\times'} \\]`;
-            r += `\\[ q_{max} = \\frac{W}{B}\\left(1 + \\frac{6e}{B}\\right) = ${this.f(q_max)} \\text{ kPa} \\]`;
-            r += `\\[ q_{min} = \\frac{W}{B}\\left(1 - \\frac{6e}{B}\\right) = ${this.f(q_min)} \\text{ kPa} \\]`;
-
-            this.report = r;
-            this.summary = [
-                {name:'Sliding', driving:this.f(Fd)+' kN/m', resisting:this.f(Fr)+' kN/m', fs:this.f(FS_slide), req:'\u2265 1.5', pass:FS_slide>=1.5},
-                {name:'Overturning', driving:this.f(Mo)+' kN\u00B7m/m', resisting:this.f(Mr+Mr_passive)+' kN\u00B7m/m', fs:this.f(FS_over), req:'\u2265 2.0', pass:FS_over>=2.0},
-                {name:'Eccentricity', driving:'e = '+this.f(e)+' m', resisting:'B/6 = '+this.f(B/6)+' m', fs:this.f(B/(6*Math.abs(e)+0.001)), req:'e \u2264 B/6', pass:Math.abs(e)<=B/6}
-            ];
-            this.computed = true;
-            this.$nextTick(() => { if (window.MathJax) MathJax.typeset(); });
-        }
-    }
-}).mount('#app');
-</script>
+<script src="/static/js/stability.js"></script>
 {% endblock %}
