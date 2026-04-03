@@ -160,8 +160,11 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                         <div><label>Water Table Depth (m)</label><input type="number" step="0.01" id="meta-wt"></div>
                     </div>
                     <div id="hot-container" style="overflow-x:auto;"></div>
-                    <div style="margin-top:12px;" class="no-print">
+                    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;" class="no-print">
                         <button type="button" class="btn btn-accent" onclick="generateCharts()">Generate Charts</button>
+                        <button type="button" class="btn" style="background:#27ae60;color:#fff;" onclick="saveProject()">Save Project</button>
+                        <button type="button" class="btn" onclick="document.getElementById('load-file').click()">Load Project</button>
+                        <input type="file" id="load-file" accept=".json" style="display:none;" onchange="loadProject(this)">
                         <button type="button" class="btn" onclick="goToUpload()">Upload Different Image</button>
                     </div>
                 </div>
@@ -400,6 +403,57 @@ function showCopyFeedback(btn, msg) {
     var orig = btn.textContent;
     btn.textContent = msg;
     setTimeout(function() { btn.textContent = orig; }, 2000);
+}
+
+// ---- Save / Load project ----
+function saveProject() {
+    if (!hotInstance) return;
+    var data = hotInstance.getSourceData();
+    var project = {
+        borehole_id: document.getElementById('meta-bh-id').value,
+        location: document.getElementById('meta-location').value,
+        water_table_depth: parseFloat(document.getElementById('meta-wt').value) || null,
+        samples: []
+    };
+    var keys = ['sample_id','depth','sample_type','spt_n','recovery_pct','rqd_pct',
+                'description','classification','water_content','liquid_limit',
+                'plastic_limit','plasticity_index','ucs','specific_gravity'];
+    for (var r = 0; r < data.length; r++) {
+        if (data[r][1] === null || data[r][1] === '') continue;
+        var sample = {};
+        for (var k = 0; k < keys.length; k++) {
+            sample[keys[k]] = data[r][k] !== undefined ? data[r][k] : null;
+        }
+        project.samples.push(sample);
+    }
+    var blob = new Blob([JSON.stringify(project, null, 2)], {type: 'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (project.borehole_id || 'borehole') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function loadProject(input) {
+    if (!input.files.length) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            var data = JSON.parse(e.target.result);
+        } catch (err) {
+            alert('Invalid JSON file: ' + err.message);
+            return;
+        }
+        if (!data.samples || !Array.isArray(data.samples)) {
+            alert('JSON must contain a "samples" array.');
+            return;
+        }
+        showRefImage();
+        populateReview(data);
+        showStep('review');
+    };
+    reader.readAsText(input.files[0]);
+    input.value = '';
 }
 
 // ---- State ----
