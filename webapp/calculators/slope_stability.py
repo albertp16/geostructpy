@@ -70,6 +70,194 @@ def calculate(layers):
     return results
 
 
+# ---------------------------------------------------------------------------
+# SPT Correlation Tables (Polish Code PN-59/B-03020, Wilun & Starzewski)
+# ---------------------------------------------------------------------------
+
+# Table 5: Unit weight from N-value
+_GAMMA_TABLE = [
+    # (N_min, N_max, gamma_above_wt, gamma_below_wt)
+    (2, 4, 14, 8),
+    (5, 10, 16, 9),
+    (11, 20, 17, 10),
+    (21, 30, 18, 10),
+    (31, 40, 19, 11),
+    (41, 50, 20, 12),
+    (51, 999, 21, 13),
+]
+
+
+def _gamma_from_n(n):
+    """Unit weight (kN/m3) from SPT N (Table 5, above water table)."""
+    if n is None or n < 2:
+        return 14
+    for nmin, nmax, g_above, _ in _GAMMA_TABLE:
+        if nmin <= n <= nmax:
+            return g_above
+    return 21
+
+
+# Table 1: Sandy Clay and Silty Clay (CL, CH with sand description)
+_SANDY_CLAY = [
+    # (N_min, N_max, c_mid, phi_mid)
+    (0, 3, 25, 1),
+    (4, 8, 45, 3.5),
+    (8, 15, 55, 6.5),
+    (15, 30, 70, 9),
+    (31, 999, 85, 10),
+]
+
+# Table 2: Clayey Sand and Clayey Silts (SC, GC)
+_CLAYEY_SAND = [
+    (0, 3, 11.5, 6),
+    (4, 8, 24.5, 9.5),
+    (8, 15, 34, 14),
+    (15, 30, 44, 18),
+    (31, 999, 50, 20),
+]
+
+# Table 3: Cohesionless Soils - Sand (SM, SW, SP, GM, GW, GP) c=0
+_SAND = [
+    (0, 3, 0, 26),
+    (4, 10, 0, 30),
+    (10, 30, 0, 33.5),
+    (30, 50, 0, 36),
+    (51, 999, 0, 38),
+]
+
+# Table 4: Sandy Silts (ML, MH)
+_SANDY_SILT = [
+    (0, 3, 8.5, 6),
+    (4, 8, 17.5, 13),
+    (8, 15, 24.5, 18),
+    (15, 30, 34, 22.5),
+    (31, 999, 40, 25),
+]
+
+
+def _lookup_table(table, n):
+    """Interpolate cohesion and phi from a correlation table."""
+    if n is None or n <= 0:
+        return table[0][2], table[0][3]
+    for nmin, nmax, c, phi in table:
+        if nmin <= n <= nmax:
+            return c, phi
+    return table[-1][2], table[-1][3]
+
+
+def _get_soil_table(classification):
+    """Select the right Polish Code table based on USCS classification."""
+    cls = (classification or '').upper()
+    # Cohesionless sands/gravels (no clay component)
+    if cls in ('SM', 'SW', 'SP', 'GM', 'GW', 'GP'):
+        return _SAND
+    # Clayey sand/gravel
+    if cls in ('SC', 'GC'):
+        return _CLAYEY_SAND
+    # Sandy silts
+    if cls in ('ML', 'MH'):
+        return _SANDY_SILT
+    # Sandy clay, silty clay, lean/fat clay
+    if cls in ('CL', 'CH'):
+        return _SANDY_CLAY
+    # Default to sandy clay for unknown
+    return _SANDY_CLAY
+
+
+def _estimate_E(n, classification):
+    """Estimate Young's modulus E (kPa) from SPT N-value."""
+    cls = (classification or '').upper()
+    if cls in ('SM', 'SW', 'SP', 'GM', 'GW', 'GP', 'SC', 'GC'):
+        # Granular: E ≈ 500*(N+15) (Webb, 1969)
+        return round(500 * ((n or 5) + 15))
+    else:
+        # Cohesive: E ≈ 600*N (Bowles, 1996)
+        return round(600 * (n or 5))
+
+
+def derive_layers_from_borehole(samples):
+    """Convert borehole JSON samples into slope stability layer format.
+
+    Uses Polish Code PN-59/B-03020 correlation tables to derive
+    phi, cohesion, gamma, and E from SPT N-values and classification.
+
+    Returns list of layer dicts compatible with the Handsontable format.
+    """
+    if not samples:
+        return []
+
+    # Sort by depth
+    samples = sorted(samples, key=lambda s: s['depth'])
+
+    # Group consecutive samples with same classification into layers
+    groups = []
+    current = {'cls': (samples[0].get('classification') or '').upper(),
+               'samples': [samples[0]]}
+    for s in samples[1:]:
+        cls = (s.get('classification') or '').upper()
+        if cls == current['cls']:
+            current['samples'].append(s)
+        else:
+            groups.append(current)
+            current = {'cls': cls, 'samples': [s]}
+    groups.append(current)
+
+    layers = []
+    for i, g in enumerate(groups):
+        slist = g['samples']
+        cls = g['cls']
+        n_values = [s.get('spt_n') for s in slist if s.get('spt_n') is not None]
+        avg_n = round(sum(n_values) / len(n_values)) if n_values else 0
+
+        # Depth range
+        min_depth = min(s['depth'] for s in slist)
+        max_depth = max(s['depth'] for s in slist)
+        if i == 0:
+            top = 0
+        else:
+            prev_max = max(s['depth'] for s in groups[i - 1]['samples'])
+            top = round((prev_max + min_depth) / 2, 2)
+        if i < len(groups) - 1:
+            next_min = min(s['depth'] for s in groups[i + 1]['samples'])
+            bot = round((max_depth + next_min) / 2, 2)
+        else:
+            bot = round(max_depth + 1, 2)
+        thickness = round(bot - top, 2)
+
+        # Description from first sample
+        desc = slist[0].get('description', cls)
+
+        # Derive parameters from Polish Code tables
+        table = _get_soil_table(cls)
+        cohesion, phi = _lookup_table(table, avg_n)
+        gamma = _gamma_from_n(avg_n)
+        E = _estimate_E(avg_n, cls)
+
+        # Rock layers
+        if cls in ('RK', 'ROCK'):
+            cohesion = 100
+            phi = 35
+            gamma = 24
+            E = 50000
+
+        layers.append({
+            'row_num': i + 1,
+            'name': f'LAYER {i + 1}',
+            'thickness': thickness,
+            'description': desc,
+            'spt': avg_n,
+            'phi': round(phi, 1),
+            'cohesion': round(cohesion, 0),
+            'E': E,
+            'nu': 0.3 if cls not in ('RK', 'ROCK') else 0.2,
+            'gamma': round(gamma, 2),
+            'moisture_content': 0,
+            'Gs': 2.65,
+        })
+
+    return layers
+
+
 def build_soil_profile(layers):
     """Build Plotly soil profile chart from computed layers."""
     colors = ['#aed6f1', '#a9dfbf', '#f9e79f', '#d2b4de', '#f5cba7',

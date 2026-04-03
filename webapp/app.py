@@ -386,6 +386,19 @@ def borehole_extract_api():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route("/api/slope-from-borehole", methods=["POST"])
+def slope_from_borehole_api():
+    """Convert borehole JSON to slope stability layers using Polish Code tables."""
+    try:
+        data = request.get_json()
+        if not data or 'samples' not in data:
+            return jsonify({'error': 'Missing samples in request body.'}), 400
+        layers = slope_stability.derive_layers_from_borehole(data['samples'])
+        return jsonify({'layers': layers})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route("/bored-pile", methods=["GET", "POST"])
 def bored_pile_view():
     defaults = dict(

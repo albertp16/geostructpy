@@ -18,6 +18,25 @@
             Mohr-Coulomb material model: General, Porous, and Non-Linear tabs.
         </p>
 
+        <!-- Import from Borehole JSON -->
+        <div style="background:#f8f9fa;border:1px solid #ddd;border-radius:6px;padding:12px;margin-bottom:12px;" class="no-print">
+            <h3 style="margin:0 0 6px;font-size:0.95em;">Import from Borehole Log JSON</h3>
+            <p style="color:var(--muted);font-size:0.82em;margin:0 0 8px;">
+                Paste JSON from <a href="/borehole-log">Borehole Log Digitizer</a> &mdash; soil parameters (&phi;, c, &gamma;, E)
+                are auto-derived from SPT N-values using Polish Code PN-59/B-03020 correlation tables.
+            </p>
+            <div style="display:flex;gap:8px;align-items:start;">
+                <textarea id="bh-json-input" rows="3" placeholder='Paste borehole JSON here or load a .json file...'
+                    style="flex:1;font-family:monospace;font-size:0.78em;border:1px solid #ccc;border-radius:4px;padding:6px;resize:vertical;"></textarea>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <button type="button" class="btn btn-accent" style="font-size:0.82em;padding:6px 12px;" onclick="importBoreholeJson()">Import JSON</button>
+                    <button type="button" class="btn" style="font-size:0.82em;padding:6px 12px;" onclick="document.getElementById('bh-file-slope').click()">Load File</button>
+                    <input type="file" id="bh-file-slope" accept=".json" style="display:none;" onchange="loadBhFileSlope(this)">
+                </div>
+            </div>
+            <div id="import-error" style="color:#e74c3c;font-size:0.82em;margin-top:4px;display:none;"></div>
+        </div>
+
         <input type="hidden" name="layer_count" id="layer_count" value="{{ layers|length }}">
         <div id="hot-container" style="overflow-x:auto;margin-bottom:12px;"></div>
 
@@ -134,5 +153,74 @@ function addHidden(name, val) {
 document.getElementById('slope-form').addEventListener('submit', function(e) {
     syncBeforeSubmit();
 });
+
+function loadBhFileSlope(input) {
+    if (!input.files.length) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('bh-json-input').value = e.target.result;
+    };
+    reader.readAsText(input.files[0]);
+    input.value = '';
+}
+
+function importBoreholeJson() {
+    var raw = document.getElementById('bh-json-input').value.trim();
+    var errDiv = document.getElementById('import-error');
+    errDiv.style.display = 'none';
+
+    if (!raw) {
+        errDiv.textContent = 'Please paste the borehole JSON first.';
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    // Strip markdown code fences
+    if (raw.startsWith('```')) {
+        var lines = raw.split('\n');
+        lines = lines.slice(1);
+        if (lines.length && lines[lines.length - 1].trim() === '```') lines = lines.slice(0, -1);
+        raw = lines.join('\n');
+    }
+
+    var data;
+    try { data = JSON.parse(raw); } catch (e) {
+        errDiv.textContent = 'Invalid JSON: ' + e.message;
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    if (!data.samples || !Array.isArray(data.samples)) {
+        errDiv.textContent = 'JSON must contain a "samples" array.';
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    // Call backend to derive layers
+    fetch('/api/slope-from-borehole', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: raw
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('Server error ' + r.status);
+        return r.json();
+    })
+    .then(function(resp) {
+        if (resp.error) {
+            errDiv.textContent = resp.error;
+            errDiv.style.display = 'block';
+            return;
+        }
+        if (resp.layers && resp.layers.length > 0) {
+            hot.loadData(resp.layers);
+            errDiv.style.display = 'none';
+        }
+    })
+    .catch(function(err) {
+        errDiv.textContent = 'Import failed: ' + err.message;
+        errDiv.style.display = 'block';
+    });
+}
 </script>
 {% endblock %}
