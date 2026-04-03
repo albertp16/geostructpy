@@ -165,14 +165,74 @@ def _get_soil_table(classification):
 
 
 def _estimate_E(n, classification):
-    """Estimate Young's modulus E (kPa) from SPT N-value."""
+    """Estimate Young's modulus E (kPa) from SPT N-value.
+
+    Uses E = 500*(N+15) to match the Excel template.
+    """
     cls = (classification or '').upper()
     if cls in ('SM', 'SW', 'SP', 'GM', 'GW', 'GP', 'SC', 'GC'):
-        # Granular: E ≈ 500*(N+15) (Webb, 1969)
         return round(500 * ((n or 5) + 15))
     else:
-        # Cohesive: E ≈ 600*N (Bowles, 1996)
-        return round(600 * (n or 5))
+        # Cohesive: also use E = 500*(N+15) for consistency with Excel
+        return round(500 * ((n or 5) + 15))
+
+
+def build_parameters_table(layers):
+    """Build Slope Stability Parameters table matching the Excel format.
+
+    Computes: Dry Unit Weight, Saturated Unit Weight from the Excel formulas:
+      gamma_d = gamma / (1 + mc/100)
+      gamma_sat = gamma_d + 9.81 - gamma_d/Gs  (or Gs=2.7 if not provided)
+    """
+    if not layers:
+        return ''
+
+    r = '<h3>Slope Stability Parameters</h3>'
+    r += '<div style="overflow-x:auto;">'
+    r += '<table class="data-table" style="font-size:0.82em;white-space:nowrap;">'
+    r += '<thead><tr>'
+    r += '<th>Layer</th><th>Depth (m)</th>'
+    r += '<th>Soil/Rock Description</th><th>SPT N</th>'
+    r += '<th>&phi; (&deg;)</th><th>c (kPa)</th>'
+    r += '<th>E (kPa)</th><th>&nu;</th>'
+    r += '<th>&gamma; (kN/m&sup3;)</th><th>MC (%)</th>'
+    r += '<th>&gamma;<sub>d</sub> (kN/m&sup3;)</th>'
+    r += '<th>&gamma;<sub>sat</sub> (kN/m&sup3;)</th>'
+    r += '</tr></thead><tbody>'
+
+    for ly in layers:
+        gamma = ly['gamma']
+        mc = ly.get('moisture_content', 0)
+        Gs = ly.get('Gs', 2.65) or 2.65
+        w = mc / 100.0 if mc > 0 else 0
+
+        # Dry unit weight: gamma_d = gamma / (1 + w)
+        gamma_d = gamma / (1 + w) if w > 0 else gamma
+
+        # Saturated unit weight matching Excel:
+        # IF(Gs=0, gamma_d + 9.81 - gamma_d/2.7, gamma_d + 9.81 - gamma_d/Gs)
+        if Gs == 0 or Gs is None:
+            gamma_sat = gamma_d + 9.81 - gamma_d / 2.7
+        else:
+            gamma_sat = gamma_d + 9.81 - gamma_d / Gs
+
+        r += '<tr>'
+        r += f'<td><strong>{ly["name"]}</strong></td>'
+        r += f'<td>{ly["depth_range"]}</td>'
+        r += f'<td>{ly["description"]}</td>'
+        r += f'<td>{ly["spt"]}</td>'
+        r += f'<td>{_f(ly["phi"], 0)}</td>'
+        r += f'<td>{_f(ly["cohesion"], 0)}</td>'
+        r += f'<td>{_f(ly["E"], 0)}</td>'
+        r += f'<td>{_f(ly["nu"])}</td>'
+        r += f'<td>{_f(gamma)}</td>'
+        r += f'<td>{_f(mc)}</td>'
+        r += f'<td>{_f(gamma_d)}</td>'
+        r += f'<td>{_f(gamma_sat)}</td>'
+        r += '</tr>'
+
+    r += '</tbody></table></div>'
+    return r
 
 
 def derive_layers_from_borehole(samples):
@@ -270,42 +330,60 @@ def build_soil_profile(layers):
         top = -ly['depth_top']
         bot = -ly['depth_bottom']
         mid = (top + bot) / 2
+        thickness = ly['thickness']
 
         traces.append({
             "x": [0, 1, 1, 0],
             "y": [top, top, bot, bot],
             "fill": "toself",
             "fillcolor": col,
-            "line": {"color": "#333", "width": 1},
+            "line": {"color": "#555", "width": 1.5},
             "mode": "lines",
             "name": ly['name'],
             "showlegend": False,
             "hoverinfo": "text",
-            "text": f"{ly['name']}: {ly['description']}<br>{_f(ly['depth_top'])}–{_f(ly['depth_bottom'])} m<br>t = {_f(ly['thickness'])} m",
+            "text": f"{ly['name']}: {ly['description']}<br>{_f(ly['depth_top'])}-{_f(ly['depth_bottom'])} m<br>t = {_f(thickness)} m | SPT={ly['spt']}",
         })
+
+        # Adapt label to layer thickness
+        desc = ly['description']
+        if thickness >= 3:
+            if len(desc) > 45:
+                desc = desc[:42] + '...'
+            label = f"<b>{ly['name']}</b><br>{desc}<br>t={_f(thickness)}m | SPT={ly['spt']}"
+            font_size = 11
+        elif thickness >= 1.5:
+            if len(desc) > 30:
+                desc = desc[:27] + '...'
+            label = f"<b>{ly['name']}</b>  {desc}  t={_f(thickness)}m | SPT={ly['spt']}"
+            font_size = 10
+        else:
+            label = f"<b>{ly['name']}</b> t={_f(thickness)}m | SPT={ly['spt']}"
+            font_size = 9
 
         annotations.append({
             "x": 0.5, "y": mid,
-            "text": f"<b>{ly['name']}</b><br>{ly['description']}<br>t={_f(ly['thickness'])}m | SPT={ly['spt']}",
+            "text": label,
             "showarrow": False,
-            "font": {"size": 11},
+            "font": {"size": font_size, "color": "#333"},
             "xanchor": "center",
         })
 
     max_depth = max(ly['depth_bottom'] for ly in layers) if layers else 10
+    chart_height = max(500, int(max_depth * 45))
 
     layout = {
-        "title": "Soil Profile",
-        "xaxis": {"visible": False, "range": [-0.2, 1.2]},
+        "title": "",
+        "xaxis": {"visible": False, "range": [-0.1, 1.1]},
         "yaxis": {
             "title": "Depth [m]",
             "range": [-(max_depth + 1), 1],
             "dtick": 1,
             "gridcolor": "#ddd",
         },
-        "height": 450,
-        "width": 350,
-        "margin": {"t": 40, "r": 20, "b": 30, "l": 60},
+        "height": chart_height,
+        "width": 400,
+        "margin": {"t": 20, "r": 20, "b": 30, "l": 60},
         "plot_bgcolor": "white",
         "paper_bgcolor": "white",
         "annotations": annotations,

@@ -50,15 +50,23 @@
     <div id="hidden-fields"></div>
     </form>
 
-    {% if profile_chart and software_table %}
-    <div style="display:grid; grid-template-columns:350px 1fr; gap:16px; align-items:start;">
-        <div class="card" style="padding:12px;">
-            <div id="soil-profile"></div>
+    {% if params_table %}
+    <div class="card" style="margin-bottom:12px;">
+        <div class="results-box">
+            {{ params_table|safe }}
         </div>
+    </div>
+    {% endif %}
+
+    {% if profile_chart and software_table %}
+    <div style="display:grid; grid-template-columns:1fr auto; gap:12px; align-items:start;">
         <div class="card">
             <div class="results-box">
                 {{ software_table|safe }}
             </div>
+        </div>
+        <div class="card" style="padding:12px;">
+            <div id="soil-profile"></div>
         </div>
     </div>
     <script>

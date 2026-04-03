@@ -239,17 +239,20 @@ def slope_stability_view():
             'Gs': ly['Gs'],
         })
 
-    # Build soil profile chart and software table
+    # Build soil profile chart, software table, and parameters table
     profile_chart = None
     software_table = None
+    params_table = None
     if computed:
         profile_chart = slope_stability.build_soil_profile(computed)
         software_table = slope_stability.build_software_table(computed)
+        params_table = slope_stability.build_parameters_table(computed)
 
     return render_template("slope_stability.html", layers=layers,
                            layers_json=layers_json, results=results,
                            profile_chart=profile_chart,
-                           software_table=software_table)
+                           software_table=software_table,
+                           params_table=params_table)
 
 
 @app.route("/spt-ucs", methods=["GET", "POST"])
