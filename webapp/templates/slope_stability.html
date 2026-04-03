@@ -14,7 +14,11 @@
     .modal-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
         border-bottom:1px solid #eee; flex-shrink:0; }
     .modal-header h3 { margin:0; }
-    .modal-body { padding:16px; overflow-y:auto; flex:1; }
+    .modal-body { padding:16px; overflow-y:auto; flex:1; text-align:center; }
+    .modal-body table { margin:0 auto; }
+    .modal-body h3, .modal-body h4 { text-align:center; }
+    .modal-body p { text-align:center; }
+    .modal-body td[style*="text-align:left"] { text-align:left !important; }
     .modal-footer { display:flex; justify-content:space-between; padding:10px 16px;
         border-top:1px solid #eee; flex-shrink:0; }
     .modal-nav { display:flex; gap:6px; }
@@ -70,6 +74,43 @@
             {{ params_table|safe }}
         </div>
     </div>
+    {% endif %}
+
+    {% if bh_charts %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:12px; margin-bottom:12px;">
+        {% if bh_charts.spt %}
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">SPT N-value vs. Depth</h3>
+            <div id="chart-spt-slope"></div>
+        </div>
+        {% endif %}
+        {% if bh_charts.rqd %}
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">RQD vs. Depth</h3>
+            <div id="chart-rqd-slope"></div>
+        </div>
+        {% endif %}
+        {% if bh_charts.wc %}
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">Water Content vs. Depth</h3>
+            <div id="chart-wc-slope"></div>
+        </div>
+        {% endif %}
+        {% if bh_charts.pi %}
+        <div class="card" style="padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">Plasticity Index vs. Depth</h3>
+            <div id="chart-pi-slope"></div>
+        </div>
+        {% endif %}
+    </div>
+    <script>
+        var bhCharts = {{ bh_charts|tojson }};
+        var opts = {responsive: true};
+        {% if bh_charts.spt %}Plotly.newPlot('chart-spt-slope', bhCharts.spt.traces, bhCharts.spt.layout, opts);{% endif %}
+        {% if bh_charts.rqd %}Plotly.newPlot('chart-rqd-slope', bhCharts.rqd.traces, bhCharts.rqd.layout, opts);{% endif %}
+        {% if bh_charts.wc %}Plotly.newPlot('chart-wc-slope', bhCharts.wc.traces, bhCharts.wc.layout, opts);{% endif %}
+        {% if bh_charts.pi %}Plotly.newPlot('chart-pi-slope', bhCharts.pi.traces, bhCharts.pi.layout, opts);{% endif %}
+    </script>
     {% endif %}
 
     {% if profile_chart and software_table %}

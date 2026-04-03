@@ -392,6 +392,65 @@ def build_soil_profile(layers):
     return {'traces': traces, 'layout': layout}
 
 
+def build_borehole_charts(layers, samples=None):
+    """Build SPT N, RQD, Water Content, and Plasticity Index charts from input data.
+
+    Uses samples (raw borehole data) if available, otherwise derives from layers.
+    """
+    charts = {}
+
+    # Use samples if provided, otherwise build from layers
+    if samples:
+        pts_n = [(s['depth'], s['spt_n']) for s in samples if s.get('spt_n') is not None]
+        pts_rqd = [(s['depth'], s['rqd_pct']) for s in samples if s.get('rqd_pct') is not None]
+        pts_wc = [(s['depth'], s['water_content']) for s in samples if s.get('water_content') is not None]
+        pts_pi = []
+        for s in samples:
+            pi = s.get('plasticity_index')
+            if pi is not None:
+                pts_pi.append((s['depth'], pi))
+            elif s.get('description') and 'NP' in s.get('description', '').upper():
+                pts_pi.append((s['depth'], 0))
+    else:
+        pts_n = [((ly['depth_top'] + ly['depth_bottom']) / 2, ly['spt'])
+                 for ly in layers if ly.get('spt')]
+        pts_rqd = []
+        pts_wc = [((ly['depth_top'] + ly['depth_bottom']) / 2, ly['moisture_content'])
+                  for ly in layers if ly.get('moisture_content')]
+        pts_pi = []
+
+    def _make_chart(pts, title, x_title, color, symbol):
+        if not pts:
+            return None
+        depths = [-d for d, _ in pts]
+        values = [v for _, v in pts]
+        x_max = max(values) * 1.2 if values else 50
+        y_min = min(depths) - 1
+        return {
+            'traces': [{
+                "x": values, "y": depths,
+                "mode": "lines+markers", "name": title,
+                "marker": {"size": 8, "color": color, "symbol": symbol},
+                "line": {"color": color, "width": 1.5},
+            }],
+            'layout': {
+                "title": "",
+                "xaxis": {"title": x_title, "side": "top", "range": [0, x_max], "gridcolor": "#ddd"},
+                "yaxis": {"title": "Depth [m]", "range": [min(y_min, -12), 1], "dtick": 1, "gridcolor": "#ddd"},
+                "height": 450, "margin": {"t": 50, "r": 20, "b": 30, "l": 60},
+                "plot_bgcolor": "white", "paper_bgcolor": "white",
+            }
+        }
+
+    charts['spt'] = _make_chart(pts_n, 'SPT N', 'SPT N-value', '#2c3e50', 'circle')
+    charts['rqd'] = _make_chart(pts_rqd, 'RQD', 'RQD [%]', '#8e44ad', 'hexagon')
+    charts['wc'] = _make_chart(pts_wc, 'Water Content', 'Water Content [%]', '#2980b9', 'square')
+    charts['pi'] = _make_chart(pts_pi, 'Plasticity Index', 'PI', '#e67e22', 'triangle-up')
+
+    # Remove None entries
+    return {k: v for k, v in charts.items() if v is not None}
+
+
 def build_software_table(layers):
     """Build consolidated Midas GTS NX software input HTML table."""
     r = '<h3>Midas GTS NX &mdash; Software Input Summary</h3>'
@@ -462,7 +521,7 @@ def build_report(layer):
     mc = layer['moisture_content']
 
     r += '<h4>Manual Computation</h4>'
-    r += '<table class="data-table" style="max-width:700px;text-align:left;">'
+    r += '<table class="data-table" style="max-width:700px;text-align:left;margin:0 auto;">'
     r += '<thead><tr><th style="width:40%;">Parameter</th><th style="width:35%;">Formula / Method</th><th style="width:25%;">Result</th></tr></thead>'
     r += '<tbody>'
 
@@ -510,7 +569,7 @@ def build_report(layer):
 
     # General tab
     r += '<h4>General (Mohr-Coulomb)</h4>'
-    r += '<table class="data-table" style="max-width:500px;">'
+    r += '<table class="data-table" style="max-width:500px;margin:0 auto;">'
     r += f'<tr><td style="text-align:left">Elastic Modulus, E</td><td>{_f(E, 0)} kN/m&sup2;</td></tr>'
     r += f'<tr><td style="text-align:left">Poisson\'s Ratio, &nu;</td><td>{_f(layer["nu"], 2)}</td></tr>'
     r += f'<tr><td style="text-align:left">Unit Weight, &gamma;</td><td>{_f(gamma)} kN/m&sup3;</td></tr>'
@@ -522,7 +581,7 @@ def build_report(layer):
 
     # Porous tab
     r += '<h4>Porous</h4>'
-    r += '<table class="data-table" style="max-width:500px;">'
+    r += '<table class="data-table" style="max-width:500px;margin:0 auto;">'
     r += f'<tr><td style="text-align:left">Unit Weight (Saturated)</td><td>{_f(gamma_sat)} kN/m&sup3;</td></tr>'
     r += f'<tr><td style="text-align:left">Initial Void Ratio, e₀</td><td>{_f(e0, 4)}</td></tr>'
     r += f'<tr><td style="text-align:left">Permeability kx</td><td>{layer["perm_kx"]:.2e} m/sec</td></tr>'
@@ -533,7 +592,7 @@ def build_report(layer):
 
     # Non-Linear tab
     r += '<h4>Non-Linear (Mohr-Coulomb)</h4>'
-    r += '<table class="data-table" style="max-width:500px;">'
+    r += '<table class="data-table" style="max-width:500px;margin:0 auto;">'
     r += f'<tr><td style="text-align:left">Cohesion, C</td><td>{_f(layer["cohesion"], 0)} kN/m&sup2;</td></tr>'
     r += f'<tr><td style="text-align:left">Frictional Angle, &phi;</td><td>{_f(phi, 0)} [deg]</td></tr>'
     r += f'<tr><td style="text-align:left">Dilatancy Angle, &psi;</td><td>{_f(psi, 0)} [deg]</td></tr>'
@@ -542,7 +601,7 @@ def build_report(layer):
 
     # Derived
     r += '<h4>Derived Properties</h4>'
-    r += '<table class="data-table" style="max-width:500px;">'
+    r += '<table class="data-table" style="max-width:500px;margin:0 auto;">'
     r += f'<tr><td style="text-align:left">Dry Unit Weight, &gamma;<sub>d</sub></td><td>{_f(gamma_d)} kN/m&sup3;</td></tr>'
     r += f'<tr><td style="text-align:left">Effective Unit Weight, &gamma;\'</td><td>{_f(gamma_eff)} kN/m&sup3;</td></tr>'
     r += f'<tr><td style="text-align:left">Moisture Content</td><td>{_f(mc)}%</td></tr>'
