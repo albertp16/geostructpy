@@ -346,10 +346,23 @@ def borehole_log_view():
             for s in samples
         ]
 
+    # Pass samples as dicts for the data table in results
+    samples_data = []
+    if request.method == "POST" and samples:
+        for s in samples:
+            n60 = round(s['spt_n'] * 72 / 60, 1) if s.get('spt_n') is not None else None
+            ucs_kpa = None
+            if s.get('ucs') is not None:
+                ucs_kpa = round(s['ucs'] * 98.07, 1)
+            elif n60 is not None:
+                ucs_kpa = round(n60 * 12.5, 1)
+            samples_data.append({**s, 'n60': n60, 'ucs_kpa': ucs_kpa})
+
     return render_template("borehole_log.html",
                            has_api_key=has_api_key,
                            results=results,
                            samples_json=samples_json,
+                           samples_data=samples_data,
                            metadata=metadata)
 
 

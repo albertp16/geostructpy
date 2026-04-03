@@ -185,6 +185,83 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
             <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
         </div>
 
+        <!-- Borehole metadata header -->
+        {% if metadata.borehole_id or metadata.location or metadata.water_table_depth %}
+        <div class="card" style="margin-bottom:12px;">
+            <h2>Borehole Data Report</h2>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:0.95em;">
+                {% if metadata.borehole_id %}<div><strong>Borehole ID:</strong> {{ metadata.borehole_id }}</div>{% endif %}
+                {% if metadata.location %}<div><strong>Location:</strong> {{ metadata.location }}</div>{% endif %}
+                {% if metadata.water_table_depth %}<div><strong>Water Table:</strong> {{ metadata.water_table_depth }} m</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tabulated sample data -->
+        {% if samples_data %}
+        <div class="card" style="margin-bottom:12px;overflow-x:auto;">
+            <h2>Sample Data Table</h2>
+            <table class="data-table" style="font-size:0.85em;white-space:nowrap;">
+                <thead>
+                    <tr>
+                        <th>Sample ID</th>
+                        <th>Depth (m)</th>
+                        <th>Type</th>
+                        <th>SPT N</th>
+                        <th>N<sub>60</sub></th>
+                        <th>Recovery (%)</th>
+                        <th>RQD (%)</th>
+                        <th>Description</th>
+                        <th>Class.</th>
+                        <th>w (%)</th>
+                        <th>w<sub>L</sub></th>
+                        <th>w<sub>P</sub></th>
+                        <th>PI</th>
+                        <th>UCS (kg/cm&sup2;)</th>
+                        <th>UCS (kPa)</th>
+                        <th>SpGr</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in samples_data %}
+                    <tr>
+                        <td><strong>{{ s.sample_id }}</strong></td>
+                        <td>{{ "%.1f"|format(s.depth) }}</td>
+                        <td>{{ s.sample_type }}</td>
+                        <td>{{ s.spt_n if s.spt_n is not none else '-' }}</td>
+                        <td>{{ s.n60 if s.n60 is not none else '-' }}</td>
+                        <td>{{ s.recovery_pct|int if s.recovery_pct is not none else '-' }}</td>
+                        <td>{{ s.rqd_pct|int if s.rqd_pct is not none else '-' }}</td>
+                        <td style="white-space:normal;max-width:200px;">{{ s.description }}</td>
+                        <td><strong>{{ s.classification }}</strong></td>
+                        <td>{{ s.water_content if s.water_content is not none else '-' }}</td>
+                        <td>{{ s.liquid_limit if s.liquid_limit is not none else '-' }}</td>
+                        <td>{{ s.plastic_limit if s.plastic_limit is not none else '-' }}</td>
+                        <td>{{ s.plasticity_index if s.plasticity_index is not none else '-' }}</td>
+                        <td>{{ s.ucs if s.ucs is not none else '-' }}</td>
+                        <td>{{ s.ucs_kpa if s.ucs_kpa is not none else '-' }}</td>
+                        <td>{{ s.specific_gravity if s.specific_gravity is not none else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if results.summaries %}
+        <div class="card" style="margin-bottom:12px;">
+            <h2>Summary Statistics</h2>
+            <table class="data-table">
+                <thead><tr><th>Parameter</th><th>Count</th><th>Min</th><th>Max</th><th>Avg</th></tr></thead>
+                <tbody>
+                    {% for s in results.summaries %}
+                    <tr><td>{{ s.label }}</td><td>{{ s.count }}</td><td>{{ s.min }}</td><td>{{ s.max }}</td><td>{{ s.avg }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% endif %}
+
         {% if results.charts %}
         <div class="chart-grid">
             {% if results.charts.spt %}
@@ -212,20 +289,6 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
             <div id="chart-profile"></div>
         </div>
         {% endif %}
-        {% endif %}
-
-        {% if results.summaries %}
-        <div class="card" style="margin-top:12px;">
-            <h2>Summary Statistics</h2>
-            <table class="data-table">
-                <thead><tr><th>Parameter</th><th>Count</th><th>Min</th><th>Max</th><th>Avg</th></tr></thead>
-                <tbody>
-                    {% for s in results.summaries %}
-                    <tr><td>{{ s.label }}</td><td>{{ s.count }}</td><td>{{ s.min }}</td><td>{{ s.max }}</td><td>{{ s.avg }}</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
         {% endif %}
 
         <script>
