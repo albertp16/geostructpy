@@ -14,11 +14,11 @@
     .modal-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
         border-bottom:1px solid #eee; flex-shrink:0; }
     .modal-header h3 { margin:0; }
-    .modal-body { padding:16px; overflow-y:auto; flex:1; text-align:center; }
+    .modal-body { padding:20px 24px; overflow-y:auto; flex:1; }
     .modal-body table { margin:0 auto; }
-    .modal-body h3, .modal-body h4 { text-align:center; }
-    .modal-body p { text-align:center; }
-    .modal-body td[style*="text-align:left"] { text-align:left !important; }
+    .modal-body h3 { text-align:left; margin:16px 0 6px; border-bottom:2px solid var(--accent); padding-bottom:4px; }
+    .modal-body h4 { text-align:left; margin:14px 0 6px; color:var(--primary); }
+    .modal-body p { text-align:left; }
     .modal-footer { display:flex; justify-content:space-between; padding:10px 16px;
         border-top:1px solid #eee; flex-shrink:0; }
     .modal-nav { display:flex; gap:6px; }
@@ -114,13 +114,14 @@
     {% endif %}
 
     {% if profile_chart and software_table %}
-    <div style="display:grid; grid-template-columns:1fr auto; gap:12px; align-items:start;">
-        <div class="card">
+    <div style="display:grid; grid-template-columns:1fr 420px; gap:12px; align-items:start; margin-bottom:12px;">
+        <div class="card" style="overflow-x:auto;">
             <div class="results-box">
                 {{ software_table|safe }}
             </div>
         </div>
-        <div class="card" style="padding:12px;">
+        <div class="card" style="padding:8px;">
+            <h3 style="font-size:0.95em;margin:0 0 4px;text-align:center;">Soil Profile</h3>
             <div id="soil-profile"></div>
         </div>
     </div>

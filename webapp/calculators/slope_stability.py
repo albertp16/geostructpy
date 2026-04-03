@@ -419,33 +419,78 @@ def build_borehole_charts(layers, samples=None):
                   for ly in layers if ly.get('moisture_content')]
         pts_pi = []
 
-    def _make_chart(pts, title, x_title, color, symbol):
+    # Publication-quality chart style
+    _font = {"family": "Arial, Helvetica, sans-serif", "color": "#333"}
+    _axis_font = {**_font, "size": 12}
+    _title_font = {**_font, "size": 13}
+    _tick_font = {**_font, "size": 11}
+
+    def _make_chart(pts, title, x_title, x_unit, color, symbol, x_dtick=None):
         if not pts:
             return None
         depths = [-d for d, _ in pts]
         values = [v for _, v in pts]
         x_max = max(values) * 1.2 if values else 50
         y_min = min(depths) - 1
+        x_cfg = {
+            "title": {"text": x_title, "font": _title_font, "standoff": 8},
+            "side": "top",
+            "range": [0, x_max],
+            "gridcolor": "rgba(0,0,0,0.08)",
+            "gridwidth": 1,
+            "zeroline": True,
+            "zerolinecolor": "rgba(0,0,0,0.15)",
+            "zerolinewidth": 1,
+            "tickfont": _tick_font,
+            "ticks": "outside",
+            "ticklen": 5,
+            "tickcolor": "#999",
+            "linecolor": "#333",
+            "linewidth": 1.5,
+            "mirror": True,
+        }
+        if x_dtick:
+            x_cfg["dtick"] = x_dtick
         return {
             'traces': [{
                 "x": values, "y": depths,
-                "mode": "lines+markers", "name": title,
-                "marker": {"size": 8, "color": color, "symbol": symbol},
-                "line": {"color": color, "width": 1.5},
+                "mode": "lines+markers",
+                "name": title,
+                "marker": {"size": 7, "color": color, "symbol": symbol,
+                           "line": {"width": 1.2, "color": "#fff"}},
+                "line": {"color": color, "width": 2, "shape": "linear"},
+                "hovertemplate": f"{x_title}: %{{x}}{x_unit}<br>Depth: %{{y:.1f}} m<extra></extra>",
             }],
             'layout': {
                 "title": "",
-                "xaxis": {"title": x_title, "side": "top", "range": [0, x_max], "gridcolor": "#ddd"},
-                "yaxis": {"title": "Depth [m]", "range": [min(y_min, -12), 1], "dtick": 1, "gridcolor": "#ddd"},
-                "height": 450, "margin": {"t": 50, "r": 20, "b": 30, "l": 60},
-                "plot_bgcolor": "white", "paper_bgcolor": "white",
+                "xaxis": x_cfg,
+                "yaxis": {
+                    "title": {"text": "Depth [m]", "font": _title_font, "standoff": 8},
+                    "range": [min(y_min, -12), 1],
+                    "dtick": 1,
+                    "gridcolor": "rgba(0,0,0,0.08)",
+                    "gridwidth": 1,
+                    "tickfont": _tick_font,
+                    "ticks": "outside",
+                    "ticklen": 5,
+                    "tickcolor": "#999",
+                    "linecolor": "#333",
+                    "linewidth": 1.5,
+                    "mirror": True,
+                },
+                "height": 480,
+                "margin": {"t": 55, "r": 25, "b": 25, "l": 65},
+                "plot_bgcolor": "#fff",
+                "paper_bgcolor": "#fff",
+                "font": _font,
+                "showlegend": False,
             }
         }
 
-    charts['spt'] = _make_chart(pts_n, 'SPT N', 'SPT N-value', '#2c3e50', 'circle')
-    charts['rqd'] = _make_chart(pts_rqd, 'RQD', 'RQD [%]', '#8e44ad', 'hexagon')
-    charts['wc'] = _make_chart(pts_wc, 'Water Content', 'Water Content [%]', '#2980b9', 'square')
-    charts['pi'] = _make_chart(pts_pi, 'Plasticity Index', 'PI', '#e67e22', 'triangle-up')
+    charts['spt'] = _make_chart(pts_n, 'SPT N-value', 'N [blows/0.3m]', '', '#2c3e50', 'circle', 10)
+    charts['rqd'] = _make_chart(pts_rqd, 'RQD', 'RQD [%]', '%', '#8e44ad', 'diamond')
+    charts['wc'] = _make_chart(pts_wc, 'Water Content', 'w [%]', '%', '#2980b9', 'square')
+    charts['pi'] = _make_chart(pts_pi, 'Plasticity Index', 'PI', '', '#e67e22', 'triangle-up')
 
     # Remove None entries
     return {k: v for k, v in charts.items() if v is not None}
