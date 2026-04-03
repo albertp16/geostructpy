@@ -4,10 +4,13 @@ Lightweight Flask app for geotechnical engineering calculations.
 Intended for APEC Consultancy team use.
 """
 
-from flask import Flask, render_template, request
+import json
+import os
+
+from flask import Flask, render_template, request, jsonify
 
 from calculators import terzaghi, meyerhof, mononobe_okabe, stability, micropile
-from calculators import slope_stability, spt_depth
+from calculators import slope_stability, spt_depth, borehole_log
 
 app = Flask(__name__)
 
@@ -289,6 +292,76 @@ def spt_ucs_view():
     return render_template("spt_ucs.html",
                            boreholes=boreholes, boreholes_json=boreholes_json,
                            results=results)
+
+
+@app.route("/borehole-log", methods=["GET", "POST"])
+def borehole_log_view():
+    has_api_key = bool(os.environ.get('ANTHROPIC_API_KEY'))
+    results = None
+    samples_json = []
+    metadata = {'borehole_id': '', 'location': '', 'water_table_depth': ''}
+
+    if request.method == "POST":
+        sc = int(_float('sample_count', 0))
+        samples = []
+        for i in range(sc):
+            samples.append({
+                'sample_id': request.form.get(f's_id_{i}', ''),
+                'depth': _float(f's_depth_{i}', 0),
+                'sample_type': request.form.get(f's_type_{i}', 'SPT'),
+                'spt_n': _float(f's_spt_{i}', 0) or None,
+                'recovery_pct': _float(f's_rec_{i}', 0) or None,
+                'rqd_pct': _float(f's_rqd_{i}', 0) or None,
+                'description': request.form.get(f's_desc_{i}', ''),
+                'classification': request.form.get(f's_cls_{i}', ''),
+                'water_content': _float(f's_wc_{i}', 0) or None,
+                'liquid_limit': _float(f's_wl_{i}', 0) or None,
+                'plastic_limit': _float(f's_wp_{i}', 0) or None,
+                'plasticity_index': _float(f's_pi_{i}', 0) or None,
+                'ucs': _float(f's_ucs_{i}', 0) or None,
+                'specific_gravity': _float(f's_sg_{i}', 0) or None,
+            })
+
+        wt = _float('water_table_depth', 0) or None
+        metadata = {
+            'borehole_id': request.form.get('borehole_id', ''),
+            'location': request.form.get('location', ''),
+            'water_table_depth': request.form.get('water_table_depth', ''),
+        }
+
+        if samples:
+            results = borehole_log.build_charts(samples, wt)
+
+        samples_json = [
+            [s['sample_id'], s['depth'], s['sample_type'],
+             s['spt_n'], s['recovery_pct'], s['rqd_pct'],
+             s['description'], s['classification'],
+             s['water_content'], s['liquid_limit'], s['plastic_limit'],
+             s['plasticity_index'], s['ucs'], s['specific_gravity']]
+            for s in samples
+        ]
+
+    return render_template("borehole_log.html",
+                           has_api_key=has_api_key,
+                           results=results,
+                           samples_json=samples_json,
+                           metadata=metadata)
+
+
+@app.route("/api/borehole-extract", methods=["POST"])
+def borehole_extract_api():
+    data = request.get_json()
+    if not data or 'image_base64' not in data:
+        return jsonify({'error': 'Missing image_base64 in request body.'}), 400
+
+    image_b64 = data['image_base64']
+    mime = data.get('mime_type', 'image/png')
+
+    result = borehole_log.extract_from_image(image_b64, mime)
+    if 'error' in result:
+        return jsonify(result), 500
+
+    return jsonify(result)
 
 
 @app.route("/changelog")

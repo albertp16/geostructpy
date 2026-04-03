@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+{% block title %}Borehole Log Digitizer - GeoStructPy{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.css">
+<script src="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.js"></script>
+<style>
+    .htCore td, .htCore th { font-size: 0.85em; }
+    .handsontable .htDimmed { color: #333; }
+    .drop-zone {
+        border: 2px dashed #bbb; border-radius: 8px; padding: 40px 20px;
+        text-align: center; color: #888; cursor: pointer; transition: all 0.2s;
+        background: #fafbfc;
+    }
+    .drop-zone.drag-over { border-color: var(--accent); background: #eaf4fb; }
+    .drop-zone img { max-width: 100%; max-height: 350px; margin-top: 12px; border-radius: 4px; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid var(--accent);
+        border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .pipeline { display: flex; gap: 4px; margin-bottom: 16px; }
+    .pipeline .pip { padding: 6px 14px; border-radius: 20px; font-size: 0.85em;
+        background: #eee; color: #888; }
+    .pipeline .pip.done { background: #27ae60; color: #fff; }
+    .pipeline .pip.current { background: var(--accent); color: #fff; }
+    .meta-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+    .meta-row label { font-size: 0.85em; color: var(--muted); }
+    .meta-row input { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .chart-grid .card { padding: 12px; }
+    .error-msg { color: #e74c3c; background: #fdf0ef; border: 1px solid #e74c3c; border-radius: 4px;
+        padding: 10px 14px; margin: 12px 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div>
+    <!-- Pipeline indicator -->
+    <div class="pipeline no-print" id="pipeline">
+        <span class="pip current" id="pip-upload">1. Upload</span>
+        <span class="pip" id="pip-extract">2. Extract</span>
+        <span class="pip" id="pip-review">3. Review</span>
+        <span class="pip" id="pip-charts">4. Charts</span>
+    </div>
+
+    <!-- STEP 1: Upload -->
+    <div class="step active" id="step-upload">
+        <div class="card">
+            <h2>Borehole Log Digitizer</h2>
+            <p style="color:var(--muted);font-size:0.9em;">
+                Upload a borehole log image and AI will extract geotechnical data automatically.
+                Review and edit the extracted data, then generate charts for your report.
+            </p>
+            {% if not has_api_key %}
+            <div class="error-msg">
+                <strong>API Key Required:</strong> Set the <code>ANTHROPIC_API_KEY</code> environment variable to enable AI extraction.
+                You can still enter data manually in the review step.
+            </div>
+            {% endif %}
+            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <p>Drag &amp; drop a borehole log image here, or click to browse</p>
+                <p style="font-size:0.8em;">Accepts PNG, JPG, JPEG, WEBP</p>
+                <img id="preview-img" style="display:none;" alt="Preview">
+            </div>
+            <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" style="display:none;">
+            <div style="margin-top:12px;">
+                {% if has_api_key %}
+                <button type="button" class="btn btn-accent" id="btn-extract" disabled onclick="extractData()">
+                    Extract Data with AI
+                </button>
+                {% endif %}
+                <button type="button" class="btn" onclick="skipToManual()">Enter Data Manually</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 2: Loading -->
+    <div class="step" id="step-loading">
+        <div class="card" style="text-align:center;">
+            <div class="spinner"></div>
+            <h3>Analyzing borehole log image with AI...</h3>
+            <p style="color:var(--muted);">This may take 15-30 seconds. <span id="elapsed">0</span>s elapsed.</p>
+        </div>
+    </div>
+
+    <!-- STEP 3: Review & Edit -->
+    <div class="step" id="step-review">
+        <div class="card">
+            <h2>Review &amp; Edit Extracted Data</h2>
+            <p style="color:var(--muted);font-size:0.9em;">
+                Verify the AI-extracted data below. Right-click to add or remove rows. Edit any incorrect values before generating charts.
+            </p>
+            <div class="meta-row">
+                <div><label>Borehole ID</label><input type="text" id="meta-bh-id"></div>
+                <div><label>Location</label><input type="text" id="meta-location"></div>
+                <div><label>Water Table Depth (m)</label><input type="number" step="0.01" id="meta-wt"></div>
+            </div>
+            <div id="hot-container" style="overflow-x:auto;"></div>
+            <div style="margin-top:12px;" class="no-print">
+                <button type="button" class="btn btn-accent" onclick="generateCharts()">Generate Charts</button>
+                <button type="button" class="btn" onclick="goToUpload()">Upload Different Image</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 4: Charts (rendered via form POST) -->
+    <form method="POST" action="/borehole-log" id="chart-form" style="display:none;">
+        <input type="hidden" name="sample_count" id="sample_count">
+        <input type="hidden" name="borehole_id" id="form-bh-id">
+        <input type="hidden" name="location" id="form-location">
+        <input type="hidden" name="water_table_depth" id="form-wt">
+        <div id="hidden-fields"></div>
+    </form>
+
+    {% if results %}
+    <div class="step active" id="step-charts">
+        <div class="card no-print" style="margin-bottom:12px;">
+            <button type="button" class="btn" onclick="backToEdit()">Back to Edit</button>
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
+        </div>
+
+        {% if results.charts %}
+        <div class="chart-grid">
+            {% if results.charts.spt %}
+            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">SPT N-value vs. Depth</h3><div id="chart-spt"></div></div>
+            {% endif %}
+            {% if results.charts.n60 %}
+            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">N<sub>60</sub> vs. Depth</h3><div id="chart-n60"></div></div>
+            {% endif %}
+            {% if results.charts.ucs %}
+            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">UCS vs. Depth</h3><div id="chart-ucs"></div></div>
+            {% endif %}
+            {% if results.charts.water_content %}
+            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">Water Content vs. Depth</h3><div id="chart-wc"></div></div>
+            {% endif %}
+            {% if results.charts.rqd %}
+            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">RQD vs. Depth</h3><div id="chart-rqd"></div></div>
+            {% endif %}
+            {% if results.charts.recovery %}
+            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">Recovery vs. Depth</h3><div id="chart-rec"></div></div>
+            {% endif %}
+        </div>
+        {% if results.charts.soil_profile %}
+        <div class="card" style="max-width:400px;margin-top:12px;padding:12px;">
+            <h3 style="font-size:0.95em; margin:0 0 4px;">Soil Profile</h3>
+            <div id="chart-profile"></div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if results.summaries %}
+        <div class="card" style="margin-top:12px;">
+            <h2>Summary Statistics</h2>
+            <table class="data-table">
+                <thead><tr><th>Parameter</th><th>Count</th><th>Min</th><th>Max</th><th>Avg</th></tr></thead>
+                <tbody>
+                    {% for s in results.summaries %}
+                    <tr><td>{{ s.label }}</td><td>{{ s.count }}</td><td>{{ s.min }}</td><td>{{ s.max }}</td><td>{{ s.avg }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <script>
+        (function() {
+            var charts = {{ results.charts|tojson }};
+            var opts = {responsive: true};
+            var compact = {margin: {t: 40, r: 10, b: 30, l: 50}, height: 500};
+            {% if results.charts.spt %}
+            Plotly.newPlot('chart-spt', charts.spt.traces, Object.assign({}, charts.spt.layout, compact), opts);
+            {% endif %}
+            {% if results.charts.n60 %}
+            Plotly.newPlot('chart-n60', charts.n60.traces, Object.assign({}, charts.n60.layout, compact), opts);
+            {% endif %}
+            {% if results.charts.ucs %}
+            Plotly.newPlot('chart-ucs', charts.ucs.traces, Object.assign({}, charts.ucs.layout, compact), opts);
+            {% endif %}
+            {% if results.charts.water_content %}
+            Plotly.newPlot('chart-wc', charts.water_content.traces, Object.assign({}, charts.water_content.layout, compact), opts);
+            {% endif %}
+            {% if results.charts.rqd %}
+            Plotly.newPlot('chart-rqd', charts.rqd.traces, Object.assign({}, charts.rqd.layout, compact), opts);
+            {% endif %}
+            {% if results.charts.recovery %}
+            Plotly.newPlot('chart-rec', charts.recovery.traces, Object.assign({}, charts.recovery.layout, compact), opts);
+            {% endif %}
+            {% if results.charts.soil_profile %}
+            Plotly.newPlot('chart-profile', charts.soil_profile.traces, charts.soil_profile.layout, opts);
+            {% endif %}
+        })();
+        </script>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// ---- State ----
+var imageBase64 = null;
+var imageMimeType = null;
+var hotInstance = null;
+var elapsedTimer = null;
+
+// Column mapping for Handsontable
+var COL_KEYS = ['sample_id','depth','sample_type','spt_n','recovery_pct','rqd_pct',
+                'description','classification','water_content','liquid_limit',
+                'plastic_limit','plasticity_index','ucs','specific_gravity'];
+
+// ---- Step management ----
+function showStep(id) {
+    document.querySelectorAll('.step').forEach(function(s) { s.classList.remove('active'); });
+    var el = document.getElementById('step-' + id);
+    if (el) el.classList.add('active');
+    // Update pipeline
+    var steps = ['upload','extract','review','charts'];
+    var idx = steps.indexOf(id);
+    steps.forEach(function(s, i) {
+        var pip = document.getElementById('pip-' + s);
+        if (!pip) return;
+        pip.className = 'pip' + (i < idx ? ' done' : '') + (i === idx ? ' current' : '');
+    });
+}
+
+// ---- File upload ----
+var dropZone = document.getElementById('drop-zone');
+var fileInput = document.getElementById('file-input');
+var previewImg = document.getElementById('preview-img');
+var btnExtract = document.getElementById('btn-extract');
+
+if (dropZone) {
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault(); dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+}
+if (fileInput) {
+    fileInput.addEventListener('change', function() { if (this.files.length) handleFile(this.files[0]); });
+}
+
+function handleFile(file) {
+    if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
+        alert('Please select a PNG, JPG, or WEBP image.');
+        return;
+    }
+    imageMimeType = file.type;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        // Resize if too large
+        var img = new Image();
+        img.onload = function() {
+            var maxW = 2000;
+            if (img.width > maxW) {
+                var canvas = document.createElement('canvas');
+                var ratio = maxW / img.width;
+                canvas.width = maxW;
+                canvas.height = img.height * ratio;
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                var dataUrl = canvas.toDataURL(imageMimeType, 0.9);
+                imageBase64 = dataUrl.split(',')[1];
+                previewImg.src = dataUrl;
+            } else {
+                imageBase64 = e.target.result.split(',')[1];
+                previewImg.src = e.target.result;
+            }
+            previewImg.style.display = 'block';
+            if (btnExtract) btnExtract.disabled = false;
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ---- AI extraction ----
+function extractData() {
+    if (!imageBase64) return;
+    showStep('loading');
+    var seconds = 0;
+    var elapsedEl = document.getElementById('elapsed');
+    elapsedTimer = setInterval(function() { seconds++; elapsedEl.textContent = seconds; }, 1000);
+
+    fetch('/api/borehole-extract', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({image_base64: imageBase64, mime_type: imageMimeType})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        clearInterval(elapsedTimer);
+        if (data.error) {
+            alert('Extraction error: ' + data.error);
+            showStep('upload');
+            return;
+        }
+        populateReview(data);
+        showStep('review');
+    })
+    .catch(function(err) {
+        clearInterval(elapsedTimer);
+        alert('Request failed: ' + err.message);
+        showStep('upload');
+    });
+}
+
+// ---- Populate review from AI data ----
+function populateReview(data) {
+    document.getElementById('meta-bh-id').value = data.borehole_id || '';
+    document.getElementById('meta-location').value = data.location || '';
+    document.getElementById('meta-wt').value = data.water_table_depth || '';
+
+    var rows = [];
+    if (data.samples) {
+        data.samples.forEach(function(s) {
+            rows.push([
+                s.sample_id, s.depth, s.sample_type,
+                s.spt_n, s.recovery_pct, s.rqd_pct,
+                s.description, s.classification,
+                s.water_content, s.liquid_limit, s.plastic_limit,
+                s.plasticity_index, s.ucs, s.specific_gravity
+            ]);
+        });
+    }
+    initHandsontable(rows);
+}
+
+// ---- Manual entry / skip ----
+function skipToManual() {
+    initHandsontable([['SS-1', 1.5, 'SPT', null, null, null, '', '', null, null, null, null, null, null]]);
+    showStep('review');
+}
+
+function goToUpload() {
+    showStep('upload');
+}
+
+function backToEdit() {
+    // Re-populate from server-side data if available
+    var samplesJson = {{ samples_json|tojson }};
+    var meta = {{ metadata|tojson }};
+    if (samplesJson && samplesJson.length > 0) {
+        document.getElementById('meta-bh-id').value = meta.borehole_id || '';
+        document.getElementById('meta-location').value = meta.location || '';
+        document.getElementById('meta-wt').value = meta.water_table_depth || '';
+        initHandsontable(samplesJson);
+    }
+    showStep('review');
+}
+
+// ---- Handsontable ----
+function initHandsontable(data) {
+    var container = document.getElementById('hot-container');
+    if (hotInstance) { hotInstance.destroy(); hotInstance = null; }
+
+    hotInstance = new Handsontable(container, {
+        data: data,
+        colHeaders: ['Sample ID', 'Depth (m)', 'Type', 'SPT N', 'Recovery %', 'RQD %',
+                      'Description', 'Classification', 'w (%)', 'w<sub>L</sub>', 'w<sub>P</sub>',
+                      'PI', 'UCS (kg/cm\u00b2)', 'SpGr'],
+        columns: [
+            {type: 'text'},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'dropdown', source: ['SPT', 'CORE']},
+            {type: 'numeric', numericFormat: {pattern: '0'}},
+            {type: 'numeric', numericFormat: {pattern: '0'}},
+            {type: 'numeric', numericFormat: {pattern: '0'}},
+            {type: 'text', width: 200},
+            {type: 'text', width: 60},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'numeric', numericFormat: {pattern: '0.0'}},
+            {type: 'numeric', numericFormat: {pattern: '0.00'}},
+        ],
+        colWidths: [80, 70, 60, 60, 75, 60, 200, 80, 60, 55, 55, 50, 80, 60],
+        rowHeaders: true,
+        contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'undo', 'redo'],
+        minRows: 1,
+        minSpareRows: 1,
+        licenseKey: 'non-commercial-and-evaluation',
+        stretchH: 'none',
+        height: 'auto',
+    });
+}
+
+// ---- Generate charts (form POST) ----
+function generateCharts() {
+    if (!hotInstance) return;
+    var data = hotInstance.getSourceData();
+    var hiddenDiv = document.getElementById('hidden-fields');
+    hiddenDiv.innerHTML = '';
+
+    // Filter valid rows (must have at least a depth)
+    var validRows = [];
+    for (var r = 0; r < data.length; r++) {
+        if (data[r][1] !== null && data[r][1] !== '') {
+            validRows.push(data[r]);
+        }
+    }
+
+    document.getElementById('sample_count').value = validRows.length;
+    document.getElementById('form-bh-id').value = document.getElementById('meta-bh-id').value;
+    document.getElementById('form-location').value = document.getElementById('meta-location').value;
+    document.getElementById('form-wt').value = document.getElementById('meta-wt').value;
+
+    var fieldMap = ['s_id','s_depth','s_type','s_spt','s_rec','s_rqd',
+                    's_desc','s_cls','s_wc','s_wl','s_wp','s_pi','s_ucs','s_sg'];
+    for (var i = 0; i < validRows.length; i++) {
+        for (var j = 0; j < fieldMap.length; j++) {
+            addHidden(fieldMap[j] + '_' + i, validRows[i][j] !== null && validRows[i][j] !== undefined ? validRows[i][j] : '');
+        }
+    }
+
+    document.getElementById('chart-form').submit();
+}
+
+function addHidden(name, val) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = name; inp.value = val;
+    document.getElementById('hidden-fields').appendChild(inp);
+}
+
+// ---- Init from server data (after POST) ----
+{% if results %}
+    // Charts are showing, set pipeline to step 4
+    (function() {
+        ['upload','extract','review'].forEach(function(s) {
+            var pip = document.getElementById('pip-' + s);
+            if (pip) pip.className = 'pip done';
+        });
+        var pip4 = document.getElementById('pip-charts');
+        if (pip4) pip4.className = 'pip current';
+    })();
+{% endif %}
+</script>
+{% endblock %}
