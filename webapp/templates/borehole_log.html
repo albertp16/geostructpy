@@ -201,8 +201,14 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         {% if results.layer_table %}
         <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:12px;">
             <div class="card" style="overflow-x:auto;">
-                <h2>Layer Summary</h2>
-                {{ results.layer_table|safe }}
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                    <h2 style="margin:0;">Layer Summary</h2>
+                    <div class="no-print" style="display:flex;gap:6px;">
+                        <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableExcel('layer-table')">Copy for Excel</button>
+                        <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableLaTeX('layer-table')">Copy for LaTeX</button>
+                    </div>
+                </div>
+                <div id="layer-table">{{ results.layer_table|safe }}</div>
             </div>
             {% if results.charts.soil_profile %}
             <div class="card" style="padding:12px;">
@@ -215,8 +221,14 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         <!-- Detailed sample data table -->
         {% if samples_data %}
         <div class="card" style="margin-bottom:12px;overflow-x:auto;">
-            <h2>Sample Data Table</h2>
-            <table class="data-table" style="font-size:0.85em;white-space:nowrap;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <h2 style="margin:0;">Sample Data Table</h2>
+                <div class="no-print" style="display:flex;gap:6px;">
+                    <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableExcel('sample-table')">Copy for Excel</button>
+                    <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableLaTeX('sample-table')">Copy for LaTeX</button>
+                </div>
+            </div>
+            <div id="sample-table"><table class="data-table" style="font-size:0.85em;white-space:nowrap;">
                 <thead>
                     <tr>
                         <th>Sample ID</th>
@@ -259,7 +271,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
 
         {% if results.summaries %}
@@ -304,7 +316,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         (function() {
             var charts = {{ results.charts|tojson }};
             var opts = {responsive: true};
-            var compact = {margin: {t: 40, r: 10, b: 30, l: 50}, height: 500};
+            var compact = {margin: {t: 60, r: 30, b: 30, l: 60}, height: 500, title: ''};
             {% if results.charts.spt %}
             Plotly.newPlot('chart-spt', charts.spt.traces, Object.assign({}, charts.spt.layout, compact), opts);
             {% endif %}
@@ -333,6 +345,63 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
 </div>
 
 <script>
+// ---- Table copy functions ----
+function copyTableExcel(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var table = container.querySelector('table');
+    if (!table) return;
+    var tsv = [];
+    var rows = table.querySelectorAll('tr');
+    rows.forEach(function(row) {
+        var cells = [];
+        row.querySelectorAll('th, td').forEach(function(cell) {
+            cells.push(cell.innerText.replace(/\t/g, ' ').replace(/\n/g, ' '));
+        });
+        tsv.push(cells.join('\t'));
+    });
+    navigator.clipboard.writeText(tsv.join('\n')).then(function() {
+        showCopyFeedback(event.target, 'Copied!');
+    });
+}
+
+function copyTableLaTeX(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var table = container.querySelector('table');
+    if (!table) return;
+    var rows = table.querySelectorAll('tr');
+    var numCols = 0;
+    var headerRow = table.querySelector('thead tr');
+    if (headerRow) numCols = headerRow.querySelectorAll('th').length;
+
+    var latex = '\\begin{table}[htbp]\n\\centering\n\\caption{Table Caption}\n';
+    latex += '\\begin{tabular}{' + 'l'.repeat(numCols) + '}\n\\hline\n';
+
+    rows.forEach(function(row, idx) {
+        var cells = [];
+        row.querySelectorAll('th, td').forEach(function(cell) {
+            var text = cell.innerText.replace(/[%]/g, '\\%').replace(/[&]/g, '\\&').replace(/[_]/g, '\\_');
+            if (cell.tagName === 'TH') text = '\\textbf{' + text + '}';
+            cells.push(text);
+        });
+        latex += cells.join(' & ') + ' \\\\\n';
+        if (idx === 0) latex += '\\hline\n';
+    });
+
+    latex += '\\hline\n\\end{tabular}\n\\end{table}';
+
+    navigator.clipboard.writeText(latex).then(function() {
+        showCopyFeedback(event.target, 'Copied!');
+    });
+}
+
+function showCopyFeedback(btn, msg) {
+    var orig = btn.textContent;
+    btn.textContent = msg;
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+}
+
 // ---- State ----
 var imageBase64 = null;
 var imageMimeType = null;

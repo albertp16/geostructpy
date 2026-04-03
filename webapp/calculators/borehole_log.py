@@ -129,7 +129,7 @@ _SOIL_COLORS_DEFAULT = '#d5dbdb'
 def _base_layout(title, x_title, y_min, y_max, x_max, height=550):
     """Common layout for depth-based charts (X on top, Y inverted)."""
     return {
-        "title": title,
+        "title": "",
         "xaxis": {
             "title": x_title,
             "side": "top",
@@ -400,49 +400,65 @@ def _build_soil_profile(samples):
         top = -ly['depth_top']
         bot = -ly['depth_bottom']
         mid = (top + bot) / 2
+        thickness = ly['thickness']
 
         spt_text = f" | SPT={ly['avg_spt']}" if ly['avg_spt'] is not None else ''
-        desc = ly['description']
-        if len(desc) > 35:
-            desc = desc[:32] + '...'
 
         traces.append({
             "x": [0, 1, 1, 0],
             "y": [top, top, bot, bot],
             "fill": "toself",
             "fillcolor": col,
-            "line": {"color": "#333", "width": 1},
+            "line": {"color": "#555", "width": 1.5},
             "mode": "lines",
             "name": ly['name'],
             "showlegend": False,
             "hoverinfo": "text",
-            "text": f"{ly['name']}: {ly['description']}<br>"
+            "text": f"{ly['name']} ({cls}): {ly['description']}<br>"
                     f"{_f(ly['depth_top'])}-{_f(ly['depth_bottom'])} m<br>"
-                    f"t = {_f(ly['thickness'])} m{spt_text}",
+                    f"t = {_f(thickness)} m{spt_text}",
         })
+
+        # Adapt annotation detail to layer thickness
+        desc = ly['description']
+        if thickness >= 3:
+            if len(desc) > 45:
+                desc = desc[:42] + '...'
+            label = (f"<b>{ly['name']}</b><br>"
+                     f"{desc}<br>"
+                     f"t={_f(thickness)}m{spt_text}")
+            font_size = 11
+        elif thickness >= 1.5:
+            if len(desc) > 30:
+                desc = desc[:27] + '...'
+            label = f"<b>{ly['name']}</b>  {desc}  t={_f(thickness)}m{spt_text}"
+            font_size = 10
+        else:
+            label = f"<b>{ly['name']}</b> ({cls}) t={_f(thickness)}m"
+            font_size = 9
 
         annotations.append({
             "x": 0.5, "y": mid,
-            "text": f"<b>{ly['name']}</b><br>{desc}<br>"
-                    f"t={_f(ly['thickness'])}m{spt_text}",
+            "text": label,
             "showarrow": False,
-            "font": {"size": 11},
+            "font": {"size": font_size, "color": "#333"},
             "xanchor": "center",
         })
 
     max_depth = max(ly['depth_bottom'] for ly in layers) + 1
+    chart_height = max(500, int(max_depth * 45))
     layout = {
-        "title": "Soil Profile",
-        "xaxis": {"visible": False, "range": [-0.2, 1.2]},
+        "title": "",
+        "xaxis": {"visible": False, "range": [-0.1, 1.1]},
         "yaxis": {
             "title": "Depth [m]",
             "range": [-(max_depth), 1],
             "dtick": 1,
             "gridcolor": "#ddd",
         },
-        "height": max(450, int(max_depth * 40)),
-        "width": 350,
-        "margin": {"t": 40, "r": 20, "b": 30, "l": 60},
+        "height": chart_height,
+        "width": 400,
+        "margin": {"t": 20, "r": 20, "b": 30, "l": 60},
         "plot_bgcolor": "white",
         "paper_bgcolor": "white",
         "annotations": annotations,
