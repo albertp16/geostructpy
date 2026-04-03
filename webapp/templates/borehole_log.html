@@ -197,7 +197,22 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         </div>
         {% endif %}
 
-        <!-- Tabulated sample data -->
+        <!-- Layer summary table + Soil profile side by side -->
+        {% if results.layer_table %}
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:12px;">
+            <div class="card" style="overflow-x:auto;">
+                <h2>Layer Summary</h2>
+                {{ results.layer_table|safe }}
+            </div>
+            {% if results.charts.soil_profile %}
+            <div class="card" style="padding:12px;">
+                <div id="chart-profile"></div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Detailed sample data table -->
         {% if samples_data %}
         <div class="card" style="margin-bottom:12px;overflow-x:auto;">
             <h2>Sample Data Table</h2>
@@ -283,12 +298,6 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
             <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">Recovery vs. Depth</h3><div id="chart-rec"></div></div>
             {% endif %}
         </div>
-        {% if results.charts.soil_profile %}
-        <div class="card" style="max-width:400px;margin-top:12px;padding:12px;">
-            <h3 style="font-size:0.95em; margin:0 0 4px;">Soil Profile</h3>
-            <div id="chart-profile"></div>
-        </div>
-        {% endif %}
         {% endif %}
 
         <script>

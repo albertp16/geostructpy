@@ -324,61 +324,113 @@ def _build_recovery_chart(samples):
     return {'traces': traces, 'layout': layout}
 
 
-def _build_soil_profile(samples):
-    """Build coloured soil profile from sample descriptions."""
+def _group_into_layers(samples):
+    """Group consecutive samples with the same classification into layers."""
     if not samples:
-        return None
+        return []
+    layers = []
+    current = {
+        'name': samples[0].get('classification') or 'Unknown',
+        'description': samples[0].get('description') or '',
+        'samples': [samples[0]],
+    }
+    for s in samples[1:]:
+        cls = s.get('classification') or 'Unknown'
+        if cls == current['name']:
+            current['samples'].append(s)
+        else:
+            layers.append(current)
+            current = {'name': cls, 'description': s.get('description') or '', 'samples': [s]}
+    layers.append(current)
 
-    # Group contiguous samples by classification
-    traces = []
-    annotations = []
-    layer_colors = ['#aed6f1', '#a9dfbf', '#f9e79f', '#d2b4de', '#f5cba7',
-                    '#a3e4d7', '#fadbd8', '#d5dbdb', '#abebc6', '#f5b7b1']
+    # Compute layer properties
+    result = []
+    depth_top = 0
+    for i, ly in enumerate(layers):
+        spt_vals = [s['spt_n'] for s in ly['samples'] if s.get('spt_n') is not None]
+        avg_spt = round(sum(spt_vals) / len(spt_vals), 1) if spt_vals else None
 
-    for i, s in enumerate(samples):
-        cls = s.get('classification') or ''
-        col = _SOIL_COLORS.get(cls.upper(), layer_colors[i % len(layer_colors)])
-        depth = s['depth']
+        min_depth = min(s['depth'] for s in ly['samples'])
+        max_depth = max(s['depth'] for s in ly['samples'])
 
-        # Estimate layer extent (half distance to neighbours)
+        # Estimate thickness
         if i == 0:
             top = 0
         else:
-            top = (samples[i - 1]['depth'] + depth) / 2
-        if i < len(samples) - 1:
-            bot = (depth + samples[i + 1]['depth']) / 2
+            prev_max = max(s['depth'] for s in layers[i - 1]['samples'])
+            top = round((prev_max + min_depth) / 2, 2)
+        if i < len(layers) - 1:
+            next_min = min(s['depth'] for s in layers[i + 1]['samples'])
+            bot = round((max_depth + next_min) / 2, 2)
         else:
-            bot = depth + 1
+            bot = round(max_depth + 1, 2)
 
-        neg_top = -top
-        neg_bot = -bot
-        mid = (neg_top + neg_bot) / 2
+        thickness = round(bot - top, 2)
+
+        result.append({
+            'num': i + 1,
+            'name': f'LAYER {i + 1}',
+            'classification': ly['name'],
+            'description': ly['description'],
+            'depth_top': top,
+            'depth_bottom': bot,
+            'thickness': thickness,
+            'avg_spt': avg_spt,
+            'sample_count': len(ly['samples']),
+        })
+        depth_top = bot
+
+    return result
+
+
+def _build_soil_profile(samples):
+    """Build coloured soil profile from grouped layers."""
+    layers = _group_into_layers(samples)
+    if not layers:
+        return None
+
+    layer_colors = ['#aed6f1', '#a9dfbf', '#f9e79f', '#d2b4de', '#f5cba7',
+                    '#a3e4d7', '#fadbd8', '#d5dbdb', '#abebc6', '#f5b7b1']
+    traces = []
+    annotations = []
+
+    for i, ly in enumerate(layers):
+        cls = ly['classification']
+        col = _SOIL_COLORS.get(cls.upper(), layer_colors[i % len(layer_colors)])
+        top = -ly['depth_top']
+        bot = -ly['depth_bottom']
+        mid = (top + bot) / 2
+
+        spt_text = f" | SPT={ly['avg_spt']}" if ly['avg_spt'] is not None else ''
+        desc = ly['description']
+        if len(desc) > 35:
+            desc = desc[:32] + '...'
 
         traces.append({
             "x": [0, 1, 1, 0],
-            "y": [neg_top, neg_top, neg_bot, neg_bot],
+            "y": [top, top, bot, bot],
             "fill": "toself",
             "fillcolor": col,
             "line": {"color": "#333", "width": 1},
             "mode": "lines",
-            "name": cls,
+            "name": ly['name'],
             "showlegend": False,
             "hoverinfo": "text",
-            "text": f"{s.get('sample_id', '')}: {s.get('description', '')}<br>{_f(top)}-{_f(bot)} m",
+            "text": f"{ly['name']}: {ly['description']}<br>"
+                    f"{_f(ly['depth_top'])}-{_f(ly['depth_bottom'])} m<br>"
+                    f"t = {_f(ly['thickness'])} m{spt_text}",
         })
 
-        desc = s.get('description', '')
-        if len(desc) > 40:
-            desc = desc[:37] + '...'
         annotations.append({
             "x": 0.5, "y": mid,
-            "text": f"<b>{cls}</b><br>{desc}",
+            "text": f"<b>{ly['name']}</b><br>{desc}<br>"
+                    f"t={_f(ly['thickness'])}m{spt_text}",
             "showarrow": False,
-            "font": {"size": 10},
+            "font": {"size": 11},
             "xanchor": "center",
         })
 
-    max_depth = max(s['depth'] for s in samples) + 2
+    max_depth = max(ly['depth_bottom'] for ly in layers) + 1
     layout = {
         "title": "Soil Profile",
         "xaxis": {"visible": False, "range": [-0.2, 1.2]},
@@ -388,7 +440,7 @@ def _build_soil_profile(samples):
             "dtick": 1,
             "gridcolor": "#ddd",
         },
-        "height": 550,
+        "height": max(450, int(max_depth * 40)),
         "width": 350,
         "margin": {"t": 40, "r": 20, "b": 30, "l": 60},
         "plot_bgcolor": "white",
@@ -396,6 +448,36 @@ def _build_soil_profile(samples):
         "annotations": annotations,
     }
     return {'traces': traces, 'layout': layout}
+
+
+def build_layer_table(samples):
+    """Build an HTML layer summary table similar to slope stability output."""
+    layers = _group_into_layers(samples)
+    if not layers:
+        return ''
+
+    r = '<table class="data-table" style="font-size:0.85em;">'
+    r += '<thead><tr>'
+    r += '<th>#</th><th>Layer Name</th><th>Thickness (m)</th>'
+    r += '<th>Description</th><th>SPT N</th><th>Classification</th>'
+    r += '<th>Depth Range (m)</th><th>Samples</th>'
+    r += '</tr></thead><tbody>'
+
+    for ly in layers:
+        spt_str = _f(ly['avg_spt'], 1) if ly['avg_spt'] is not None else '-'
+        r += f'<tr>'
+        r += f'<td>{ly["num"]}</td>'
+        r += f'<td>{ly["name"]}</td>'
+        r += f'<td>{_f(ly["thickness"])}</td>'
+        r += f'<td>{ly["description"]}</td>'
+        r += f'<td>{spt_str}</td>'
+        r += f'<td><strong>{ly["classification"]}</strong></td>'
+        r += f'<td>{_f(ly["depth_top"])}-{_f(ly["depth_bottom"])}</td>'
+        r += f'<td>{ly["sample_count"]}</td>'
+        r += f'</tr>'
+
+    r += '</tbody></table>'
+    return r
 
 
 def build_charts(samples, water_table_depth=None):

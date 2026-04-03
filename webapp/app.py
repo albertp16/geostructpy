@@ -336,6 +336,7 @@ def borehole_log_view():
 
         if samples:
             results = borehole_log.build_charts(samples, wt)
+            results['layer_table'] = borehole_log.build_layer_table(samples)
 
         samples_json = [
             [s['sample_id'], s['depth'], s['sample_type'],
