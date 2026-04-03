@@ -41,11 +41,18 @@
 {% block content %}
 <div>
     <!-- Pipeline indicator -->
-    <div class="pipeline no-print" id="pipeline">
-        <span class="pip current" id="pip-upload">1. Upload</span>
-        <span class="pip" id="pip-extract">2. Extract</span>
-        <span class="pip" id="pip-review">3. Review &amp; Edit</span>
-        <span class="pip" id="pip-charts">4. Charts</span>
+    <div class="pipeline no-print" id="pipeline" style="justify-content:space-between;">
+        <div style="display:flex;gap:4px;">
+            <span class="pip current" id="pip-upload">1. Upload</span>
+            <span class="pip" id="pip-extract">2. Extract</span>
+            <span class="pip" id="pip-review">3. Review &amp; Edit</span>
+            <span class="pip" id="pip-charts">4. Charts</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+            <button type="button" class="btn" style="font-size:0.8em;padding:5px 12px;background:#27ae60;color:#fff;border:none;border-radius:20px;" onclick="saveProject()">Save</button>
+            <button type="button" class="btn" style="font-size:0.8em;padding:5px 12px;border-radius:20px;" onclick="document.getElementById('load-file').click()">Load</button>
+            <input type="file" id="load-file" accept=".json" style="display:none;" onchange="loadProject(this)">
+        </div>
     </div>
 
     <!-- STEP 1: Upload -->
@@ -162,9 +169,6 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                     <div id="hot-container" style="overflow-x:auto;"></div>
                     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;" class="no-print">
                         <button type="button" class="btn btn-accent" onclick="generateCharts()">Generate Charts</button>
-                        <button type="button" class="btn" style="background:#27ae60;color:#fff;" onclick="saveProject()">Save Project</button>
-                        <button type="button" class="btn" onclick="document.getElementById('load-file').click()">Load Project</button>
-                        <input type="file" id="load-file" accept=".json" style="display:none;" onchange="loadProject(this)">
                         <button type="button" class="btn" onclick="goToUpload()">Upload Different Image</button>
                     </div>
                 </div>
