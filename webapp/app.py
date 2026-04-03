@@ -15,7 +15,7 @@ from flask import Flask, render_template, request, jsonify
 load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 from calculators import terzaghi, meyerhof, mononobe_okabe, stability, micropile
-from calculators import slope_stability, spt_depth, borehole_log
+from calculators import slope_stability, spt_depth, borehole_log, bored_pile
 
 app = Flask(__name__)
 
@@ -384,6 +384,48 @@ def borehole_extract_api():
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route("/bored-pile", methods=["GET", "POST"])
+def bored_pile_view():
+    defaults = dict(
+        D=254, Lp=10.5, Wt=2.5, FS=3.5,
+        fc=27.58, Yc=23.6, Cc=50,
+        Fy=275.79, db=25, nbar=6,
+        rock_type='Limestone', Co=7400, Nms=0.28, RQD='75-90',
+    )
+    results = None
+    params = defaults
+    borehole_json_str = ''
+
+    if request.method == "POST":
+        params = dict(
+            D=_float('D', 254), Lp=_float('Lp', 10.5),
+            Wt=_float('Wt', 2.5), FS=_float('FS', 3.5),
+            fc=_float('fc', 27.58), Yc=_float('Yc', 23.6), Cc=_float('Cc', 50),
+            Fy=_float('Fy', 275.79), db=_float('db', 25), nbar=int(_float('nbar', 6)),
+            rock_type=request.form.get('rock_type', 'Limestone'),
+            Co=_float('Co', 7400), Nms=_float('Nms', 0.28),
+            RQD=request.form.get('RQD', '75-90'),
+        )
+        borehole_json_str = request.form.get('borehole_json', '')
+        try:
+            bh_data = json.loads(borehole_json_str)
+            samples = bh_data.get('samples', [])
+        except (json.JSONDecodeError, AttributeError):
+            samples = []
+
+        if samples:
+            pile_params = dict(D=params['D'], Lp=params['Lp'], Wt=params['Wt'], FS=params['FS'])
+            concrete_params = dict(fc=params['fc'], Yc=params['Yc'], Cc=params['Cc'])
+            rebar_params = dict(Fy=params['Fy'], db=params['db'], nbar=params['nbar'])
+            rock_params = dict(rock_type=params['rock_type'], Co=params['Co'],
+                               Nms=params['Nms'], RQD=params['RQD'])
+            results = bored_pile.calculate(samples, pile_params, concrete_params,
+                                           rebar_params, rock_params)
+
+    return render_template("bored_pile.html", params=params, results=results,
+                           borehole_json_str=borehole_json_str)
 
 
 @app.route("/changelog")

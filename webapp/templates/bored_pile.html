@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Bored Pile Design - GeoStructPy{% endblock %}
+{% block extra_head %}
+<style>
+    .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .input-grid .card { padding: 14px; }
+    .input-grid label { font-size: 0.82em; color: var(--muted); display: block; margin-bottom: 2px; }
+    .input-grid input, .input-grid select { width: 100%; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
+    .param-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+</style>
+{% endblock %}
+{% block content %}
+<div>
+    <form method="POST" action="/bored-pile" id="bp-form">
+    <div class="card">
+        <h2>Bored Pile Design &mdash; Static Capacity</h2>
+        <p style="color:var(--muted);font-size:0.9em;">
+            Paste borehole log JSON data (from the Borehole Log Digitizer), set pile parameters,
+            and compute skin resistance (Beta/Alpha methods) and base resistance.
+        </p>
+    </div>
+
+    <!-- Borehole data input -->
+    <div class="card" style="margin-bottom:12px;">
+        <h3>Borehole Data</h3>
+        <p style="color:var(--muted);font-size:0.85em;">
+            Paste the JSON from <a href="/borehole-log">Borehole Log Digitizer</a> (Save Project output) or type manually.
+        </p>
+        <div style="display:flex;gap:8px;margin-bottom:8px;" class="no-print">
+            <button type="button" class="btn" onclick="document.getElementById('bh-file').click()">Load JSON File</button>
+            <input type="file" id="bh-file" accept=".json" style="display:none;" onchange="loadBhFile(this)">
+        </div>
+        <textarea name="borehole_json" id="borehole-json" rows="8"
+            style="width:100%;font-family:monospace;font-size:0.8em;border:1px solid #ccc;border-radius:4px;padding:8px;"
+            placeholder='Paste borehole JSON here... (must have a "samples" array with depth, spt_n, classification fields)'>{{ borehole_json_str }}</textarea>
+    </div>
+
+    <!-- Pile parameters -->
+    <div class="input-grid" style="margin-bottom:12px;">
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Pile Properties</h3>
+            <div class="param-row">
+                <div><label>Diameter, D (mm)</label><input type="number" name="D" value="{{ params.D }}" step="1"></div>
+                <div><label>Pile Length, L<sub>p</sub> (m)</label><input type="number" name="Lp" value="{{ params.Lp }}" step="0.1"></div>
+            </div>
+            <div class="param-row">
+                <div><label>Water Table, W<sub>t</sub> (m)</label><input type="number" name="Wt" value="{{ params.Wt }}" step="0.1"></div>
+                <div><label>Factor of Safety, FS</label><input type="number" name="FS" value="{{ params.FS }}" step="0.1"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Concrete Properties</h3>
+            <div class="param-row">
+                <div><label>f'<sub>c</sub> (MPa)</label><input type="number" name="fc" value="{{ params.fc }}" step="0.01"></div>
+                <div><label>&gamma;<sub>c</sub> (kN/m&sup3;)</label><input type="number" name="Yc" value="{{ params.Yc }}" step="0.1"></div>
+            </div>
+            <div class="param-row">
+                <div><label>Cover, C<sub>c</sub> (mm)</label><input type="number" name="Cc" value="{{ params.Cc }}" step="1"></div>
+                <div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Reinforcement</h3>
+            <div class="param-row">
+                <div><label>F<sub>y</sub> (MPa)</label><input type="number" name="Fy" value="{{ params.Fy }}" step="0.01"></div>
+                <div><label>Bar Diameter, d<sub>b</sub> (mm)</label>
+                    <select name="db">
+                        {% for s in [10,12,16,20,25,28,32,36,40] %}
+                        <option value="{{ s }}" {% if params.db == s %}selected{% endif %}>{{ s }} mm</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="param-row">
+                <div><label>Number of Bars</label><input type="number" name="nbar" value="{{ params.nbar }}" step="1" min="1"></div>
+                <div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Rock Properties (at Pile Tip)</h3>
+            <div class="param-row">
+                <div><label>Rock Type</label><input type="text" name="rock_type" value="{{ params.rock_type }}"></div>
+                <div><label>C<sub>o</sub> (kPa)</label><input type="number" name="Co" value="{{ params.Co }}" step="1"></div>
+            </div>
+            <div class="param-row">
+                <div><label>N<sub>ms</sub></label><input type="number" name="Nms" value="{{ params.Nms }}" step="0.01"></div>
+                <div><label>RQD Range</label><input type="text" name="RQD" value="{{ params.RQD }}"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="no-print" style="margin-bottom:16px;">
+        <input type="submit" class="btn btn-accent" value="Calculate Pile Capacity">
+        <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
+    </div>
+    </form>
+
+    {% if results %}
+    <!-- Input Summary -->
+    <div class="card" style="margin-bottom:12px;">
+        <h2>Input Parameters</h2>
+        {{ results.input_summary|safe }}
+    </div>
+
+    <!-- Skin Resistance Table -->
+    <div class="card" style="margin-bottom:12px;overflow-x:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <h2 style="margin:0;">Tabulated Skin Resistance</h2>
+            <div class="no-print" style="display:flex;gap:6px;">
+                <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableExcel('skin-tbl')">Copy for Excel</button>
+                <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableLaTeX('skin-tbl')">Copy for LaTeX</button>
+            </div>
+        </div>
+        <p style="color:var(--muted);font-size:0.85em;margin:4px 0 8px;">
+            Granular: &beta;-Method (Burland, 1973) &mdash; f<sub>s</sub> = K<sub>0</sub> &times; q<sub>0</sub> &times; tan(&delta;) &nbsp;|&nbsp;
+            Cohesive: &alpha;-Method (Tomlinson, 1971) &mdash; f<sub>s</sub> = &alpha; &times; C<sub>u</sub>
+        </p>
+        <div id="skin-tbl">{{ results.skin_table|safe }}</div>
+    </div>
+
+    <!-- Base Resistance -->
+    <div class="card" style="margin-bottom:12px;">
+        <h2>Base Resistance</h2>
+        {{ results.base_report|safe }}
+    </div>
+
+    <!-- Capacity Summary -->
+    <div class="card" style="margin-bottom:12px;">
+        <h2>Pile Capacity Summary</h2>
+        {{ results.capacity_summary|safe }}
+    </div>
+
+    <!-- Chart -->
+    <div class="card" style="margin-bottom:12px;padding:12px;">
+        <h2>Pile Capacity vs. Depth</h2>
+        <div id="chart-capacity"></div>
+    </div>
+
+    <script>
+    (function() {
+        var traces = {{ results.chart_traces|tojson }};
+        var layout = {{ results.chart_layout|tojson }};
+        Plotly.newPlot('chart-capacity', traces, layout, {responsive: true});
+    })();
+    </script>
+    {% endif %}
+</div>
+
+<script>
+function loadBhFile(input) {
+    if (!input.files.length) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('borehole-json').value = e.target.result;
+    };
+    reader.readAsText(input.files[0]);
+    input.value = '';
+}
+
+function copyTableExcel(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var table = el.querySelector('table');
+    if (!table) return;
+    var tsv = [];
+    table.querySelectorAll('tr').forEach(function(row) {
+        var cells = [];
+        row.querySelectorAll('th, td').forEach(function(c) {
+            cells.push(c.innerText.replace(/\t/g,' ').replace(/\n/g,' '));
+        });
+        tsv.push(cells.join('\t'));
+    });
+    navigator.clipboard.writeText(tsv.join('\n')).then(function() {
+        showFeedback(event.target, 'Copied!');
+    });
+}
+
+function copyTableLaTeX(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var table = el.querySelector('table');
+    if (!table) return;
+    var rows = table.querySelectorAll('tr');
+    var numCols = 0;
+    var hdr = table.querySelector('thead tr');
+    if (hdr) numCols = hdr.querySelectorAll('th').length;
+    var latex = '\\begin{table}[htbp]\n\\centering\n\\caption{Skin Resistance}\n';
+    latex += '\\begin{tabular}{' + 'l'.repeat(numCols) + '}\n\\hline\n';
+    rows.forEach(function(row, idx) {
+        var cells = [];
+        row.querySelectorAll('th, td').forEach(function(c) {
+            var t = c.innerText.replace(/[%]/g,'\\%').replace(/[&]/g,'\\&').replace(/[_]/g,'\\_');
+            if (c.tagName === 'TH') t = '\\textbf{' + t + '}';
+            cells.push(t);
+        });
+        latex += cells.join(' & ') + ' \\\\\n';
+        if (idx === 0) latex += '\\hline\n';
+    });
+    latex += '\\hline\n\\end{tabular}\n\\end{table}';
+    navigator.clipboard.writeText(latex).then(function() {
+        showFeedback(event.target, 'Copied!');
+    });
+}
+
+function showFeedback(btn, msg) {
+    var orig = btn.textContent;
+    btn.textContent = msg;
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+}
+</script>
+{% endblock %}
