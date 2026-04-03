@@ -30,6 +30,12 @@
     .chart-grid .card { padding: 12px; }
     .error-msg { color: #e74c3c; background: #fdf0ef; border: 1px solid #e74c3c; border-radius: 4px;
         padding: 10px 14px; margin: 12px 0; }
+    .review-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .review-layout .ref-image { position: sticky; top: 12px; }
+    .review-layout .ref-image img { width: 100%; border: 1px solid #ddd; border-radius: 4px; cursor: zoom-in; }
+    .review-layout .ref-image img.zoomed { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        object-fit: contain; background: rgba(0,0,0,0.85); z-index: 9999; cursor: zoom-out; border: none; border-radius: 0; }
+    @media (max-width: 900px) { .review-layout { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 {% block content %}
@@ -38,7 +44,7 @@
     <div class="pipeline no-print" id="pipeline">
         <span class="pip current" id="pip-upload">1. Upload</span>
         <span class="pip" id="pip-extract">2. Extract</span>
-        <span class="pip" id="pip-review">3. Review</span>
+        <span class="pip" id="pip-review">3. Review &amp; Edit</span>
         <span class="pip" id="pip-charts">4. Charts</span>
     </div>
 
@@ -47,15 +53,10 @@
         <div class="card">
             <h2>Borehole Log Digitizer</h2>
             <p style="color:var(--muted);font-size:0.9em;">
-                Upload a borehole log image and AI will extract geotechnical data automatically.
-                Review and edit the extracted data, then generate charts for your report.
+                Upload a borehole log image to use as a reference while entering data.
+                {% if has_api_key %}AI can also extract data automatically.{% endif %}
+                Review and edit the data, then generate charts for your report.
             </p>
-            {% if not has_api_key %}
-            <div class="error-msg">
-                <strong>API Key Required:</strong> Set the <code>ANTHROPIC_API_KEY</code> environment variable to enable AI extraction.
-                You can still enter data manually in the review step.
-            </div>
-            {% endif %}
             <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
                 <p>Drag &amp; drop a borehole log image here, or click to browse</p>
                 <p style="font-size:0.8em;">Accepts PNG, JPG, JPEG, WEBP</p>
@@ -68,7 +69,10 @@
                     Extract Data with AI
                 </button>
                 {% endif %}
-                <button type="button" class="btn" onclick="skipToManual()">Enter Data Manually</button>
+                <button type="button" class="btn btn-accent" id="btn-digitize" disabled onclick="digitizeManually()">
+                    Digitize Manually
+                </button>
+                <button type="button" class="btn" onclick="skipToManual()">Enter Without Image</button>
             </div>
         </div>
     </div>
@@ -84,20 +88,32 @@
 
     <!-- STEP 3: Review & Edit -->
     <div class="step" id="step-review">
-        <div class="card">
-            <h2>Review &amp; Edit Extracted Data</h2>
-            <p style="color:var(--muted);font-size:0.9em;">
-                Verify the AI-extracted data below. Right-click to add or remove rows. Edit any incorrect values before generating charts.
-            </p>
-            <div class="meta-row">
-                <div><label>Borehole ID</label><input type="text" id="meta-bh-id"></div>
-                <div><label>Location</label><input type="text" id="meta-location"></div>
-                <div><label>Water Table Depth (m)</label><input type="number" step="0.01" id="meta-wt"></div>
+        <div class="review-layout">
+            <!-- Left: Reference image -->
+            <div class="ref-image" id="ref-image-panel" style="display:none;">
+                <div class="card" style="padding:10px;">
+                    <h3 style="margin:0 0 8px;font-size:0.95em;">Reference Image <span style="font-size:0.8em;color:var(--muted);">(click to zoom)</span></h3>
+                    <img id="ref-img" src="" alt="Borehole log reference" onclick="this.classList.toggle('zoomed')">
+                </div>
             </div>
-            <div id="hot-container" style="overflow-x:auto;"></div>
-            <div style="margin-top:12px;" class="no-print">
-                <button type="button" class="btn btn-accent" onclick="generateCharts()">Generate Charts</button>
-                <button type="button" class="btn" onclick="goToUpload()">Upload Different Image</button>
+            <!-- Right: Data entry -->
+            <div>
+                <div class="card">
+                    <h2>Review &amp; Edit Data</h2>
+                    <p style="color:var(--muted);font-size:0.9em;">
+                        Enter data from the borehole log image on the left. Right-click the table to add or remove rows.
+                    </p>
+                    <div class="meta-row">
+                        <div><label>Borehole ID</label><input type="text" id="meta-bh-id"></div>
+                        <div><label>Location</label><input type="text" id="meta-location"></div>
+                        <div><label>Water Table Depth (m)</label><input type="number" step="0.01" id="meta-wt"></div>
+                    </div>
+                    <div id="hot-container" style="overflow-x:auto;"></div>
+                    <div style="margin-top:12px;" class="no-print">
+                        <button type="button" class="btn btn-accent" onclick="generateCharts()">Generate Charts</button>
+                        <button type="button" class="btn" onclick="goToUpload()">Upload Different Image</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -225,6 +241,7 @@ var dropZone = document.getElementById('drop-zone');
 var fileInput = document.getElementById('file-input');
 var previewImg = document.getElementById('preview-img');
 var btnExtract = document.getElementById('btn-extract');
+var btnDigitize = document.getElementById('btn-digitize');
 
 if (dropZone) {
     dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -265,6 +282,7 @@ function handleFile(file) {
             }
             previewImg.style.display = 'block';
             if (btnExtract) btnExtract.disabled = false;
+            if (btnDigitize) btnDigitize.disabled = false;
         };
         img.src = e.target.result;
     };
@@ -302,6 +320,18 @@ function extractData() {
     });
 }
 
+// ---- Show reference image in review panel ----
+function showRefImage() {
+    var panel = document.getElementById('ref-image-panel');
+    var refImg = document.getElementById('ref-img');
+    if (previewImg && previewImg.src && previewImg.style.display !== 'none') {
+        refImg.src = previewImg.src;
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
 // ---- Populate review from AI data ----
 function populateReview(data) {
     document.getElementById('meta-bh-id').value = data.borehole_id || '';
@@ -320,11 +350,20 @@ function populateReview(data) {
             ]);
         });
     }
+    showRefImage();
     initHandsontable(rows);
 }
 
-// ---- Manual entry / skip ----
+// ---- Digitize manually (with image reference) ----
+function digitizeManually() {
+    showRefImage();
+    initHandsontable([['SS-1', 1.5, 'SPT', null, null, null, '', '', null, null, null, null, null, null]]);
+    showStep('review');
+}
+
+// ---- Manual entry without image ----
 function skipToManual() {
+    document.getElementById('ref-image-panel').style.display = 'none';
     initHandsontable([['SS-1', 1.5, 'SPT', null, null, null, '', '', null, null, null, null, null, null]]);
     showStep('review');
 }
