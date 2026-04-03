@@ -53,8 +53,7 @@
         <div class="card">
             <h2>Borehole Log Digitizer</h2>
             <p style="color:var(--muted);font-size:0.9em;">
-                Upload a borehole log image to use as a reference while entering data.
-                {% if has_api_key %}AI can also extract data automatically.{% endif %}
+                Upload a borehole log image &mdash; AI will extract all geotechnical data automatically.
                 Review and edit the data, then generate charts for your report.
             </p>
             <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
@@ -63,12 +62,11 @@
                 <img id="preview-img" style="display:none;" alt="Preview">
             </div>
             <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" style="display:none;">
-            <div style="margin-top:12px;">
-                {% if has_api_key %}
-                <button type="button" class="btn btn-accent" id="btn-extract" disabled onclick="extractData()">
-                    Extract Data with AI (API)
+            <div style="margin-top:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button type="button" class="btn" id="btn-extract" disabled onclick="extractData()"
+                    style="background:#27ae60;color:#fff;font-size:1.05em;padding:10px 24px;border:none;border-radius:6px;cursor:pointer;opacity:0.5;">
+                    Extract with AI
                 </button>
-                {% endif %}
                 <button type="button" class="btn btn-accent" id="btn-digitize" disabled onclick="digitizeManually()">
                     Digitize Manually
                 </button>
@@ -334,7 +332,7 @@ function handleFile(file) {
                 previewImg.src = e.target.result;
             }
             previewImg.style.display = 'block';
-            if (btnExtract) btnExtract.disabled = false;
+            if (btnExtract) { btnExtract.disabled = false; btnExtract.style.opacity = '1'; }
             if (btnDigitize) btnDigitize.disabled = false;
         };
         img.src = e.target.result;
