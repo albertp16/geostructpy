@@ -355,18 +355,21 @@ def borehole_log_view():
 
 @app.route("/api/borehole-extract", methods=["POST"])
 def borehole_extract_api():
-    data = request.get_json()
-    if not data or 'image_base64' not in data:
-        return jsonify({'error': 'Missing image_base64 in request body.'}), 400
+    try:
+        data = request.get_json()
+        if not data or 'image_base64' not in data:
+            return jsonify({'error': 'Missing image_base64 in request body.'}), 400
 
-    image_b64 = data['image_base64']
-    mime = data.get('mime_type', 'image/png')
+        image_b64 = data['image_base64']
+        mime = data.get('mime_type', 'image/png')
 
-    result = borehole_log.extract_from_image(image_b64, mime)
-    if 'error' in result:
-        return jsonify(result), 500
+        result = borehole_log.extract_from_image(image_b64, mime)
+        if 'error' in result:
+            return jsonify(result), 500
 
-    return jsonify(result)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route("/changelog")

@@ -353,7 +353,13 @@ function extractData() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({image_base64: imageBase64, mime_type: imageMimeType})
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+        var contentType = r.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error('Server returned an error (status ' + r.status + '). Check that ANTHROPIC_API_KEY is set in .env and pip install anthropic python-dotenv are installed.');
+        }
+        return r.json();
+    })
     .then(function(data) {
         clearInterval(elapsedTimer);
         if (data.error) {
