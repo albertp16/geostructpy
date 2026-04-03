@@ -502,7 +502,7 @@ def build_software_table(layers):
 
     # General tab table
     r += '<h4>General (Mohr-Coulomb)</h4>'
-    r += '<table class="data-table" style="font-size:0.85em;">'
+    r += '<table class="data-table" style="font-size:0.85em;width:100%;">'
     r += '<thead><tr><th>Layer</th><th>Depth (m)</th><th>E (kN/m&sup2;)</th><th>&nu;</th>'
     r += '<th>&gamma; (kN/m&sup3;)</th><th>K₀</th><th>C (kN/m&sup2;)</th><th>&phi; (&deg;)</th><th>Damping</th></tr></thead>'
     r += '<tbody>'
@@ -516,7 +516,7 @@ def build_software_table(layers):
 
     # Porous tab table
     r += '<h4>Porous</h4>'
-    r += '<table class="data-table" style="font-size:0.85em;">'
+    r += '<table class="data-table" style="font-size:0.85em;width:100%;">'
     r += '<thead><tr><th>Layer</th><th>&gamma;<sub>sat</sub> (kN/m&sup3;)</th><th>e₀</th>'
     r += '<th>kx (m/s)</th><th>ky (m/s)</th><th>kz (m/s)</th><th>Ss (1/m)</th></tr></thead>'
     r += '<tbody>'
@@ -529,7 +529,7 @@ def build_software_table(layers):
 
     # Non-Linear tab table
     r += '<h4>Non-Linear (Mohr-Coulomb)</h4>'
-    r += '<table class="data-table" style="font-size:0.85em;">'
+    r += '<table class="data-table" style="font-size:0.85em;width:100%;">'
     r += '<thead><tr><th>Layer</th><th>C (kN/m&sup2;)</th><th>&phi; (&deg;)</th>'
     r += '<th>&psi; (&deg;)</th><th>Tensile (kN/m&sup2;)</th></tr></thead>'
     r += '<tbody>'

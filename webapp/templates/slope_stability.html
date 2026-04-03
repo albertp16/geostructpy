@@ -114,16 +114,14 @@
     {% endif %}
 
     {% if profile_chart and software_table %}
-    <div style="display:grid; grid-template-columns:1fr 420px; gap:12px; align-items:start; margin-bottom:12px;">
-        <div class="card" style="overflow-x:auto;">
-            <div class="results-box">
-                {{ software_table|safe }}
-            </div>
+    <div class="card" style="overflow-x:auto;margin-bottom:12px;">
+        <div class="results-box">
+            {{ software_table|safe }}
         </div>
-        <div class="card" style="padding:8px;">
-            <h3 style="font-size:0.95em;margin:0 0 4px;text-align:center;">Soil Profile</h3>
-            <div id="soil-profile"></div>
-        </div>
+    </div>
+    <div class="card" style="padding:12px;margin-bottom:12px;max-width:450px;">
+        <h3 style="font-size:0.95em;margin:0 0 4px;text-align:center;">Soil Profile</h3>
+        <div id="soil-profile"></div>
     </div>
     <script>
         var profileData = {{ profile_chart|tojson }};
