@@ -200,7 +200,7 @@ def build_parameters_table(layers):
     r += '<th>&gamma;<sub>sat</sub> (kN/m&sup3;)</th>'
     r += '</tr></thead><tbody>'
 
-    for ly in layers:
+    for i, ly in enumerate(layers):
         gamma = ly['gamma']
         mc = ly.get('moisture_content', 0)
         Gs = ly.get('Gs', 2.65) or 2.65
@@ -217,7 +217,7 @@ def build_parameters_table(layers):
             gamma_sat = gamma_d + 9.81 - gamma_d / Gs
 
         r += '<tr>'
-        r += f'<td><strong>{ly["name"]}</strong></td>'
+        r += f'<td><span class="layer-link" onclick="openModal({i})">{ly["name"]}</span></td>'
         r += f'<td>{ly["depth_range"]}</td>'
         r += f'<td>{ly["description"]}</td>'
         r += f'<td>{ly["spt"]}</td>'
