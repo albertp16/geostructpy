@@ -6,8 +6,13 @@ Intended for APEC Consultancy team use.
 
 import json
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify
+
+# Load .env from project root (one level up from webapp/)
+load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 from calculators import terzaghi, meyerhof, mononobe_okabe, stability, micropile
 from calculators import slope_stability, spt_depth, borehole_log
