@@ -66,13 +66,66 @@
             <div style="margin-top:12px;">
                 {% if has_api_key %}
                 <button type="button" class="btn btn-accent" id="btn-extract" disabled onclick="extractData()">
-                    Extract Data with AI
+                    Extract Data with AI (API)
                 </button>
                 {% endif %}
                 <button type="button" class="btn btn-accent" id="btn-digitize" disabled onclick="digitizeManually()">
                     Digitize Manually
                 </button>
                 <button type="button" class="btn" onclick="skipToManual()">Enter Without Image</button>
+            </div>
+        </div>
+
+        <!-- AI Prompt Copy & Paste Section -->
+        <div class="card" style="margin-top:12px;">
+            <h3 style="margin:0 0 8px;">Free AI Extraction (No API Key Needed)</h3>
+            <p style="color:var(--muted);font-size:0.9em;">
+                <strong>Step 1:</strong> Copy the prompt below.<br>
+                <strong>Step 2:</strong> Open <a href="https://chatgpt.com" target="_blank">ChatGPT</a>, <a href="https://claude.ai" target="_blank">Claude</a>, or any AI chat &mdash; upload your borehole log image and paste the prompt.<br>
+                <strong>Step 3:</strong> Copy the JSON response and paste it below, then click <strong>Load JSON</strong>.
+            </p>
+
+            <div style="position:relative;">
+                <label style="font-weight:600;font-size:0.85em;">AI Prompt (copy this):</label>
+                <button type="button" class="btn" style="position:absolute;top:0;right:0;font-size:0.8em;padding:4px 10px;" onclick="copyPrompt()">
+                    Copy Prompt
+                </button>
+                <textarea id="ai-prompt" readonly rows="6" style="width:100%;font-size:0.8em;font-family:monospace;background:#f8f9fa;border:1px solid #ddd;border-radius:4px;padding:8px;margin-top:4px;resize:vertical;">Extract ALL geotechnical data from this borehole log image into the exact JSON format below. Return ONLY valid JSON, no explanation.
+
+Use null for any value NOT visible in the image. Depths in meters. SPT in blows/30cm. UCS in kg/cm2.
+
+{
+  "borehole_id": "string or null",
+  "location": "string or null",
+  "water_table_depth": number or null,
+  "samples": [
+    {
+      "sample_id": "SS-1",
+      "depth": 1.5,
+      "sample_type": "SPT or CORE",
+      "spt_n": 50,
+      "recovery_pct": 44,
+      "rqd_pct": null,
+      "description": "Silty gravel, gray, dense, non-plastic, GM",
+      "classification": "GM",
+      "water_content": null,
+      "liquid_limit": null,
+      "plastic_limit": null,
+      "plasticity_index": 12,
+      "ucs": null,
+      "specific_gravity": null
+    }
+  ]
+}</textarea>
+            </div>
+
+            <div style="margin-top:12px;">
+                <label style="font-weight:600;font-size:0.85em;">Paste AI JSON Response Here:</label>
+                <textarea id="json-input" rows="8" placeholder='Paste the JSON response from ChatGPT / Claude here...' style="width:100%;font-size:0.8em;font-family:monospace;border:1px solid #ddd;border-radius:4px;padding:8px;margin-top:4px;resize:vertical;"></textarea>
+                <div id="json-error" class="error-msg" style="display:none;"></div>
+                <button type="button" class="btn btn-accent" style="margin-top:8px;" onclick="loadJsonData()">
+                    Load JSON
+                </button>
             </div>
         </div>
     </div>
@@ -358,6 +411,55 @@ function populateReview(data) {
 function digitizeManually() {
     showRefImage();
     initHandsontable([['SS-1', 1.5, 'SPT', null, null, null, '', '', null, null, null, null, null, null]]);
+    showStep('review');
+}
+
+// ---- Copy prompt to clipboard ----
+function copyPrompt() {
+    var prompt = document.getElementById('ai-prompt');
+    prompt.select();
+    document.execCommand('copy');
+    var btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy Prompt'; }, 2000);
+}
+
+// ---- Load JSON from paste ----
+function loadJsonData() {
+    var raw = document.getElementById('json-input').value.trim();
+    var errDiv = document.getElementById('json-error');
+    errDiv.style.display = 'none';
+
+    if (!raw) {
+        errDiv.textContent = 'Please paste the JSON response first.';
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    // Strip markdown code fences if present
+    if (raw.startsWith('```')) {
+        var lines = raw.split('\n');
+        lines = lines.slice(1);
+        if (lines.length && lines[lines.length - 1].trim() === '```') lines = lines.slice(0, -1);
+        raw = lines.join('\n');
+    }
+
+    try {
+        var data = JSON.parse(raw);
+    } catch (e) {
+        errDiv.textContent = 'Invalid JSON: ' + e.message;
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    if (!data.samples || !Array.isArray(data.samples)) {
+        errDiv.textContent = 'JSON must contain a "samples" array. Check the format.';
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    showRefImage();
+    populateReview(data);
     showStep('review');
 }
 
