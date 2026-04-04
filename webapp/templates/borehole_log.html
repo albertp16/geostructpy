@@ -11,7 +11,7 @@
         text-align: center; color: #888; cursor: pointer; transition: all 0.2s;
         background: #fafbfc;
     }
-    .drop-zone.drag-over { border-color: var(--accent); background: #eaf4fb; }
+    .drop-zone.drag-over { border-color: var(--accent); background: #fdf6e3; }
     .drop-zone img { max-width: 100%; max-height: 350px; margin-top: 12px; border-radius: 4px; }
     .step { display: none; }
     .step.active { display: block; }
@@ -35,7 +35,13 @@
     .review-layout .ref-image img { width: 100%; border: 1px solid #ddd; border-radius: 4px; cursor: zoom-in; }
     .review-layout .ref-image img.zoomed { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         object-fit: contain; background: rgba(0,0,0,0.85); z-index: 9999; cursor: zoom-out; border: none; border-radius: 0; }
-    @media (max-width: 900px) { .review-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) {
+        .review-layout { grid-template-columns: 1fr; }
+        #step-charts > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+    }
+    @media print {
+        #step-charts > div[style*="grid-template-columns"] { display: block !important; }
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -187,14 +193,62 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
 
     {% if results %}
     <div class="step active" id="step-charts">
-        <div class="card no-print" style="margin-bottom:12px;">
-            <button type="button" class="btn" onclick="backToEdit()">Back to Edit</button>
-            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
-        </div>
+        <!-- Side-by-side layout: nav sidebar + results -->
+        <div style="display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start;">
+            <!-- Left: Navigation sidebar -->
+            <div class="no-print" style="position:sticky;top:70px;">
+                <div class="card" style="padding:14px;">
+                    <h3 style="margin:0 0 10px;font-size:0.9em;color:var(--primary);">Quick Navigation</h3>
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <button type="button" class="btn" onclick="backToEdit()" style="font-size:0.8em;padding:6px 10px;margin:0;text-align:left;">Back to Edit</button>
+                        <button type="button" class="btn btn-print" onclick="window.print()" style="font-size:0.8em;padding:6px 10px;margin:0;text-align:left;">Print Report</button>
+                    </div>
+                    <hr style="margin:10px 0;border:none;border-top:1px solid var(--border);">
+                    <div style="display:flex;flex-direction:column;gap:4px;font-size:0.82em;">
+                        {% if metadata.borehole_id or metadata.location or metadata.water_table_depth %}
+                        <a href="#sec-metadata" style="color:var(--text);text-decoration:none;padding:4px 6px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Metadata</a>
+                        {% endif %}
+                        {% if results.layer_table %}
+                        <a href="#sec-layers" style="color:var(--text);text-decoration:none;padding:4px 6px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Layer Summary</a>
+                        {% endif %}
+                        {% if samples_data %}
+                        <a href="#sec-samples" style="color:var(--text);text-decoration:none;padding:4px 6px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Sample Data</a>
+                        {% endif %}
+                        {% if results.summaries %}
+                        <a href="#sec-stats" style="color:var(--text);text-decoration:none;padding:4px 6px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Statistics</a>
+                        {% endif %}
+                        {% if results.charts %}
+                        <hr style="margin:4px 0;border:none;border-top:1px solid var(--border);">
+                        <span style="font-weight:600;color:var(--muted);padding:2px 6px;">Charts</span>
+                        {% if results.charts.spt %}
+                        <a href="#sec-chart-spt" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">SPT N-value</a>
+                        {% endif %}
+                        {% if results.charts.n60 %}
+                        <a href="#sec-chart-n60" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">N60</a>
+                        {% endif %}
+                        {% if results.charts.ucs %}
+                        <a href="#sec-chart-ucs" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">UCS</a>
+                        {% endif %}
+                        {% if results.charts.water_content %}
+                        <a href="#sec-chart-wc" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Water Content</a>
+                        {% endif %}
+                        {% if results.charts.rqd %}
+                        <a href="#sec-chart-rqd" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">RQD</a>
+                        {% endif %}
+                        {% if results.charts.recovery %}
+                        <a href="#sec-chart-rec" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Recovery</a>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Results content -->
+            <div>
 
         <!-- Borehole metadata header -->
         {% if metadata.borehole_id or metadata.location or metadata.water_table_depth %}
-        <div class="card" style="margin-bottom:12px;">
+        <div class="card" style="margin-bottom:12px;" id="sec-metadata">
             <h2>Borehole Data Report</h2>
             <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:0.95em;">
                 {% if metadata.borehole_id %}<div><strong>Borehole ID:</strong> {{ metadata.borehole_id }}</div>{% endif %}
@@ -206,7 +260,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
 
         <!-- Layer summary table + Soil profile side by side -->
         {% if results.layer_table %}
-        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;margin-bottom:12px;" id="sec-layers">
             <div class="card" style="overflow-x:auto;">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                     <h2 style="margin:0;">Layer Summary</h2>
@@ -227,7 +281,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
 
         <!-- Detailed sample data table -->
         {% if samples_data %}
-        <div class="card" style="margin-bottom:12px;overflow-x:auto;">
+        <div class="card" style="margin-bottom:12px;overflow-x:auto;" id="sec-samples">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                 <h2 style="margin:0;">Sample Data Table</h2>
                 <div class="no-print" style="display:flex;gap:6px;">
@@ -282,7 +336,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         </div>
 
         {% if results.summaries %}
-        <div class="card" style="margin-bottom:12px;">
+        <div class="card" style="margin-bottom:12px;" id="sec-stats">
             <h2>Summary Statistics</h2>
             <table class="data-table">
                 <thead><tr><th>Parameter</th><th>Count</th><th>Min</th><th>Max</th><th>Avg</th></tr></thead>
@@ -299,22 +353,22 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         {% if results.charts %}
         <div class="chart-grid">
             {% if results.charts.spt %}
-            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">SPT N-value vs. Depth</h3><div id="chart-spt"></div></div>
+            <div class="card" id="sec-chart-spt"><h3 style="font-size:0.95em; margin:0 0 4px;">SPT N-value vs. Depth</h3><div id="chart-spt"></div></div>
             {% endif %}
             {% if results.charts.n60 %}
-            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">N<sub>60</sub> vs. Depth</h3><div id="chart-n60"></div></div>
+            <div class="card" id="sec-chart-n60"><h3 style="font-size:0.95em; margin:0 0 4px;">N<sub>60</sub> vs. Depth</h3><div id="chart-n60"></div></div>
             {% endif %}
             {% if results.charts.ucs %}
-            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">UCS vs. Depth</h3><div id="chart-ucs"></div></div>
+            <div class="card" id="sec-chart-ucs"><h3 style="font-size:0.95em; margin:0 0 4px;">UCS vs. Depth</h3><div id="chart-ucs"></div></div>
             {% endif %}
             {% if results.charts.water_content %}
-            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">Water Content vs. Depth</h3><div id="chart-wc"></div></div>
+            <div class="card" id="sec-chart-wc"><h3 style="font-size:0.95em; margin:0 0 4px;">Water Content vs. Depth</h3><div id="chart-wc"></div></div>
             {% endif %}
             {% if results.charts.rqd %}
-            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">RQD vs. Depth</h3><div id="chart-rqd"></div></div>
+            <div class="card" id="sec-chart-rqd"><h3 style="font-size:0.95em; margin:0 0 4px;">RQD vs. Depth</h3><div id="chart-rqd"></div></div>
             {% endif %}
             {% if results.charts.recovery %}
-            <div class="card"><h3 style="font-size:0.95em; margin:0 0 4px;">Recovery vs. Depth</h3><div id="chart-rec"></div></div>
+            <div class="card" id="sec-chart-rec"><h3 style="font-size:0.95em; margin:0 0 4px;">Recovery vs. Depth</h3><div id="chart-rec"></div></div>
             {% endif %}
         </div>
         {% endif %}
@@ -347,6 +401,8 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
             {% endif %}
         })();
         </script>
+            </div><!-- end results content -->
+        </div><!-- end side-by-side grid -->
     </div>
     {% endif %}
 </div>
