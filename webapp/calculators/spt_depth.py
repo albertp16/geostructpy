@@ -81,7 +81,7 @@ def _build_chart(boreholes, chart_type):
         x_max = 100
 
     layout = {
-        "title": chart_titles.get(chart_type, ''),
+        "title": "",
         "xaxis": {
             "title": titles.get(chart_type, ''),
             "side": "top",

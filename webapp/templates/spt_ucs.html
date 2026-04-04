@@ -28,6 +28,20 @@
     <input type="hidden" name="bh_count" id="bh_count" value="{{ boreholes|length }}">
     <div id="hidden-fields"></div>
 
+    <!-- JSON Upload -->
+    <div class="card no-print" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+                <label style="font-weight:600;font-size:0.85em;color:var(--muted);display:block;margin-bottom:4px;">Upload Borehole JSON Files</label>
+                <input type="file" id="json-upload" accept=".json" multiple style="font-size:0.85em;">
+            </div>
+            <button type="button" class="btn btn-accent" onclick="loadJsonFiles()" style="margin-top:auto;">Load JSON</button>
+        </div>
+        <p style="color:var(--muted);font-size:0.8em;margin:6px 0 0;">
+            Accepts borehole log JSON files (same format as Borehole Log exports). Select multiple files to overlay boreholes.
+        </p>
+    </div>
+
     <div id="bh-containers"></div>
 
     <div class="no-print" style="margin-bottom:16px;">
@@ -185,6 +199,50 @@ function addHidden(name, val) {
     inp.name = name;
     inp.value = val;
     document.getElementById('hidden-fields').appendChild(inp);
+}
+
+function loadJsonFiles() {
+    var input = document.getElementById('json-upload');
+    if (!input.files.length) { alert('Please select one or more JSON files.'); return; }
+
+    // Clear existing boreholes
+    document.getElementById('bh-containers').innerHTML = '';
+    hotInstances = [];
+    nextBhIdx = 0;
+
+    var filesLoaded = 0;
+    var totalFiles = input.files.length;
+
+    for (var f = 0; f < totalFiles; f++) {
+        (function(file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var json = JSON.parse(e.target.result);
+                } catch (err) {
+                    alert('Invalid JSON in ' + file.name + ': ' + err.message);
+                    return;
+                }
+                var name = json.borehole_id || file.name.replace('.json', '');
+                var data = [];
+                if (json.samples && Array.isArray(json.samples)) {
+                    for (var s = 0; s < json.samples.length; s++) {
+                        var sample = json.samples[s];
+                        if (sample.spt_n !== null && sample.spt_n !== undefined && sample.depth !== null) {
+                            data.push([sample.depth, sample.spt_n]);
+                        }
+                    }
+                }
+                if (data.length === 0) {
+                    alert(file.name + ': No SPT data found (samples with spt_n values).');
+                    return;
+                }
+                createBoreholeCard(nextBhIdx, name, data);
+                nextBhIdx++;
+            };
+            reader.readAsText(file);
+        })(input.files[f]);
+    }
 }
 
 document.getElementById('spt-form').addEventListener('submit', function(e) {

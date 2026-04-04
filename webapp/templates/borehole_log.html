@@ -825,12 +825,16 @@ function addHidden(name, val) {
 
 // ---- Init from server data (after POST) ----
 {% if results %}
-    // Charts are showing, set pipeline to step 4
+    // Charts are showing, hide other steps and set pipeline to step 4
     (function() {
-        ['upload','extract','review'].forEach(function(s) {
+        ['upload','loading','review'].forEach(function(s) {
+            var step = document.getElementById('step-' + s);
+            if (step) step.classList.remove('active');
             var pip = document.getElementById('pip-' + s);
             if (pip) pip.className = 'pip done';
         });
+        var pipExtract = document.getElementById('pip-extract');
+        if (pipExtract) pipExtract.className = 'pip done';
         var pip4 = document.getElementById('pip-charts');
         if (pip4) pip4.className = 'pip current';
     })();
