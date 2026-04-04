@@ -3,8 +3,8 @@
 **Geotechnical Engineering Toolkit for Structural Engineers**
 
 [![PyPI version](https://img.shields.io/pypi/v/geostructpy?color=blue&label=PyPI)](https://pypi.org/project/geostructpy/)
-[![License](https://img.shields.io/github/license/albertpamonag/geostructpy)](https://github.com/albertpamonag/geostructpy/blob/main/LICENSE)
-[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/albertpamonag/geostructpy/issues)
+[![License](https://img.shields.io/github/license/albertp16/geostructpy)](https://github.com/albertp16/geostructpy/blob/main/LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/albertp16/geostructpy/issues)
 
 GeoStructPy is an open-source Python web application and library for geotechnical engineering calculations, built for the APEC Consultancy team. It provides 10 interactive modules covering bearing capacity, earth pressure, pile design, slope analysis, and borehole data processing.
 
