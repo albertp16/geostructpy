@@ -6,26 +6,116 @@
 [![License](https://img.shields.io/github/license/albertpamonag/geostructpy)](https://github.com/albertpamonag/geostructpy/blob/main/LICENSE)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/albertpamonag/geostructpy/issues)
 
-GeoStructPy is an open-source Python library and web application for geotechnical engineering calculations, designed for practicing structural and geotechnical engineers. It provides interactive tools for bearing capacity analysis, seismic earth pressure calculations, and retaining wall stability checks.
+GeoStructPy is an open-source Python web application and library for geotechnical engineering calculations, built for the APEC Consultancy team. It provides 10 interactive modules covering bearing capacity, earth pressure, pile design, slope analysis, and borehole data processing.
 
-## Web Application
+---
 
-A lightweight Flask-based web app with interactive calculators, step-by-step equation rendering (MathJax), and printable reports.
+## Modules
 
-### Modules
+| Module | Category | Description |
+|--------|----------|-------------|
+| **Terzaghi** | Foundation | Bearing capacity for strip, square, and circular footings |
+| **Meyerhof** | Foundation | Bearing capacity with shape, depth, and inclination factors |
+| **Mononobe-Okabe** | Earth Pressure | Seismic active/passive earth pressure for retaining walls |
+| **Wall Stability** | Earth Pressure | Retaining wall sliding, overturning, and eccentricity checks |
+| **Micropile** | Deep Foundation | Micropile design per NSCP 2015, AISC 14th Ed., ACI 318-14/19 |
+| **Bored Pile** | Deep Foundation | Bored pile capacity from rock UCS, RQD, and structural checks |
+| **Slope Stability** | Slope | Midas GTS NX material parameters derived from borehole data |
+| **SPT & UCS Charts** | Borehole | SPT N-value, N60, and UCS vs. Depth graph maker with JSON import |
+| **Borehole Log** | Borehole | AI-powered borehole log digitizer with soil profiles and charts |
+| **Theory & Notes** | Reference | Technical background and equations |
 
-| Module | Description | Method |
-|--------|-------------|--------|
-| **Terzaghi** | Ultimate bearing capacity for strip, square, and circular footings | Terzaghi (1943) |
-| **Meyerhof** | Bearing capacity with shape, depth, and load inclination factors | Meyerhof (1963) |
-| **Mononobe-Okabe** | Seismic active/passive earth pressure coefficients | Mononobe-Okabe (1929) |
-| **Wall Stability** | Retaining wall sliding, overturning, and eccentricity checks | Rankine earth pressure |
-| **Micropile** | Micropile design with slenderness, soil capacity, lateral, flexural/axial, and shear checks | NSCP 2015, AISC 14th Ed., ACI 318-14/19 |
-| **Theory & Notes** | Technical background on all implemented methods | AIT CE75.05 lecture notes |
+---
 
-### How to Run the App
+## How to Use Each Module
 
-**Option 1 - Run locally (development):**
+### Terzaghi Bearing Capacity
+
+Calculates ultimate and allowable bearing capacity using Terzaghi (1943).
+
+**Inputs:** Cohesion (c), unit weight, friction angle (phi), footing type (strip/square/circular), width (B), depth (Df), factor of safety.
+
+**Outputs:** Bearing capacity factors (Nc, Nq, Ngamma), ultimate bearing capacity (qu), allowable bearing capacity (qa), step-by-step equations.
+
+### Meyerhof Bearing Capacity
+
+Extended bearing capacity with shape, depth, and load inclination corrections per Meyerhof (1963).
+
+**Inputs:** Same as Terzaghi plus footing length (L), load inclination angle (theta).
+
+**Outputs:** Shape/depth/inclination factors, ultimate and allowable bearing capacity, detailed equation breakdown.
+
+### Mononobe-Okabe
+
+Seismic earth pressure coefficients for retaining wall design.
+
+**Inputs:** Soil unit weight, wall height, backfill angle (alpha), friction angle (phi), wall friction (delta), PGA, seismic coefficients (kh, kv).
+
+**Outputs:** Active/passive earth pressure coefficients (Ka, Kp), total lateral forces, point of application, equations.
+
+### Wall Stability
+
+Retaining wall stability analysis against sliding, overturning, and bearing failure.
+
+**Inputs:** Wall geometry (heights, thicknesses, base dimensions), soil properties (gamma, phi, cohesion), concrete unit weight, bearing capacity.
+
+**Outputs:** Safety factors for sliding (FS >= 1.5), overturning (FS >= 2.0), eccentricity check, base pressure distribution, wall diagram.
+
+### Micropile Design
+
+Full micropile structural and geotechnical checks.
+
+**Inputs:** Pile geometry (diameter, length), steel casing and rebar properties, concrete strength, soil layers, LRFD load combinations.
+
+**Outputs:** Slenderness check (AISC), soil compression/tension capacity (ACI), lateral capacity (NSCP), flexural/axial interaction diagram, shear capacity.
+
+### Bored Pile
+
+Bored pile capacity analysis for rock-socketed piles.
+
+**Inputs:** Pile diameter (D), pile length (Lp), water table depth, concrete properties (fc, unit weight, cover), rebar (Fy, db, number of bars), rock properties (type, UCS, Nms, RQD).
+
+**Outputs:** End bearing capacity, shaft friction, structural capacity, factor of safety.
+
+### Slope Stability
+
+Derives Midas GTS NX material parameters from borehole log data.
+
+**Inputs:** Soil layers with SPT N-values, sample descriptions, classifications. Can import directly from Borehole Log JSON.
+
+**Outputs:** Software parameters table (E, nu, gamma, c, phi per layer), soil profile chart, SPT/RQD/Water Content/PI depth charts, copy-to-Excel and LaTeX export.
+
+### SPT & UCS Charts
+
+Generates professional depth-based charts for geotechnical reports.
+
+**Inputs:** One or more boreholes, each with depth and SPT N-value pairs. Supports JSON file upload (same format as Borehole Log exports) for multiple boreholes.
+
+**Outputs:** Three charts: (1) SPT N vs. Depth, (2) Corrected N60 vs. Depth, (3) UCS vs. Depth with median line. Summary statistics table.
+
+**Correlations:** N60 = N x (Er/60), Er = 72% safety hammer. UCS = 12.5 x N60 kPa.
+
+### Borehole Log Digitizer
+
+AI-powered borehole log digitizer that extracts geotechnical data from images.
+
+**Workflow:**
+1. **Upload** a borehole log image (PNG, JPG, WEBP)
+2. **Extract** data using AI (requires Anthropic API key) or paste JSON from ChatGPT/Claude
+3. **Review & Edit** extracted data in a spreadsheet with reference image
+4. **Results** with layer summary, soil profile, sample data table, and depth charts (SPT, N60, UCS, water content, RQD, recovery)
+
+**JSON format:** Save/load projects as JSON files. The same JSON can be imported into the SPT & UCS Charts and Slope Stability modules.
+
+### Theory & Notes
+
+Interactive technical reference with equations for all implemented methods, rendered with MathJax. Organized by topic with tree-menu navigation.
+
+---
+
+## Running the App
+
+### Local Development
 
 ```sh
 cd webapp
@@ -33,108 +123,71 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open [http://localhost:8080](http://localhost:8080) in your browser. All calculators are client-side (Vue.js + MathJax + Plotly), so Flask only serves the pages.
+Open [http://localhost:8080](http://localhost:8080).
 
-**Option 2 - Deploy to Railway (production):**
+### Production (Railway)
 
 The `webapp/` directory is Railway-ready with `Procfile`, `requirements.txt`, and `runtime.txt`.
 
-1. Push your code to GitHub
-2. Connect the repository to [Railway](https://railway.app)
-3. Set the **root directory** to `webapp/`
-4. Railway auto-detects the `Procfile` and deploys with Gunicorn
+1. Push to GitHub
+2. Connect to [Railway](https://railway.app)
+3. Set root directory to `webapp/`
+4. Railway auto-detects the Procfile and deploys with Gunicorn
 
-**Option 3 - Deploy with Docker (optional):**
+### Environment Variables
 
-```sh
-cd webapp
-pip install gunicorn
-gunicorn app:app --bind 0.0.0.0:8080
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | Optional | Enables AI-powered borehole log extraction. Without it, use the free copy-paste method. |
+| `PORT` | Auto | Set by Railway/Heroku. Defaults to 8080 locally. |
 
-### Project Structure
+---
+
+## Project Structure
 
 ```
 webapp/
-  app.py              # Flask routes (lightweight, serves templates only)
-  requirements.txt    # Flask + Gunicorn
-  Procfile            # Railway/Heroku entry point
-  runtime.txt         # Python version for Railway
+  app.py                # Flask routes and form processing
+  requirements.txt      # Flask, Gunicorn, Anthropic SDK, python-dotenv
+  Procfile              # Railway/Heroku entry point
+  runtime.txt           # Python 3.12.8
+  calculators/
+    terzaghi.py         # Terzaghi bearing capacity
+    meyerhof.py         # Meyerhof bearing capacity
+    mononobe_okabe.py   # Seismic earth pressure
+    stability.py        # Retaining wall stability
+    micropile.py        # Micropile design
+    bored_pile.py       # Bored pile capacity
+    slope_stability.py  # Slope parameters and charts
+    spt_depth.py        # SPT/N60/UCS chart generator
+    borehole_log.py     # Borehole log processing and AI extraction
   templates/
-    base.html         # Shared layout, nav, disclaimer, print CSS
-    index.html        # Landing page with module cards
-    terzaghi.html     # Terzaghi bearing capacity calculator
-    meyerhof.html     # Meyerhof bearing capacity calculator
-    mononobe_okabe.html  # Seismic earth pressure calculator
-    stability.html    # Retaining wall stability analysis
-    micropile.html    # Micropile design (NSCP/AISC/ACI)
-    theory.html       # Technical notes & equations
-    changelog.html    # Version history
-  static/js/
-    terzaghi.js       # Terzaghi calculation engine
-    meyerhof.js       # Meyerhof calculation engine
-    mononobe_okabe.js # Mononobe-Okabe calculation engine
-    stability.js      # Retaining wall stability engine
-    micropile.js      # Micropile design engine
+    base.html           # Shared layout, navbar, APEC disclaimer, print CSS
+    index.html          # Dashboard with module cards
+    terzaghi.html       # Terzaghi calculator
+    meyerhof.html       # Meyerhof calculator
+    mononobe_okabe.html # Mononobe-Okabe calculator
+    stability.html      # Wall stability analysis
+    micropile.html      # Micropile design
+    bored_pile.html     # Bored pile design
+    slope_stability.html # Slope stability analysis
+    spt_ucs.html        # SPT & UCS chart maker
+    borehole_log.html   # Borehole log digitizer
+    theory.html         # Technical notes
+    changelog.html      # Version history
 ```
 
 ## Python Library
 
-Install the core library:
+Install the core library for use in scripts:
 
 ```sh
 pip install geostructpy
 ```
 
-### Features
+See the [PyPI page](https://pypi.org/project/geostructpy/) for API documentation.
 
-**Shallow Foundation Design**
-- Terzaghi (1943) bearing capacity equation with shape factors
-- Meyerhof (1963) bearing capacity equation with shape, depth, and inclination factors
-- Bearing capacity factor tables and interpolation (phi = 0-50 deg)
-- Support for strip, square, rectangular, and circular footings
-- Drained and undrained analysis
-
-**Seismic Earth Pressure**
-- Mononobe-Okabe method for seismic active earth pressure
-- Coulomb static active and passive pressure coefficients
-- At-rest earth pressure coefficient (K0)
-- Seismic inclination angle computation
-
-**Retaining Wall Stability**
-- Rankine active and passive earth pressure
-- Sliding safety factor (FS >= 1.5)
-- Overturning safety factor (FS >= 2.0)
-- Eccentricity and base pressure distribution
-
-**Serviceability Limit State** *(Under Development)*
-- Immediate settlement (Bowles, 1987)
-- Primary consolidation settlement
-- Secondary consolidation settlement
-
-**Micropile Design**
-- Slenderness check per AISC 14th Ed. E2/D1 (KL/r < 200)
-- Soil compression and tension capacity per ACI 318-14/19
-- Lateral soil capacity and required embedment depth per NSCP 2015
-- Concrete flexural and axial capacity with P-M interaction diagram (ACI 318-14 Sec. 21.2)
-- Concrete shear capacity per ACI 318-14/19 Sec. 22.5
-- Metric rebar library (10 mm through 40 mm) with LRFD load combinations
-
-**Deep Foundations** *(Under Development)*
-- Pile foundation design
-- Pile raft foundation
-
-## Technical Background
-
-The calculations are aligned with:
-
-- **Terzaghi (1943)**: General shear failure theory for shallow foundations assuming homogeneous isotropic soil with horizontal ground surface. Applicable to strip, square, and circular footings with shape factors.
-
-- **Meyerhof (1963)**: Extended bearing capacity theory incorporating shape factors (De Beer, 1970), depth factors (Hansen, 1970), and load inclination factors for rectangular foundations and inclined loads.
-
-- **Mononobe-Okabe (1929)**: Pseudo-static extension of Coulomb's earth pressure theory for seismic conditions using horizontal (kh) and vertical (kv) seismic coefficients.
-
-- **Limit State Design**: Both Ultimate Limit State (bearing capacity failure, sliding, overturning) and Serviceability Limit State (settlement, angular distortion) approaches following LRFD methodology.
+---
 
 ## References
 
@@ -148,7 +201,7 @@ The calculations are aligned with:
 
 ## About the Developer
 
-**Albert Pamonag, M.Eng**
+**Albert Pamonag, M.Eng** | APEC Consultancy
 - Professional Master of Structural Design in Tall Buildings (PMTB), Asian Institute of Technology (AIT), Thailand
 - Master of Engineering in Civil Engineering (Structural Engineering), De La Salle University - Manila
 - Contact: [albertpamonag@gmail.com](mailto:albertpamonag@gmail.com)

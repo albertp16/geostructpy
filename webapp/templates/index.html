@@ -1,57 +1,129 @@
 {% extends "base.html" %}
 {% block title %}GeoStructPy - Geotechnical Engineering Tools{% endblock %}
+{% block extra_head %}
+<style>
+    .module-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+    }
+    .module-card {
+        text-decoration: none;
+        display: block;
+    }
+    .module-card-inner {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-left: 4px solid #e6a817;
+        border-radius: 8px;
+        padding: 20px;
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        height: 100%;
+    }
+    .module-card:hover .module-card-inner {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(230, 168, 23, 0.15);
+        border-color: #e6a817;
+    }
+    .module-card-inner h3 {
+        color: var(--primary);
+        margin: 0 0 8px;
+        font-size: 1.05em;
+    }
+    .module-card-inner .module-tag {
+        display: inline-block;
+        font-size: 0.7em;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: #fdf6e3;
+        color: #b8860b;
+        margin-bottom: 8px;
+    }
+    .module-card-inner p {
+        color: var(--muted);
+        font-size: 0.85em;
+        margin: 0;
+        line-height: 1.4;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="card">
     <h2>GeoStructPy - Geotechnical Engineering Tools</h2>
-    <p>Open-source geotechnical calculation suite for structural engineers. Select a module below to get started.</p>
+    <p style="color:var(--muted);font-size:0.9em;">
+        Open-source geotechnical calculation suite for the APEC Consultancy team. Select a module below to get started.
+    </p>
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:16px; margin-top:20px;">
-        <a href="/mononobe-okabe" style="text-decoration:none;">
-            <div style="background:#eaf2f8; border:1px solid #aed6f1; border-radius:8px; padding:20px; text-align:center; transition:transform 0.2s;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Mononobe-Okabe</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Seismic earth pressure analysis for retaining walls</p>
+    <div class="module-grid">
+        <a href="/terzaghi" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Foundation</span>
+                <h3>Terzaghi</h3>
+                <p>Bearing capacity for strip, square, and circular footings</p>
             </div>
         </a>
-        <a href="/terzaghi" style="text-decoration:none;">
-            <div style="background:#eafaf1; border:1px solid #a9dfbf; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Terzaghi</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Bearing capacity for strip, square, and circular footings</p>
+        <a href="/meyerhof" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Foundation</span>
+                <h3>Meyerhof</h3>
+                <p>Bearing capacity with shape, depth, and inclination factors</p>
             </div>
         </a>
-        <a href="/meyerhof" style="text-decoration:none;">
-            <div style="background:#fef9e7; border:1px solid #f9e79f; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Meyerhof</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Bearing capacity with shape, depth, and inclination factors</p>
+        <a href="/mononobe-okabe" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Earth Pressure</span>
+                <h3>Mononobe-Okabe</h3>
+                <p>Seismic active/passive earth pressure for retaining walls</p>
             </div>
         </a>
-        <a href="/stability" style="text-decoration:none;">
-            <div style="background:#f5eef8; border:1px solid #d2b4de; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Wall Stability</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Retaining wall sliding and overturning safety checks</p>
+        <a href="/stability" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Earth Pressure</span>
+                <h3>Wall Stability</h3>
+                <p>Retaining wall sliding, overturning, and eccentricity checks</p>
             </div>
         </a>
-        <a href="/micropile" style="text-decoration:none;">
-            <div style="background:#e8f6f3; border:1px solid #a2d9ce; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Micropile</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Micropile design per NSCP 2015, AISC 14th Ed., ACI 318-14/19</p>
+        <a href="/micropile" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Deep Foundation</span>
+                <h3>Micropile</h3>
+                <p>Micropile design per NSCP 2015, AISC 14th Ed., ACI 318-14/19</p>
             </div>
         </a>
-        <a href="/slope-stability" style="text-decoration:none;">
-            <div style="background:#fef5e7; border:1px solid #fad7a0; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Slope Stability</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Midas GTS NX material parameters from borehole data</p>
+        <a href="/bored-pile" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Deep Foundation</span>
+                <h3>Bored Pile</h3>
+                <p>Bored pile capacity from rock UCS, RQD, and structural checks</p>
             </div>
         </a>
-        <a href="/spt-ucs" style="text-decoration:none;">
-            <div style="background:#eaf8f1; border:1px solid #a3e4d7; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">SPT &amp; UCS Charts</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">SPT N-value, N<sub>60</sub>, and UCS vs Depth graph maker</p>
+        <a href="/slope-stability" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Slope</span>
+                <h3>Slope Stability</h3>
+                <p>Midas GTS NX material parameters derived from borehole data</p>
             </div>
         </a>
-        <a href="/theory" style="text-decoration:none;">
-            <div style="background:#fdf2e9; border:1px solid #f5cba7; border-radius:8px; padding:20px; text-align:center;">
-                <h3 style="color:#2c3e50; margin:0 0 8px;">Theory &amp; Notes</h3>
-                <p style="color:#6c757d; font-size:0.85em; margin:0;">Technical background with tree-menu navigation</p>
+        <a href="/spt-ucs" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Borehole</span>
+                <h3>SPT &amp; UCS Charts</h3>
+                <p>SPT N-value, N<sub>60</sub>, and UCS vs. Depth graph maker with JSON import</p>
+            </div>
+        </a>
+        <a href="/borehole-log" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Borehole</span>
+                <h3>Borehole Log</h3>
+                <p>Digitize borehole logs with AI extraction, soil profiles, and depth charts</p>
+            </div>
+        </a>
+        <a href="/theory" class="module-card">
+            <div class="module-card-inner">
+                <span class="module-tag">Reference</span>
+                <h3>Theory &amp; Notes</h3>
+                <p>Technical background and equations with tree-menu navigation</p>
             </div>
         </a>
     </div>
@@ -59,7 +131,7 @@
 
 <div class="card">
     <h2>References</h2>
-    <ul style="line-height:1.8;">
+    <ul style="line-height:1.8; font-size:0.9em;">
         <li>Terzaghi, K. (1943). <em>Theoretical Soil Mechanics</em>. Wiley.</li>
         <li>Meyerhof, G.G. (1963). Some recent research on the bearing capacity of foundations. <em>Canadian Geotechnical Journal</em>, 1(1), 16-26.</li>
         <li>Das, B., Sivakugan, N. (2017). <em>Principles of Foundation Engineering</em> (9th ed.). Cengage.</li>
