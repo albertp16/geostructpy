@@ -52,7 +52,7 @@
             <span class="pip current" id="pip-upload">1. Upload</span>
             <span class="pip" id="pip-extract">2. Extract</span>
             <span class="pip" id="pip-review">3. Review &amp; Edit</span>
-            <span class="pip" id="pip-charts">4. Charts</span>
+            <span class="pip" id="pip-charts">4. Results</span>
         </div>
         <div style="display:flex;gap:6px;">
             <button type="button" class="btn" style="font-size:0.8em;padding:5px 12px;background:#27ae60;color:#fff;border:none;border-radius:20px;" onclick="saveProject()">Save</button>
@@ -182,7 +182,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
         </div>
     </div>
 
-    <!-- STEP 4: Charts (rendered via form POST) -->
+    <!-- STEP 4: Results (rendered via form POST) -->
     <form method="POST" action="/borehole-log" id="chart-form" style="display:none;">
         <input type="hidden" name="sample_count" id="sample_count">
         <input type="hidden" name="borehole_id" id="form-bh-id">
@@ -220,6 +220,9 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                         {% if results.charts %}
                         <hr style="margin:4px 0;border:none;border-top:1px solid var(--border);">
                         <span style="font-weight:600;color:var(--muted);padding:2px 6px;">Charts</span>
+                        {% if results.charts.soil_profile %}
+                        <a href="#sec-layers" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">Soil Profile</a>
+                        {% endif %}
                         {% if results.charts.spt %}
                         <a href="#sec-chart-spt" style="color:var(--text);text-decoration:none;padding:4px 6px 4px 14px;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'">SPT N-value</a>
                         {% endif %}
