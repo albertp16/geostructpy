@@ -107,7 +107,7 @@ def stability_view():
     defaults = dict(
         h1=1.0, h2=1.0, t_stem=0.20, t_base=0.30, b_base=1.00, b_heel=0.80,
         gamma_s=18, phi=35.2, mu=0.35, q_bearing=125, gamma_c=23.56, q=0,
-        y_front=0.0, include_passive=False,
+        y_front=0.0, include_passive=False, b_toe=0.0,
     )
     results = None
     params = defaults
@@ -127,6 +127,7 @@ def stability_view():
             q=_float('q', 0),
             y_front=_float('y_front', 0.0),
             include_passive=bool(request.form.get('include_passive')),
+            b_toe=_float('b_toe', 0.0),
         )
         results = stability.calculate(**params)
     return render_template("stability.html", params=params, results=results)
