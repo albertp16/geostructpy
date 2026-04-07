@@ -8,10 +8,12 @@ def _f(v, d=2):
     return f"{v:.{d}f}"
 
 
-def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearing, gamma_c, q):
+def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearing, gamma_c, q,
+              y_front=0.0, include_passive=False):
     gs = gamma_s
     gc = gamma_c
     totalHeight = h1 + h2
+    b_toe = b_base - t_stem - b_heel  # explicit toe width for plot and reporting
 
     # Vertical loads (restoring)
     P1 = gc * t_stem * (totalHeight - t_base)
@@ -31,7 +33,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     Wt += P_sur
     Mr += m_sur
 
-    # Lateral loads
+    # Lateral loads (active, back side)
     Ka = (1 - math.sin(phi * DEG)) / (1 + math.sin(phi * DEG))
     maxHP = Ka * gs * totalHeight
     Pa_soil = 0.5 * Ka * gs * totalHeight * totalHeight
@@ -42,8 +44,28 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     Mo_sur = Pa_sur * (totalHeight / 2)
     Mo = Mo_soil + Mo_sur
 
+    # Passive resistance from front (toe-side) soil per Rankine
+    # Ref: Das & Sivakugan (2019, 9th SI) §16.11 Eq. 16.47, p. 676; §17.4 Stability checks, p. 699.
+    Kp = (1 + math.sin(phi * DEG)) / (1 - math.sin(phi * DEG))
+    if y_front > 0:
+        Pp_soil = 0.5 * Kp * gs * y_front * y_front   # kN/m
+        Mp_resist = Pp_soil * (y_front / 3.0)         # moment about base bottom
+        maxPP = Kp * gs * y_front                     # peak passive pressure at base
+    else:
+        Pp_soil = 0.0
+        Mp_resist = 0.0
+        maxPP = 0.0
+
+    # Credit passive resistance in the overturning/eccentricity checks only when requested.
+    # Default behavior (include_passive=False) leaves Mr and Mo untouched, preserving the
+    # regression against the pre-change numeric output.
+    if include_passive and y_front > 0:
+        Mr_total = Mr + Mp_resist
+    else:
+        Mr_total = Mr
+
     # Eccentricity & contact pressure
-    netMoment = Mr - Mo
+    netMoment = Mr_total - Mo
     ecc = netMoment / Wt
     e_abs = abs(b_base / 2 - ecc)
     qAvg = Wt / b_base
@@ -71,8 +93,12 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         qmax = 2 * Wt / (3 * x_bar)
 
     # Factors of safety
-    FS_slide = (mu * Wt) / Pa_total
-    FS_over = Mr / Mo
+    if include_passive and y_front > 0:
+        FS_slide = (mu * Wt + Pp_soil) / Pa_total
+        FS_over = Mr_total / Mo
+    else:
+        FS_slide = (mu * Wt) / Pa_total
+        FS_over = Mr / Mo
 
     # Build report
     r = '<h4>Rankine Active Earth Pressure Coefficient</h4>'
@@ -84,6 +110,33 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     if q > 0:
         r += f'\\[ P_{{a,surcharge}} = q \\cdot K_a \\cdot H = {_f(Pa_sur)} \\text{{ kN/m}} \\]'
     r += f'\\[ P_{{a,total}} = {_f(Pa_total)} \\text{{ kN/m}} \\]'
+
+    # Passive resistance (Rankine) — front / toe-side soil
+    # Ref: Das & Sivakugan (2019, 9th SI) §16.11 Rankine passive earth pressure, Eq. 16.47, p. 676.
+    #      §17.4 Stability of retaining walls, p. 699 — discussion of crediting passive force.
+    r += '<h4>Passive Resistance (Front Soil)</h4>'
+    r += (
+        '<p style="font-size:0.85em;color:#6c757d;margin:0 0 6px;">'
+        'Ref: Das &amp; Sivakugan (2019, 9th SI) &sect;16.11 Rankine passive pressure, '
+        '<strong>p.&nbsp;676</strong>; &sect;17.4 &mdash; stability of retaining walls, '
+        '<strong>p.&nbsp;699</strong>.</p>'
+    )
+    r += f'\\[ K_p = \\frac{{1 + \\sin\\phi}}{{1 - \\sin\\phi}} = {_f(Kp, 4)} \\]'
+    if y_front > 0:
+        r += f'\\[ \\sigma_{{p,max}} = K_p \\gamma_s y = {_f(maxPP)} \\text{{ kPa}} \\]'
+        r += f'\\[ P_p = \\tfrac{{1}}{{2}} K_p \\gamma_s y^2 = {_f(Pp_soil)} \\text{{ kN/m}} \\quad (\\text{{at }} y/3 = {_f(y_front/3)} \\text{{ m from base}}) \\]'
+        if include_passive:
+            r += (
+                f'<p><strong>Credited</strong> in sliding and overturning checks '
+                f'(M<sub>p</sub> = {_f(Mp_resist)} kN&middot;m/m added to restoring moment).</p>'
+            )
+        else:
+            r += (
+                '<p><em>Computed but NOT credited</em> in sliding / overturning '
+                '(checkbox unticked, per ACI SP-17 Ch.&nbsp;2 conservative guidance).</p>'
+            )
+    else:
+        r += '<p><em>Front soil depth y = 0 &mdash; no passive resistance available.</em></p>'
 
     r += '<h4>Vertical Loads &amp; Restoring Moment</h4>'
     r += '<table class="data-table"><thead><tr><th>Component</th><th>W (kN/m)</th><th>Arm (m)</th><th>M<sub>R</sub> (kN\u00b7m/m)</th></tr></thead><tbody>'
@@ -106,10 +159,28 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     r += f' = {_f(Mo)} \\text{{ kN\u00b7m/m}} \\]'
 
     r += '<h4>Sliding Check</h4>'
-    r += f'\\[ FS_{{sliding}} = \\frac{{\\mu \\cdot W}}{{P_a}} = \\frac{{{_f(mu * Wt)}}}{{{_f(Pa_total)}}} = {_f(FS_slide)} \\]'
+    if include_passive and y_front > 0:
+        r += (
+            f'\\[ FS_{{sliding}} = \\frac{{\\mu \\cdot W + P_p}}{{P_a}} = '
+            f'\\frac{{{_f(mu * Wt)} + {_f(Pp_soil)}}}{{{_f(Pa_total)}}} = {_f(FS_slide)} \\]'
+        )
+    else:
+        r += (
+            f'\\[ FS_{{sliding}} = \\frac{{\\mu \\cdot W}}{{P_a}} = '
+            f'\\frac{{{_f(mu * Wt)}}}{{{_f(Pa_total)}}} = {_f(FS_slide)} \\]'
+        )
 
     r += '<h4>Overturning Check</h4>'
-    r += f'\\[ FS_{{overturning}} = \\frac{{M_R}}{{M_o}} = \\frac{{{_f(Mr)}}}{{{_f(Mo)}}} = {_f(FS_over)} \\]'
+    if include_passive and y_front > 0:
+        r += (
+            f'\\[ FS_{{overturning}} = \\frac{{M_R + M_p}}{{M_o}} = '
+            f'\\frac{{{_f(Mr)} + {_f(Mp_resist)}}}{{{_f(Mo)}}} = {_f(FS_over)} \\]'
+        )
+    else:
+        r += (
+            f'\\[ FS_{{overturning}} = \\frac{{M_R}}{{M_o}} = '
+            f'\\frac{{{_f(Mr)}}}{{{_f(Mo)}}} = {_f(FS_over)} \\]'
+        )
 
     r += '<h4>Eccentricity &amp; Base Pressure</h4>'
     r += f'\\[ \\bar{{x}} = \\frac{{M_R - M_o}}{{W}} = {_f(ecc)} \\text{{ m}} \\]'
@@ -131,11 +202,21 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         r += '<p><strong>Bearing check:</strong> <em>skipped &mdash; q<sub>all</sub> not provided</em></p>'
 
     # Summary table
+    _slide_resisting = (
+        f'{_f(mu * Wt + Pp_soil)} kN/m (incl. P<sub>p</sub>)'
+        if include_passive and y_front > 0
+        else f'{_f(mu * Wt)} kN/m'
+    )
+    _over_resisting = (
+        f'{_f(Mr + Mp_resist)} kN&middot;m/m (incl. M<sub>p</sub>)'
+        if include_passive and y_front > 0
+        else f'{_f(Mr)} kN&middot;m/m'
+    )
     summary = [
         {
             'name': 'Sliding',
             'driving': _f(Pa_total) + ' kN/m',
-            'resisting': _f(mu * Wt) + ' kN/m',
+            'resisting': _slide_resisting,
             'fs': _f(FS_slide),
             'req': '\u2265 1.5',
             'pass': FS_slide >= 1.5,
@@ -143,7 +224,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         {
             'name': 'Overturning',
             'driving': _f(Mo) + ' kN\u00b7m/m',
-            'resisting': _f(Mr) + ' kN\u00b7m/m',
+            'resisting': _over_resisting,
             'fs': _f(FS_over),
             'req': '\u2265 2.0',
             'pass': FS_over >= 2.0,
@@ -195,14 +276,28 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             "line": {"color": "#888", "width": 1, "dash": "dash"},
             "showlegend": False, "hoverinfo": "skip"
         })
-    # Backfill
+    # Backfill (heel side)
     wall_traces.append({
         "x": [t_stem, b_base, b_base, t_stem], "y": [y_top, y_top, y_iface, y_iface],
         "fill": "toself", "fillcolor": "rgba(194,178,128,0.25)",
         "line": {"color": "rgba(194,178,128,0.5)", "width": 1},
         "showlegend": False, "hoverinfo": "skip"
     })
-    # Concrete fills
+    # Front soil (toe side) — filled from base bottom up to y_front height above base bottom
+    # Constrained not to exceed ground level (grade at y = 0).
+    if y_front > 0:
+        y_front_top = min(y_bot + y_front, y_gl)
+        # Place the front-soil polygon to the LEFT of the stem (x from -b_toe_plot to 0)
+        # For visual clarity we mirror the toe width to the left of the stem.
+        b_toe_plot = b_toe if b_toe > 0 else 0.4 * b_base
+        wall_traces.append({
+            "x": [-b_toe_plot, 0, 0, -b_toe_plot],
+            "y": [y_bot, y_bot, y_front_top, y_front_top],
+            "fill": "toself", "fillcolor": "rgba(194,178,128,0.25)",
+            "line": {"color": "rgba(194,178,128,0.5)", "width": 1},
+            "showlegend": False, "hoverinfo": "skip"
+        })
+    # Concrete fills (stem and base slab)
     wall_traces.append({
         "x": [0, t_stem, t_stem, 0], "y": [y_top, y_top, y_iface, y_iface],
         "fill": "toself", "fillcolor": "rgba(180,180,180,0.3)", "line": {"width": 0},
@@ -214,7 +309,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         "showlegend": False, "hoverinfo": "skip"
     })
 
-    # Pressure triangle
+    # Active pressure triangle (right side of wall)
     triBaseW = 0.35 * span
     triX0 = b_base + margin_val * 1.5
     wall_traces.append({
@@ -230,6 +325,27 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             "line": {"color": dark, "width": 2.5 if frac == 1.0 else 1},
             "showlegend": False, "hoverinfo": "skip"
         })
+
+    # Passive pressure triangle (left side of wall, on toe side) — only if y_front > 0
+    passive_color = '#2980b9'   # blue, distinct from active green
+    if y_front > 0:
+        pTriBaseW = 0.22 * span
+        pTriX0 = -margin_val * 1.5
+        # Triangle: zero at (pTriX0, y_bot + y_front), max at (pTriX0 - pTriBaseW, y_bot)
+        wall_traces.append({
+            "x": [pTriX0, pTriX0 - pTriBaseW, pTriX0],
+            "y": [y_bot + y_front, y_bot, y_bot],
+            "mode": "lines", "fill": "toself", "fillcolor": "rgba(41,128,185,0.10)",
+            "line": {"color": passive_color, "width": 1.5}, "showlegend": False, "hoverinfo": "skip"
+        })
+        for frac in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            yi = (y_bot + y_front) - frac * y_front
+            xi = pTriBaseW * frac
+            wall_traces.append({
+                "x": [pTriX0 - xi, pTriX0], "y": [yi, yi], "mode": "lines",
+                "line": {"color": passive_color, "width": 2.5 if frac == 1.0 else 1},
+                "showlegend": False, "hoverinfo": "skip"
+            })
 
     # Annotations
     ann = []
@@ -281,8 +397,51 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         "font": {"size": 10, "color": "#333"}, "xanchor": "left"
     })
 
+    # Passive force arrow and annotations (only when y_front > 0)
+    if y_front > 0:
+        yp3 = y_bot + y_front / 3.0                    # Pp acts at y/3 from base
+        pTriBaseW_local = 0.22 * span
+        pTriX0_local = -margin_val * 1.5
+        # Arrow from the max-pressure edge (left) toward the wall (right, +x direction)
+        ann.append({
+            "x": pTriX0_local, "y": yp3,
+            "ax": pTriX0_local - pTriBaseW_local, "ay": yp3,
+            "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
+            "showarrow": True, "arrowhead": 2, "arrowsize": 1.5, "arrowwidth": 3,
+            "arrowcolor": passive_color
+        })
+        pp_label = (
+            f"<b>Pp = {Pp_soil:.2f}</b>" if include_passive
+            else f"<b>Pp = {Pp_soil:.2f}</b> (not credited)"
+        )
+        ann.append({
+            "x": pTriX0_local - pTriBaseW_local - 0.02 * span, "y": yp3 + 0.03 * span,
+            "text": pp_label, "showarrow": False,
+            "font": {"size": 10, "color": passive_color}, "xanchor": "right"
+        })
+        ann.append({
+            "x": pTriX0_local - pTriBaseW_local / 2, "y": y_bot - 0.06 * span,
+            "text": f"K<sub>p</sub>\u03B3<sub>s</sub>y = {maxPP:.2f} kPa", "showarrow": False,
+            "font": {"size": 10, "color": passive_color}
+        })
+        # y_front dimension
+        ann.append({
+            "x": pTriX0_local + margin_val * 0.3, "y": y_bot + y_front / 2,
+            "text": f"y = {y_front:.2f} m", "showarrow": False,
+            "font": {"size": 10, "color": "#333"}, "xanchor": "left"
+        })
+
+    # Left extent of the plot x-axis: when y_front > 0 the passive triangle and front soil
+    # fill live to the left of x = 0, so widen the range. Otherwise keep the original.
+    if y_front > 0:
+        b_toe_plot = b_toe if b_toe > 0 else 0.4 * b_base
+        x_left = -max(b_toe_plot, 0.22 * span) - margin_val * 2.0
+    else:
+        x_left = -margin_val
+
     wall_layout = {
-        "xaxis": {"visible": False, "scaleanchor": "y"},
+        "xaxis": {"visible": False, "scaleanchor": "y",
+                  "range": [x_left, b_base + margin_val + triBaseW + 0.25 * span]},
         "yaxis": {"visible": False},
         "margin": {"l": 10, "r": 10, "t": 30, "b": 30},
         "height": 420,

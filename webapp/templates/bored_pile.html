@@ -101,6 +101,28 @@
             </div>
         </div>
 
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Transverse Shear Demand (ACI 318-19 &sect;22.5)</h3>
+            <div class="param-row">
+                <div><label>V<sub>u</sub> (kN) &mdash; lateral shear demand
+                    <span class="qa-note" tabindex="0" data-note="Factored lateral shear demand at the pile head. Set to 0 to skip the shear check. V_u should come from a p-y or structural analysis (e.g. LPILE) — Poulos &amp; Davis (1980) Ch. 7 covers the theory."></span>
+                </label><input type="number" name="Vu" value="{{ params.Vu }}" step="1" min="0"></div>
+                <div><label>Tie Pitch, s (mm)
+                    <span class="qa-note qa-right" tabindex="0" data-note="Spacing of spiral pitch or hoop ties. ACI 318-19 §25.7.3.3 limits spiral pitch to 75 mm maximum for compression members."></span>
+                </label><input type="number" name="s_tie" value="{{ params.s_tie }}" step="1" min="10"></div>
+            </div>
+            <div class="param-row">
+                <div><label>Tie Bar Diameter, d<sub>b,tie</sub> (mm)</label>
+                    <select name="db_tie">
+                        {% for s in [10,12,16] %}
+                        <option value="{{ s }}" {% if params.db_tie == s %}selected{% endif %}>{{ s }} mm</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div></div>
+            </div>
+        </div>
+
         <div class="card" id="rock-card">
             <h3 style="margin:0 0 8px;">
                 Rock Properties (at Pile Tip)
@@ -170,6 +192,14 @@
     <div class="card" style="margin-bottom:12px;">
         <h2>Pile Capacity Summary</h2>
         {{ results.capacity_summary|safe }}
+    </div>
+
+    <!-- Transverse Shear Check -->
+    <div class="card" style="margin-bottom:12px;">
+        <h2>Transverse Shear Check (ACI 318-19 &sect;22.5 + &sect;25.7.3)</h2>
+        <div class="results-box">
+            {{ results.shear_report|safe }}
+        </div>
     </div>
 
     <!-- Chart -->

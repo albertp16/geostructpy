@@ -249,6 +249,7 @@ function syncBeforeSubmit() {
         addHidden('ly_gamma_' + i, r.gamma || 18);
         addHidden('ly_mc_' + i, r.moisture_content || 0);
         addHidden('ly_Gs_' + i, r.Gs || 2.65);
+        addHidden('ly_src_' + i, r.data_source || '');
     }
 }
 function addHidden(name, val) {
