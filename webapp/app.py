@@ -28,6 +28,20 @@ def _float(key, default=0.0):
         return default
 
 
+@app.route("/healthz")
+def healthz():
+    """Lightweight health-check endpoint used by Railway / load balancers.
+
+    Returns a JSON status payload without touching templates or external
+    services so the check stays fast and dependency-free.
+    """
+    return jsonify(
+        status="ok",
+        service="geostructpy-webapp",
+        routes=len(list(app.url_map.iter_rules())),
+    )
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
