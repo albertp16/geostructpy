@@ -64,6 +64,7 @@ def calculate(layers):
             'gamma_d': gamma_d, 'gamma_eff': gamma_eff,
             'moisture_content': mc, 'Gs': Gs,
             'w': w, 'gamma_w': gamma_w,
+            'data_source': layer.get('data_source'),
         }
         results.append(result)
 
@@ -293,12 +294,25 @@ def derive_layers_from_borehole(samples):
         gamma = _gamma_from_n(avg_n)
         E = _estimate_E(avg_n, cls)
 
+        # Provenance: tag the source of each derived parameter so downstream
+        # reports can distinguish measured-vs-correlated values.
+        table_name = {
+            id(_SAND): 'Sand table',
+            id(_CLAYEY_SAND): 'Clayey sand table',
+            id(_SANDY_CLAY): 'Sandy clay table',
+            id(_SANDY_SILT): 'Sandy silt table',
+        }.get(id(table), 'General table')
+        data_source = (
+            f'SPT N={avg_n} &rarr; Polish Code PN-59/B-03020 {table_name}'
+        )
+
         # Rock layers
         if cls in ('RK', 'ROCK'):
             cohesion = 100
             phi = 35
             gamma = 24
             E = 50000
+            data_source = 'Rock default values (ISRM 1981 suggested methods)'
 
         layers.append({
             'row_num': i + 1,
@@ -313,6 +327,7 @@ def derive_layers_from_borehole(samples):
             'gamma': round(gamma, 2),
             'moisture_content': 0,
             'Gs': 2.65,
+            'data_source': data_source,
         })
 
     return layers
@@ -549,6 +564,17 @@ def build_report(layer):
     if layer['spt']:
         r += f' | SPT N = {layer["spt"]}'
     r += '</p>'
+    data_src = layer.get('data_source')
+    if data_src:
+        r += (
+            f'<p style="font-size:0.82em;color:#1f6391;margin:-4px 0 8px;">'
+            f'<strong>Source of &phi;, c, &gamma;, E:</strong> <em>{data_src}</em></p>'
+        )
+    else:
+        r += (
+            '<p style="font-size:0.82em;color:#1f6391;margin:-4px 0 8px;">'
+            '<strong>Source of &phi;, c, &gamma;, E:</strong> <em>User-entered (measured / lab)</em></p>'
+        )
 
     w = layer['w']
     Gs = layer['Gs']
@@ -566,51 +592,122 @@ def build_report(layer):
     mc = layer['moisture_content']
 
     r += '<h4>Manual Computation</h4>'
-    r += '<table class="data-table" style="max-width:700px;text-align:left;margin:0 auto;">'
-    r += '<thead><tr><th style="width:40%;">Parameter</th><th style="width:35%;">Formula / Method</th><th style="width:25%;">Result</th></tr></thead>'
+    # Citation style: small, italic, grey — fits in the new "Reference" column
+    _cs = 'font-size:0.78em;color:#6c757d;font-style:italic;text-align:left;'
+    r += '<table class="data-table" style="max-width:900px;text-align:left;margin:0 auto;">'
+    r += (
+        '<thead><tr>'
+        '<th style="width:24%;">Parameter</th>'
+        '<th style="width:30%;">Formula / Method</th>'
+        '<th style="width:16%;">Result</th>'
+        '<th style="width:30%;">Reference</th>'
+        '</tr></thead>'
+    )
     r += '<tbody>'
 
-    r += f'<tr><td>Moisture content, w</td><td>w = MC / 100</td><td>{_f(w, 4)}</td></tr>'
+    r += (
+        f'<tr><td>Moisture content, w</td>'
+        f'<td>w = MC / 100</td>'
+        f'<td>{_f(w, 4)}</td>'
+        f'<td style="{_cs}">Das &amp; Sivakugan (2019, 9th SI) &sect;2.5 Weight&ndash;Volume '
+        f'Relationships, Eq.&nbsp;2.16 (Ch.&nbsp;2, pp.&nbsp;19&ndash;45)</td></tr>'
+    )
 
     if mc > 0:
-        r += f'<tr><td>Void ratio, e₀</td><td>e₀ = Gs &times; w = {_f(Gs)} &times; {_f(w, 4)}</td><td>{_f(e0, 4)}</td></tr>'
+        r += (
+            f'<tr><td>Void ratio, e₀</td>'
+            f'<td>e₀ = Gs &times; w = {_f(Gs)} &times; {_f(w, 4)}</td>'
+            f'<td>{_f(e0, 4)}</td>'
+            f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.5 Eq.&nbsp;2.22 '
+            f'(derived from S<sub>r</sub>&middot;e = w&middot;G<sub>s</sub> at S<sub>r</sub>&nbsp;=&nbsp;1, '
+            f'i.e., fully saturated)</td></tr>'
+        )
     else:
-        r += f'<tr><td>Void ratio, e₀</td><td>Assumed (no MC data)</td><td>{_f(e0, 4)}</td></tr>'
+        r += (
+            f'<tr><td>Void ratio, e₀</td>'
+            f'<td>Assumed (no MC data)</td>'
+            f'<td>{_f(e0, 4)}</td>'
+            f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.5 (fallback default when MC is not provided)</td></tr>'
+        )
 
-    r += f'<tr><td>Dry unit weight, &gamma;<sub>d</sub></td>'
-    r += f'<td>&gamma;<sub>d</sub> = &gamma; / (1 + w) = {_f(gamma)} / (1 + {_f(w, 4)})</td>'
-    r += f'<td>{_f(gamma_d)} kN/m&sup3;</td></tr>'
+    r += (
+        f'<tr><td>Dry unit weight, &gamma;<sub>d</sub></td>'
+        f'<td>&gamma;<sub>d</sub> = &gamma; / (1 + w) = {_f(gamma)} / (1 + {_f(w, 4)})</td>'
+        f'<td>{_f(gamma_d)} kN/m&sup3;</td>'
+        f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.6 Eq.&nbsp;2.28 &mdash; relationship between '
+        f'moist and dry unit weights</td></tr>'
+    )
 
-    r += f'<tr><td>Saturated unit weight, &gamma;<sub>sat</sub></td>'
-    r += f'<td>&gamma;<sub>sat</sub> = (Gs + e₀) / (1 + e₀) &times; &gamma;<sub>w</sub><br>'
-    r += f'= ({_f(Gs)} + {_f(e0, 4)}) / (1 + {_f(e0, 4)}) &times; {_f(gamma_w)}</td>'
-    r += f'<td>{_f(gamma_sat)} kN/m&sup3;</td></tr>'
+    r += (
+        f'<tr><td>Saturated unit weight, &gamma;<sub>sat</sub></td>'
+        f'<td>&gamma;<sub>sat</sub> = (Gs + e₀) / (1 + e₀) &times; &gamma;<sub>w</sub><br>'
+        f'= ({_f(Gs)} + {_f(e0, 4)}) / (1 + {_f(e0, 4)}) &times; {_f(gamma_w)}</td>'
+        f'<td>{_f(gamma_sat)} kN/m&sup3;</td>'
+        f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.6 Eq.&nbsp;2.32 &mdash; saturated unit '
+        f'weight from G<sub>s</sub> and void ratio</td></tr>'
+    )
 
-    r += f'<tr><td>Effective unit weight, &gamma;\'</td>'
-    r += f'<td>&gamma;\' = &gamma;<sub>sat</sub> &minus; &gamma;<sub>w</sub> = {_f(gamma_sat)} &minus; {_f(gamma_w)}</td>'
-    r += f'<td>{_f(gamma_eff)} kN/m&sup3;</td></tr>'
+    r += (
+        f'<tr><td>Effective unit weight, &gamma;\'</td>'
+        f'<td>&gamma;\' = &gamma;<sub>sat</sub> &minus; &gamma;<sub>w</sub> = {_f(gamma_sat)} &minus; {_f(gamma_w)}</td>'
+        f'<td>{_f(gamma_eff)} kN/m&sup3;</td>'
+        f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.6 Eq.&nbsp;2.33 (buoyant unit weight); '
+        f'Poulos &amp; Davis (1980) Ch.&nbsp;2 for effective-stress principle in pile skin friction</td></tr>'
+    )
 
     if phi > 0:
-        r += f'<tr><td>At-rest earth pressure, K₀</td>'
-        r += f'<td>K₀ = 1 &minus; sin(&phi;) = 1 &minus; sin({_f(phi, 0)}&deg;)</td>'
-        r += f'<td>{_f(Ko, 9)}</td></tr>'
+        r += (
+            f'<tr><td>At-rest earth pressure, K₀</td>'
+            f'<td>K₀ = 1 &minus; sin(&phi;) = 1 &minus; sin({_f(phi, 0)}&deg;)</td>'
+            f'<td>{_f(Ko, 9)}</td>'
+            f'<td style="{_cs}">Jaky (1944); Das &amp; Sivakugan &sect;16.2 Eq.&nbsp;16.3, '
+            f'<strong>p.&nbsp;640</strong> &mdash; K<sub>0</sub> for normally consolidated soils</td></tr>'
+        )
     else:
-        r += f'<tr><td>At-rest earth pressure, K₀</td><td>Assumed (&phi; = 0)</td><td>{_f(Ko, 4)}</td></tr>'
+        r += (
+            f'<tr><td>At-rest earth pressure, K₀</td>'
+            f'<td>Assumed (&phi; = 0)</td>'
+            f'<td>{_f(Ko, 4)}</td>'
+            f'<td style="{_cs}">Das &amp; Sivakugan &sect;16.2, p.&nbsp;640 &mdash; fallback for '
+            f'&phi;&nbsp;=&nbsp;0 (undrained cohesive)</td></tr>'
+        )
 
     if phi > 30:
-        r += f'<tr><td>Dilatancy angle, &psi;</td>'
-        r += f'<td>&psi; = &phi; &minus; 30&deg; = {_f(phi, 0)}&deg; &minus; 30&deg;</td>'
-        r += f'<td>{_f(psi, 0)}&deg;</td></tr>'
+        r += (
+            f'<tr><td>Dilatancy angle, &psi;</td>'
+            f'<td>&psi; = &phi; &minus; 30&deg; = {_f(phi, 0)}&deg; &minus; 30&deg;</td>'
+            f'<td>{_f(psi, 0)}&deg;</td>'
+            f'<td style="{_cs}">Bolton, M.D. (1986) "The strength and dilatancy of sands," '
+            f'<em>G&eacute;otechnique</em> 36(1), pp.&nbsp;65&ndash;78; Midas GTS NX User Manual '
+            f'(2023) Material Models &sect;Mohr&ndash;Coulomb. Valid for medium-dense to dense sands.</td></tr>'
+        )
     else:
-        r += f'<tr><td>Dilatancy angle, &psi;</td>'
-        r += f'<td>&psi; = max(0, &phi; &minus; 30&deg;) &rarr; &phi; &le; 30&deg;</td>'
-        r += f'<td>{_f(psi, 0)}&deg;</td></tr>'
+        r += (
+            f'<tr><td>Dilatancy angle, &psi;</td>'
+            f'<td>&psi; = max(0, &phi; &minus; 30&deg;) &rarr; &phi; &le; 30&deg;</td>'
+            f'<td>{_f(psi, 0)}&deg;</td>'
+            f'<td style="{_cs}">Bolton (1986) <em>G&eacute;otechnique</em> 36(1) &mdash; empirical '
+            f'formula is non-negative; &psi;&nbsp;=&nbsp;0 is set for clays and loose sands</td></tr>'
+        )
 
-    r += f'<tr><td>Specific storativity, Ss</td>'
-    r += f'<td>Ss = &gamma;<sub>w</sub> / E = {_f(gamma_w)} / {_f(E, 0)}</td>'
-    r += f'<td>{Ss:.6e} 1/m</td></tr>'
+    r += (
+        f'<tr><td>Specific storativity, Ss</td>'
+        f'<td>Ss = &gamma;<sub>w</sub> / E = {_f(gamma_w)} / {_f(E, 0)}</td>'
+        f'<td>{Ss:.6e} 1/m</td>'
+        f'<td style="{_cs}">Midas GTS NX / PLAXIS software convention &mdash; <em>simplified</em> '
+        f'parameter input, not a textbook formula. Background theory: Terzaghi (1925) 1-D '
+        f'consolidation; Das &amp; Sivakugan &sect;9.12, <strong>p.&nbsp;382</strong></td></tr>'
+    )
 
     r += '</tbody></table>'
+    r += (
+        '<p style="color:#6c757d;font-size:0.78em;margin-top:6px;font-style:italic;">'
+        'Das &amp; Sivakugan page numbers marked in bold are verified against the 9th SI Ed. table '
+        'of contents. Ch.&nbsp;2 section-level citations (&sect;2.5, &sect;2.6) use approximate page '
+        'ranges since Ch.&nbsp;2 spans pp.&nbsp;15&ndash;62 in that edition. Poulos &amp; Davis (1980) '
+        'is cited only where the formula connects to effective-stress / pile-soil interaction '
+        'principles.</p>'
+    )
 
     # General tab
     r += '<h4>General (Mohr-Coulomb)</h4>'

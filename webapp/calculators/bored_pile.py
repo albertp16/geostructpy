@@ -101,7 +101,7 @@ def _get_nq(phi):
 # Main calculation
 # ---------------------------------------------------------------------------
 
-def calculate(samples, pile, concrete, rebar, rock):
+def calculate(samples, pile, concrete, rebar, rock, shear=None):
     """Compute bored pile static capacity.
 
     Parameters
@@ -116,6 +116,12 @@ def calculate(samples, pile, concrete, rebar, rock):
         Fy (MPa), db (mm), nbar (int)
     rock : dict
         rock_type (str), Co (kPa), Nms (float), RQD (str)
+    shear : dict, optional
+        Vu (kN) — factored lateral shear demand at pile head
+        s (mm)  — transverse reinforcement spacing / spiral pitch
+        db_tie (mm) — diameter of tie bar (used to compute Av of one leg)
+        When omitted or Vu <= 0, the shear check is skipped with a note
+        in the report.
 
     Returns dict with HTML reports, tables, and Plotly chart data.
     """
@@ -309,11 +315,18 @@ def calculate(samples, pile, concrete, rebar, rock):
 
     input_summary = _build_input_summary(pile, concrete, rebar, rock, D_m, perimeter, Ap, Ec)
 
+    # Step 8: Transverse shear check (ACI 318-19 §22.5, §25.7.3)
+    shear_report = _build_shear_report(
+        fc=fc, Fy=rebar['Fy'], D_mm=D_mm, Cc=concrete['Cc'],
+        db_long=rebar['db'], shear=(shear or {}),
+    )
+
     return {
         'input_summary': input_summary,
         'skin_table': skin_table,
         'base_report': base_report,
         'capacity_summary': capacity_summary,
+        'shear_report': shear_report,
         'Qs': Qs_total,
         'Qb': Qb,
         'Qu': Qu,
@@ -321,6 +334,92 @@ def calculate(samples, pile, concrete, rebar, rock):
         'chart_traces': chart['traces'],
         'chart_layout': chart['layout'],
     }
+
+
+def _build_shear_report(fc, Fy, D_mm, Cc, db_long, shear):
+    """Transverse shear capacity per ACI 318-19 §22.5 (one-way shear) and
+    §25.7.3 (spirals). For a circular section the calculator uses the ACI
+    R10.7.1 equivalent rectangular strip: bw = 0.9·D, with an approximate
+    effective depth d ≈ D/2 + (D/2 - cover - db_long/2)·(2/π).
+
+    Returns an HTML block (string). Skips the check with an informational
+    message when Vu <= 0 or inputs are missing.
+    """
+    Vu = shear.get('Vu', 0) if shear else 0
+    if not Vu or Vu <= 0:
+        return (
+            '<p><em>No lateral shear demand supplied (V<sub>u</sub> = 0) &mdash; '
+            'transverse shear check skipped. Provide V<sub>u</sub>, tie pitch s, '
+            'and tie bar diameter to run the ACI 318-19 &sect;22.5 check.</em></p>'
+            '<p style="font-size:0.82em;color:#6c757d;">Reference: ACI 318-19 '
+            '&sect;22.5 (one-way shear strength), &sect;25.7.3 (spirals), '
+            'R10.7.1 (circular section equivalent width). See also '
+            'Poulos &amp; Davis (1980) Ch.&nbsp;7 for lateral loading of single piles.</p>'
+        )
+
+    s = shear.get('s', 150.0)       # mm
+    db_tie = shear.get('db_tie', 10.0)  # mm
+    # Area of ONE leg of a tie / one turn of spiral, in mm^2
+    Av = math.pi * db_tie ** 2 / 4.0
+    b_w = 0.9 * D_mm                # mm, ACI R10.7.1 equivalent width
+    # Effective depth for a circular section with cover Cc and longitudinal bar db_long
+    # Use the classical approximation d = D/2 + (2/π)·R_bar where R_bar is the centroid-to-center distance of the longitudinal cage.
+    R_bar = D_mm / 2 - Cc - db_long / 2
+    d_eff = D_mm / 2 + (2.0 / math.pi) * R_bar  # mm
+    # ACI 318-19 §22.5.5.1 simplified Vc for normal-weight concrete (no axial load benefit):
+    #   Vc = 0.17·λ·√f'c·bw·d    (SI units: MPa, mm, N)
+    lam = 1.0  # normal-weight concrete
+    Vc_N = 0.17 * lam * math.sqrt(fc) * b_w * d_eff   # Newtons
+    Vc = Vc_N / 1000.0                                # kN
+    # ACI §22.5.10.5.3 stirrup/spiral shear contribution: Vs = Av·fyt·d / s
+    Vs_N = Av * Fy * d_eff / s                         # Newtons (Av mm², Fy MPa, d mm, s mm)
+    Vs = Vs_N / 1000.0                                 # kN
+    phi_red = 0.75                                     # ACI 318-19 §21.2 strength-reduction for shear
+    phi_Vn = phi_red * (Vc + Vs)
+    passed = phi_Vn >= Vu
+    ratio = Vu / phi_Vn if phi_Vn > 0 else float('inf')
+
+    r = (
+        '<p style="font-size:0.85em;color:#6c757d;margin:0 0 6px;">'
+        'Reference: ACI 318-19 <strong>&sect;22.5.5.1</strong> (V<sub>c</sub> for non-prestressed '
+        'members), <strong>&sect;22.5.10.5.3</strong> (V<sub>s</sub> from transverse reinforcement), '
+        '<strong>&sect;21.2</strong> (&phi; = 0.75), <strong>R10.7.1</strong> (circular-section '
+        'equivalent width b<sub>w</sub> = 0.9D). Context for V<sub>u</sub>: '
+        'Poulos &amp; Davis (1980) Ch.&nbsp;7 &mdash; lateral loading of single piles.</p>'
+    )
+    r += f'<h4>Geometry &amp; Reinforcement</h4>'
+    r += (
+        f'\\[ b_w = 0.9 D = 0.9 \\times {D_mm:.0f} = {b_w:.0f} \\text{{ mm}} \\]'
+        f'\\[ d_{{\\text{{eff}}}} \\approx \\tfrac{{D}}{{2}} + \\tfrac{{2}}{{\\pi}}(R_{{bar}}) = '
+        f'{d_eff:.1f} \\text{{ mm}} \\]'
+        f'\\[ A_v = \\tfrac{{\\pi d_b^2}}{{4}} = \\tfrac{{\\pi \\times {db_tie:.0f}^2}}{{4}} = '
+        f'{Av:.1f} \\text{{ mm}}^2 \\text{{ (one tie leg, }}d_{{b,tie}}={db_tie:.0f}\\text{{ mm)}} \\]'
+    )
+    r += '<h4>Concrete and Steel Shear Capacity</h4>'
+    r += (
+        f'\\[ V_c = 0.17 \\lambda \\sqrt{{f_c\'}} \\, b_w \\, d = '
+        f'0.17 \\times 1.0 \\times \\sqrt{{{fc}}} \\times {b_w:.0f} \\times {d_eff:.0f} '
+        f'/ 1000 = {Vc:.1f} \\text{{ kN}} \\]'
+        f'\\[ V_s = \\frac{{A_v f_{{yt}} d}}{{s}} = '
+        f'\\frac{{{Av:.1f} \\times {Fy} \\times {d_eff:.0f}}}{{{s:.0f}}} / 1000 = '
+        f'{Vs:.1f} \\text{{ kN}} \\quad (\\text{{tie pitch }} s = {s:.0f} \\text{{ mm}}) \\]'
+    )
+    r += '<h4>Design Strength and Demand/Capacity Ratio</h4>'
+    r += (
+        f'\\[ \\phi V_n = \\phi (V_c + V_s) = 0.75 \\times ({Vc:.1f} + {Vs:.1f}) = '
+        f'{phi_Vn:.1f} \\text{{ kN}} \\]'
+        f'\\[ V_u = {Vu:.1f} \\text{{ kN}}, \\quad \\frac{{V_u}}{{\\phi V_n}} = {ratio:.2f} \\]'
+    )
+    color = '#27ae60' if passed else '#e74c3c'
+    verdict = 'PASS' if passed else 'FAIL'
+    r += (
+        f'<p style="font-size:1.0em;"><strong>Result:</strong> '
+        f'<span style="color:{color};font-weight:bold;">{verdict}</span> '
+        f'({phi_Vn:.1f} kN '
+        + ('&ge;' if passed else '&lt;') +
+        f' {Vu:.1f} kN)</p>'
+    )
+    return r
 
 
 # ---------------------------------------------------------------------------

@@ -28,10 +28,22 @@
                     <input type="number" step="0.1" name="cohesion" value="{{ params.cohesion }}">
                 </div>
                 <div class="form-group">
-                    <label>Unit Weight of Soil, &gamma; (kN/m&sup3;)
-                        <span class="qa-note" tabindex="0" data-note="Use γm (moist) for GWT well below B beneath the footing; γ' = γsat − γw (effective) when GWT is at footing base or shallower. For partial submergence apply Das &amp; Sivakugan Ch. 4 Cases I/II/III. γw = 9.81 kN/m³."></span>
+                    <label>Moist Unit Weight, &gamma; (kN/m&sup3;)
+                        <span class="qa-note" tabindex="0" data-note="Moist (above-water-table) unit weight. When a water table is present, the calculator also needs γsat below and will auto-apply Das &amp; Sivakugan §6.5 Cases I-III (p. 217)."></span>
                     </label>
                     <input type="number" step="0.1" name="gamma" value="{{ params.gamma }}">
+                </div>
+                <div class="form-group">
+                    <label>Saturated Unit Weight, &gamma;<sub>sat</sub> (kN/m&sup3;)
+                        <span class="qa-note" tabindex="0" data-note="Saturated unit weight below the water table. Used only when water table depth ≥ 0 is provided. γ' = γsat − γw, with γw = 9.81 kN/m³. Ref: Das &amp; Sivakugan §6.5 Eq. 6.25-6.27, p. 217."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="gamma_sat" value="{{ params.gamma_sat }}">
+                </div>
+                <div class="form-group">
+                    <label>Water Table Depth, D<sub>w</sub> (m) &mdash; leave blank or -1 for no GWT
+                        <span class="qa-note" tabindex="0" data-note="Depth to water table from ground surface (m). The calculator auto-detects: Case I (Dw ≤ Df) uses weighted γq and γ'=γsat−γw for the Nγ term; Case II (Df < Dw < Df+B) interpolates γny; Case III (Dw ≥ Df+B) has no effect. Ref: Das §6.5 Fig. 6.5, p. 217."></span>
+                    </label>
+                    <input type="number" step="0.1" name="water_table" value="{{ params.water_table }}">
                 </div>
                 <div class="form-group">
                     <label>Angle of Internal Friction, &phi;' (deg)

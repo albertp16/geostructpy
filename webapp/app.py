@@ -16,6 +16,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 from calculators import terzaghi, meyerhof, mononobe_okabe, stability, micropile
 from calculators import slope_stability, spt_depth, borehole_log, bored_pile
+from calculators import sheet_pile, anchor
 
 app = Flask(__name__)
 
@@ -34,7 +35,10 @@ def index():
 
 @app.route("/terzaghi", methods=["GET", "POST"])
 def terzaghi_view():
-    defaults = dict(cohesion=10, gamma=18, phi=30, ftype='square', B=2.0, Df=1.5, FS=3.0)
+    defaults = dict(
+        cohesion=10, gamma=18, phi=30, ftype='square', B=2.0, Df=1.5, FS=3.0,
+        gamma_sat=20.0, water_table=-1.0,
+    )
     results = None
     params = defaults
     if request.method == "POST":
@@ -46,6 +50,8 @@ def terzaghi_view():
             B=_float('B', 2.0),
             Df=_float('Df', 1.5),
             FS=_float('FS', 3.0),
+            gamma_sat=_float('gamma_sat', 20.0),
+            water_table=_float('water_table', -1.0),
         )
         results = terzaghi.calculate(**params)
     return render_template("terzaghi.html", params=params, results=results)
@@ -76,7 +82,7 @@ def meyerhof_view():
 def mononobe_okabe_view():
     defaults = dict(
         soil_weight=7.2, h_wall=1.35, alpha=0, phi=40,
-        beta=90, delta=20, kh=0.30, kv=0.0,
+        beta=90, delta=20, kh=0.30, kv=0.0, cohesion=0.0,
     )
     results = None
     params = defaults
@@ -90,6 +96,7 @@ def mononobe_okabe_view():
             delta=_float('delta', 20),
             kh=_float('kh', 0.30),
             kv=_float('kv', 0.0),
+            cohesion=_float('cohesion', 0.0),
         )
         results = mononobe_okabe.calculate(**params)
     return render_template("mononobe_okabe.html", params=params, results=results)
@@ -100,6 +107,7 @@ def stability_view():
     defaults = dict(
         h1=1.0, h2=1.0, t_stem=0.20, t_base=0.30, b_base=1.00, b_heel=0.80,
         gamma_s=18, phi=35.2, mu=0.35, q_bearing=125, gamma_c=23.56, q=0,
+        y_front=0.0, include_passive=False,
     )
     results = None
     params = defaults
@@ -117,6 +125,8 @@ def stability_view():
             q_bearing=_float('q_bearing', 125),
             gamma_c=_float('gamma_c', 23.56),
             q=_float('q', 0),
+            y_front=_float('y_front', 0.0),
+            include_passive=bool(request.form.get('include_passive')),
         )
         results = stability.calculate(**params)
     return render_template("stability.html", params=params, results=results)
@@ -213,6 +223,7 @@ def slope_stability_view():
                 gamma=_float(f'ly_gamma_{i}', 18),
                 moisture_content=_float(f'ly_mc_{i}', 0),
                 Gs=_float(f'ly_Gs_{i}', 2.65),
+                data_source=request.form.get(f'ly_src_{i}', '') or None,
             ))
         if not layers:
             layers = default_layers
@@ -236,6 +247,7 @@ def slope_stability_view():
             'gamma': ly['gamma'],
             'moisture_content': ly['moisture_content'],
             'Gs': ly['Gs'],
+            'data_source': ly.get('data_source') or '',
         })
 
     # Build soil profile chart, software table, parameters table, and borehole charts
@@ -411,6 +423,7 @@ def bored_pile_view():
         fc=27.58, Yc=23.6, Cc=50,
         Fy=275.79, db=25, nbar=6,
         rock_type='Limestone', Co=7400, Nms=0.28, RQD='75-90',
+        Vu=0, s_tie=150, db_tie=10,
     )
     results = None
     params = defaults
@@ -425,6 +438,9 @@ def bored_pile_view():
             rock_type=request.form.get('rock_type', 'Limestone'),
             Co=_float('Co', 7400), Nms=_float('Nms', 0.28),
             RQD=request.form.get('RQD', '75-90'),
+            Vu=_float('Vu', 0),
+            s_tie=_float('s_tie', 150),
+            db_tie=_float('db_tie', 10),
         )
         borehole_json_str = request.form.get('borehole_json', '')
         try:
@@ -439,11 +455,72 @@ def bored_pile_view():
             rebar_params = dict(Fy=params['Fy'], db=params['db'], nbar=params['nbar'])
             rock_params = dict(rock_type=params['rock_type'], Co=params['Co'],
                                Nms=params['Nms'], RQD=params['RQD'])
+            shear_params = dict(Vu=params['Vu'], s=params['s_tie'], db_tie=params['db_tie'])
             results = bored_pile.calculate(samples, pile_params, concrete_params,
-                                           rebar_params, rock_params)
+                                           rebar_params, rock_params, shear=shear_params)
 
     return render_template("bored_pile.html", params=params, results=results,
                            borehole_json_str=borehole_json_str)
+
+
+@app.route("/sheet-pile", methods=["GET", "POST"])
+def sheet_pile_view():
+    defaults = dict(
+        L=6.0, gamma=17.0, gamma_sat=20.0, phi=32.0,
+        L1=2.0, q=10.0, sigma_allow=170000.0,
+    )
+    results = None
+    params = defaults
+    if request.method == "POST":
+        params = dict(
+            L=_float('L', 6.0),
+            gamma=_float('gamma', 17.0),
+            gamma_sat=_float('gamma_sat', 20.0),
+            phi=_float('phi', 32.0),
+            L1=_float('L1', 2.0),
+            q=_float('q', 10.0),
+            sigma_allow=_float('sigma_allow', 170000.0),
+        )
+        try:
+            results = sheet_pile.calculate(**params)
+        except (ValueError, ZeroDivisionError) as e:
+            results = {
+                'report': f'<p style="color:#c0392b;"><strong>Calculation error:</strong> {e}</p>',
+                'Ka': 0, 'Kp': 0, 'L3': 0, 'D_theoretical': 0, 'D_design': 0,
+                'M_max': 0, 'S_req': 0, 'S_req_cm3_per_m': 0,
+                'chart_traces': [], 'chart_layout': {},
+            }
+    return render_template("sheet_pile.html", params=params, results=results)
+
+
+@app.route("/anchor", methods=["GET", "POST"])
+def anchor_view():
+    defaults = dict(
+        B=1.5, h=1.5, H=3.0, soil_type='sand',
+        gamma=18.0, phi=32.0, cu=50.0, FS=2.0,
+    )
+    results = None
+    params = defaults
+    if request.method == "POST":
+        params = dict(
+            B=_float('B', 1.5),
+            h=_float('h', 1.5),
+            H=_float('H', 3.0),
+            soil_type=request.form.get('soil_type', 'sand'),
+            gamma=_float('gamma', 18.0),
+            phi=_float('phi', 32.0),
+            cu=_float('cu', 50.0),
+            FS=_float('FS', 2.0),
+        )
+        try:
+            results = anchor.calculate(**params)
+        except (ValueError, ZeroDivisionError) as e:
+            results = {
+                'report': f'<p style="color:#c0392b;"><strong>Calculation error:</strong> {e}</p>',
+                'Pu': 0, 'Pa': 0, 'Rf': 0,
+                'chart_traces': [], 'chart_layout': {},
+            }
+    return render_template("anchor.html", params=params, results=results)
 
 
 @app.route("/changelog")

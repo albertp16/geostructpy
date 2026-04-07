@@ -49,6 +49,19 @@
                     </label>
                     <input type="number" step="0.01" name="b_heel" value="{{ params.b_heel }}">
                 </div>
+                <div class="form-group">
+                    <label>Front Soil Depth, y (m)
+                        <span class="qa-note" tabindex="0" data-note="Depth of soil in front of the toe measured from the base bottom upward. Set to 0 to model a bare toe side (conservative). Ref: Das &amp; Sivakugan (2019, 9th SI) §16.11 Rankine passive, p. 676; §17.4 Stability of retaining walls, p. 699."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0" name="y_front" value="{{ params.y_front }}">
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="checkbox" name="include_passive" value="1" {% if params.include_passive %}checked{% endif %}>
+                        Credit passive resistance from front soil
+                        <span class="qa-note" tabindex="0" data-note="Unchecked (default) = passive conservatively ignored per ACI SP-17 Ch. 2 guidance. Checked = Pp added to sliding (μW + Pp) and overturning (Mr + Mp) checks. Leave unchecked unless the front soil is reliably permanent and dense enough to mobilize passive pressure."></span>
+                    </label>
+                </div>
             </div>
             <div>
                 <h3>Soil &amp; Material Properties</h3>

@@ -25,6 +25,12 @@
                     <input type="number" step="0.1" name="phi" value="{{ params.phi }}">
                 </div>
                 <div class="form-group">
+                    <label>Backfill Cohesion, c' (kPa) &mdash; optional
+                        <span class="qa-note" tabindex="0" data-note="Effective cohesion of backfill. When > 0 and the wall back is vertical (β = 90°) with a horizontal surface (α = 0), the calculator applies the Das §16.10 seismic c'-φ' correction (p. 672). Outside that geometry range the correction is skipped with a disclaimer."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="cohesion" value="{{ params.cohesion }}">
+                </div>
+                <div class="form-group">
                     <label>Angle of Wall Face from Horizontal, &beta; (deg)</label>
                     <input type="number" step="0.1" name="beta" value="{{ params.beta }}">
                 </div>
@@ -64,16 +70,34 @@
 
     {% if results %}
     <div class="card">
-        <h2>Results</h2>
+        <h2>Wall Diagram &mdash; Textbook-Style Cross Section</h2>
+        <p style="color:var(--muted);font-size:0.85em;margin:0 0 8px;">
+            Two-panel figure after Das &amp; Sivakugan Fig.&nbsp;16.23 (&sect;16.9, <strong>p.&nbsp;668</strong>) and
+            Kramer (1996) Fig.&nbsp;11.1: wall cross-section with static vs. seismic active pressure distribution, and a
+            trial failure wedge with the pseudo-static force polygon.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div id="cross-section-plot"></div>
+            <div id="force-polygon-plot"></div>
+        </div>
+    </div>
+    <div class="card">
+        <h2>Detailed Calculations</h2>
         <div class="results-box">
             {% for r in results.results %}
             <div>{{ r|safe }}</div>
             {% endfor %}
         </div>
-        <div id="pressure-plot" style="margin-top:16px;"></div>
     </div>
     <script>
-        Plotly.newPlot('pressure-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
+        Plotly.newPlot('cross-section-plot',
+            {{ results.cross_section.traces|tojson }},
+            {{ results.cross_section.layout|tojson }},
+            {responsive: true, displayModeBar: false});
+        Plotly.newPlot('force-polygon-plot',
+            {{ results.force_polygon.traces|tojson }},
+            {{ results.force_polygon.layout|tojson }},
+            {responsive: true, displayModeBar: false});
     </script>
     {% endif %}
 

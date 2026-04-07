@@ -4,6 +4,27 @@
 <div class="card">
     <h2>Changelog</h2>
 
+    <h3>v0.4.0 &mdash; 2026-04-07 (Bundled QAQC Sprint II)</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>New module:</strong> <code>/sheet-pile</code> &mdash; cantilever sheet pile in sand per Das &amp; Sivakugan &sect;18.4 (pp.&nbsp;758&ndash;764). Solves the Das Eq.&nbsp;18.17 quartic for required embedment depth, computes maximum moment, and reports required section modulus.</li>
+        <li><strong>New module:</strong> <code>/anchor</code> &mdash; deadman anchor holding capacity for plates in sand (Ovesen-Stromann, Das &sect;18.19, p.&nbsp;804) and clay (Mackenzie / Tschebotarioff, Das &sect;18.20, p.&nbsp;811).</li>
+        <li><strong>Retaining wall:</strong> added front soil depth input (y) with optional passive-resistance credit toggle. Updated the wall cross-section plot to draw front soil fill, passive-pressure triangle, and P<sub>p</sub> arrow. Default behavior (y = 0, passive off) is unchanged. Ref: Das &sect;16.11 (p.&nbsp;676), &sect;17.4 (p.&nbsp;699).</li>
+        <li><strong>Mononobe-Okabe:</strong> new textbook-style two-panel plot (wall cross-section with static + seismic pressure triangles &amp; force arrows, plus a trial failure-wedge polygon with W, k<sub>h</sub>W, P<sub>ae</sub>, R vectors) styled after Das Fig.&nbsp;16.23 (p.&nbsp;668) and Kramer (1996) Fig.&nbsp;11.1. Added optional c'-&phi;' backfill case per Das &sect;16.10 (p.&nbsp;672) with disclaimer when outside the vertical-back / horizontal-surface range.</li>
+        <li><strong>Terzaghi:</strong> automated groundwater-table Cases I-III per Das &sect;6.5 Fig.&nbsp;6.5 (pp.&nbsp;217&ndash;219). New inputs for &gamma;<sub>sat</sub> and water-table depth; case-aware &gamma;<sub>q</sub> / &gamma;<sub>ny</sub> substitution with Case I/II/III detection and reporting.</li>
+        <li><strong>Bored pile:</strong> added transverse shear check per ACI 318-19 &sect;22.5.5.1 (V<sub>c</sub>), &sect;22.5.10.5.3 (V<sub>s</sub>), &sect;21.2 (&phi; = 0.75), and R10.7.1 (circular-section equivalent width). New inputs for V<sub>u</sub>, tie pitch, and tie diameter. Skipped gracefully when V<sub>u</sub> = 0.</li>
+        <li><strong>Slope stability:</strong> per-layer formula report now includes a new Reference column with specific Das &amp; Sivakugan 9th SI section numbers (&sect;2.5, &sect;2.6, &sect;16.2 p.&nbsp;640, &sect;9.12 p.&nbsp;382) and the Bolton (1986) <em>Géotechnique</em> 36(1) source for the dilatancy formula, plus an honest note that Poulos &amp; Davis (1980) doesn't cover weight-volume relationships directly. Also added a <code>data_source</code> field on imported layers that tracks "SPT → Polish Code PN-59/B-03020 &lt;table&gt;" vs. "User-entered (measured / lab)".</li>
+        <li><strong>Nav:</strong> added Sheet Pile and Anchor links to the top bar. Theory page gained new sections 7.1 (Cantilever in Sand) and 8.1&ndash;8.2 (Deadman anchors in sand / clay).</li>
+        <li><strong>Integration:</strong> bundled the Das &amp; Sivakugan (2019, 9th SI) and Poulos &amp; Davis (1980) textbook citations across every calculator's tooltips and reference boxes with verified page numbers where possible.</li>
+    </ul>
+
+    <h3>v0.3.1 &mdash; 2026-04-07 (QAQC Reference Pass)</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>New:</strong> reusable <code>qa-note</code> tooltip component (small blue "i" badge) and per-page <code>ref-box</code> bibliography on every calculator.</li>
+        <li>Added 35 inline thumbnotes and 110 reference-box citations across 9 calculator pages.</li>
+        <li>Theory page: expanded the References section into 7 categories with 46 entries.</li>
+        <li>Cleanup: removed redundant PGA field from Mononobe-Okabe (k<sub>h</sub>/k<sub>v</sub> now effective coefficients per AASHTO &sect;11.6.5.2). Made stability's q<sub>all</sub> optional (skip bearing check when 0). Added rock-socket toggle to bored pile.</li>
+    </ul>
+
     <h3>v0.2.1 &mdash; 2026-04-02</h3>
     <ul style="line-height:1.8;">
         <li><strong>New:</strong> Micropile design module (NSCP 2015, AISC 14th Edition, ACI 318-14/19)</li>

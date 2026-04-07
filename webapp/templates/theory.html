@@ -132,6 +132,19 @@
                     <li><a href="#" onclick="showSection('ss-derived',this);return false;">6.3 Derived Parameters</a></li>
                 </ul>
             </li>
+            <li>
+                <span class="toggle" onclick="toggleTree(this)">7. Sheet Pile Walls</span>
+                <ul>
+                    <li><a href="#" onclick="showSection('sp-cantilever-sand',this);return false;">7.1 Cantilever in Sand</a></li>
+                </ul>
+            </li>
+            <li>
+                <span class="toggle" onclick="toggleTree(this)">8. Anchors &amp; Tiebacks</span>
+                <ul>
+                    <li><a href="#" onclick="showSection('anc-sand',this);return false;">8.1 Deadman in Sand</a></li>
+                    <li><a href="#" onclick="showSection('anc-clay',this);return false;">8.2 Deadman in Clay</a></li>
+                </ul>
+            </li>
             <li><a href="#" onclick="showSection('references',this);return false;" style="font-weight:600;">References</a></li>
         </ul>
     </div>
@@ -467,6 +480,66 @@
                 \[ e = G_s \cdot w \quad \text{(for } S_r = 1 \text{)} \]
                 <h4>Specific Storativity</h4>
                 \[ S_s \approx \frac{\gamma_w}{E} \]
+            </div>
+        </div>
+
+        <!-- 7.1 Sheet Pile Cantilever in Sand -->
+        <div class="section" id="sp-cantilever-sand">
+            <div class="card">
+                <h2>7.1 Cantilever Sheet Pile in Sand</h2>
+                <p>Closed-form embedment analysis per Das &amp; Sivakugan (2019, 9th SI) &sect;18.4
+                "Cantilever Sheet Piling Penetrating Sandy Soil" (<strong>pp.&nbsp;758&ndash;764</strong>).
+                The wall is treated as rigid and the soil as homogeneous sand above and below the
+                dredge line.</p>
+                <h4>Pressure Distribution (Das Fig.&nbsp;18.11)</h4>
+                <p>Active pressure above the dredge line:</p>
+                \[ \sigma_1' = K_a \gamma (L_1 + h_q) \quad \text{(at water table)} \]
+                \[ \sigma_2' = \sigma_1' + K_a \gamma' L_2 \quad \text{(at dredge line)} \]
+                <p>Below the dredge line, net pressure is the passive-minus-active difference.
+                The depth to the point of zero net pressure (Das Eq. 18.11):</p>
+                \[ L_3 = \frac{\sigma_2'}{(K_p - K_a)\gamma'} \]
+                <h4>Embedment (Das Eq.&nbsp;18.17)</h4>
+                \[ D^4 + A_1 D^3 - A_2 D^2 - A_3 D - A_4 = 0 \]
+                <p>Solved numerically for the smallest positive real root. Das recommends a 20&ndash;30%
+                safety factor on the theoretical embedment (<strong>p.&nbsp;762</strong>).</p>
+                <h4>Design Moment &amp; Section Modulus (Das Eq.&nbsp;18.19&ndash;18.22)</h4>
+                \[ z' = \sqrt{\frac{2P}{(K_p - K_a)\gamma'}} \quad \text{(depth of zero shear)} \]
+                \[ M_{max} = P(z' + \bar{z}) - \tfrac{1}{6}(K_p - K_a)\gamma' z'^3 \]
+                \[ S_{req} = \frac{M_{max}}{\sigma_{allow}} \]
+                <p><strong>Scope in this build:</strong> cantilever walls only; homogeneous sand; anchored
+                walls (&sect;18.9&ndash;18.12) and sheet piles in clay (&sect;18.6, &sect;18.16) are deferred.</p>
+            </div>
+        </div>
+
+        <!-- 8.1 Anchor in Sand -->
+        <div class="section" id="anc-sand">
+            <div class="card">
+                <h2>8.1 Deadman Anchor in Sand (Ovesen-Stromann)</h2>
+                <p>Per Das &amp; Sivakugan (2019, 9th SI) <strong>&sect;18.19 Holding Capacity of Anchor
+                Plates in Sand</strong>, <strong>p.&nbsp;804</strong>, Fig.&nbsp;18.29:</p>
+                \[ P_u = B \cdot h \cdot \gamma H (K_p - K_a) \cdot R_f \]
+                <p>where B and h are plate width and height, H is the depth to plate centroid, and
+                R<sub>f</sub> is the shape/overburden factor from Das Fig.&nbsp;18.29 (interpolated
+                from knots at H/h = 1, 2, 3, 4, 5 giving R<sub>f</sub> = 1.00, 1.40, 1.75, 2.00, 2.20).</p>
+                <p>Typical factor of safety FS = 2.0 per Das <strong>p.&nbsp;804</strong>.</p>
+                <p>Original reference: Ovesen, N.K. &amp; Stromann, H. (1972). Design method for vertical
+                anchor slabs in sand. <em>Proc. ASCE Specialty Conf. on Performance of Earth and
+                Earth-Supported Structures</em>, Purdue University, 1481&ndash;1500.</p>
+            </div>
+        </div>
+
+        <!-- 8.2 Anchor in Clay -->
+        <div class="section" id="anc-clay">
+            <div class="card">
+                <h2>8.2 Deadman Anchor in Clay (Mackenzie / Tschebotarioff)</h2>
+                <p>Per Das &amp; Sivakugan (2019, 9th SI) <strong>&sect;18.20 Holding Capacity of Anchor
+                Plates in Clay</strong>, <strong>p.&nbsp;811</strong>:</p>
+                \[ P_u = B \cdot h \cdot N_c \cdot c_u \cdot R_f \]
+                <p>with N<sub>c</sub> = 9 and R<sub>f</sub> transitioning from 0.5 at H/h = 1 to 1.0 at
+                H/h &ge; 3 (deep anchor limit). The 9c<sub>u</sub> bearing capacity factor reflects the
+                full passive plus active sum for the undrained (&phi; = 0) case.</p>
+                <p>Originals: Mackenzie (1955) M.Sc. thesis, Princeton University; Tschebotarioff,
+                G.P. (1973) <em>Foundations, Retaining and Earth Structures</em>, 2nd Ed., McGraw-Hill.</p>
             </div>
         </div>
 

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Anchor Holding Capacity - GeoStructPy{% endblock %}
+{% block content %}
+<div>
+    <form method="POST" action="/anchor">
+    <div class="card">
+        <h2>Deadman Anchor &mdash; Holding Capacity</h2>
+        <p style="color:var(--muted);font-size:0.9em;">
+            Ultimate and allowable holding capacity of a rectangular deadman anchor plate in sand
+            or clay per Das &amp; Sivakugan (2019, 9th SI) <strong>&sect;18.18&ndash;18.20</strong>,
+            <strong>pp.&nbsp;804&ndash;811</strong>.
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0 0 12px;font-size:0.82em;color:#7a5a00;">
+            <strong>Scope of this first build:</strong> shallow rectangular anchor plates in
+            homogeneous sand (Ovesen-Stromann, Das &sect;18.19) or homogeneous clay
+            (Mackenzie/Tschebotarioff, Das &sect;18.20). Grouped anchors, inclined anchors,
+            and layered soil profiles are deferred.
+        </p>
+
+        <div class="form-row">
+            <div>
+                <h3>Anchor Geometry</h3>
+                <div class="form-group">
+                    <label>Plate Width, B (m)
+                        <span class="qa-note" tabindex="0" data-note="Width of the plate perpendicular to the pull direction (m). For continuous deadman walls use the effective tributary width per anchor."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0.1" name="B" value="{{ params.B }}">
+                </div>
+                <div class="form-group">
+                    <label>Plate Height, h (m)
+                        <span class="qa-note" tabindex="0" data-note="Height of the plate in the vertical plane (m)."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0.1" name="h" value="{{ params.h }}">
+                </div>
+                <div class="form-group">
+                    <label>Depth to Plate Center, H (m)
+                        <span class="qa-note" tabindex="0" data-note="Depth from ground surface to the centroid of the plate. H/h ratio controls the shape factor Rf per Das Fig. 18.29 (p. 805)."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0.1" name="H" value="{{ params.H }}">
+                </div>
+                <div class="form-group">
+                    <label>Factor of Safety, FS
+                        <span class="qa-note" tabindex="0" data-note="Typical FS = 2.0 for deadman anchor working-stress design per Das p. 804."></span>
+                    </label>
+                    <input type="number" step="0.1" min="1" name="FS" value="{{ params.FS }}">
+                </div>
+            </div>
+            <div>
+                <h3>Soil Parameters</h3>
+                <div class="form-group">
+                    <label>Soil Type
+                        <span class="qa-note qa-right" tabindex="0" data-note="Sand uses Ovesen-Stromann (Das §18.19, p. 804). Clay uses Mackenzie (1955) / Tschebotarioff (1973) (Das §18.20, p. 811) with Nc = 9."></span>
+                    </label>
+                    <select name="soil_type">
+                        <option value="sand" {% if params.soil_type == 'sand' %}selected{% endif %}>Sand (Ovesen-Stromann)</option>
+                        <option value="clay" {% if params.soil_type == 'clay' %}selected{% endif %}>Clay (Mackenzie 1955)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit Weight, &gamma; (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Total (moist) unit weight of soil above the plate. Typical 17-20 for sand, 17-19 for clay."></span>
+                    </label>
+                    <input type="number" step="0.1" min="10" name="gamma" value="{{ params.gamma }}">
+                </div>
+                <div class="form-group">
+                    <label>Friction Angle, &phi;' (deg) &mdash; sand only
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of sand (degrees). Ignored for clay case."></span>
+                    </label>
+                    <input type="number" step="0.1" min="5" max="45" name="phi" value="{{ params.phi }}">
+                </div>
+                <div class="form-group">
+                    <label>Undrained Shear Strength, c<sub>u</sub> (kPa) &mdash; clay only
+                        <span class="qa-note qa-right" tabindex="0" data-note="Undrained shear strength from UCS, vane, or CPT. Ignored for sand case."></span>
+                    </label>
+                    <input type="number" step="1" min="0" name="cu" value="{{ params.cu }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="no-print">
+            <input type="submit" class="btn btn-accent" value="Calculate">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
+        </div>
+    </div>
+    </form>
+
+    {% if results %}
+    <div class="card">
+        <h2>Holding Capacity Summary</h2>
+        <table class="data-table" style="max-width:500px;">
+            <tbody>
+                <tr><td>H/h ratio</td><td>{{ "%.2f"|format(results.H_h_ratio) }}</td></tr>
+                <tr><td>Shape/depth factor, R<sub>f</sub></td><td>{{ "%.3f"|format(results.Rf) }}</td></tr>
+                <tr style="background:#fef9e7;"><td><strong>Ultimate P<sub>u</sub></strong></td><td><strong>{{ "%.2f"|format(results.Pu) }} kN</strong></td></tr>
+                <tr style="background:#fef9e7;"><td><strong>Allowable P<sub>a</sub> = P<sub>u</sub>/FS</strong></td><td><strong>{{ "%.2f"|format(results.Pa) }} kN</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Detailed Calculations</h2>
+        <div class="results-box">
+            {{ results.report|safe }}
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Anchor Cross Section</h2>
+        <div id="anchor-plot"></div>
+    </div>
+
+    <script>
+        Plotly.newPlot('anchor-plot',
+            {{ results.chart_traces|tojson }},
+            {{ results.chart_layout|tojson }},
+            {responsive: true, displayModeBar: false});
+    </script>
+    {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>&sect;18.17 Anchors</strong> (p.&nbsp;802); <strong>&sect;18.18 Holding Capacity of Deadman Anchors</strong> (<strong>p.&nbsp;804</strong>); <strong>&sect;18.19 Holding Capacity of Anchor Plates in Sand</strong> (p.&nbsp;804, Fig.&nbsp;18.29); <strong>&sect;18.20 Holding Capacity of Anchor Plates in Clay</strong> (<strong>p.&nbsp;811</strong>); <strong>&sect;18.21 Ultimate Resistance of Tiebacks</strong> (p.&nbsp;811).</li>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <strong>Ch.&nbsp;7 &mdash; Lateral Loading of Single Piles</strong>: soil-structure interaction background for the plate reaction and failure wedge concept used in anchor capacity analysis.</li>
+            <li>Ovesen, N.K. &amp; Stromann, H. (1972). Design method for vertical anchor slabs in sand. <em>Proc. Specialty Conf. on Performance of Earth and Earth-Supported Structures</em>, ASCE, Purdue University, 1481&ndash;1500.</li>
+            <li>Mackenzie, T.R. (1955). Strength of Deadman Anchors in Clay. M.Sc. thesis, Princeton University.</li>
+            <li>Tschebotarioff, G.P. (1973). <em>Foundations, Retaining and Earth Structures</em>, 2nd Edition. McGraw-Hill. Anchor plate in clay.</li>
+            <li>Bowles, J.E. (1996). <em>Foundation Analysis and Design</em>, 5th Edition, Ch.&nbsp;14. McGraw-Hill.</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Sheet Pile Design - GeoStructPy{% endblock %}
+{% block content %}
+<div>
+    <form method="POST" action="/sheet-pile">
+    <div class="card">
+        <h2>Cantilever Sheet Pile in Sand</h2>
+        <p style="color:var(--muted);font-size:0.9em;">
+            Embedment depth, maximum moment, and required section modulus for a cantilever
+            sheet-pile wall penetrating homogeneous sand, per
+            Das &amp; Sivakugan (2019, 9th SI) <strong>&sect;18.4</strong>,
+            <strong>pp.&nbsp;758&ndash;764</strong>, Eq.&nbsp;18.11&ndash;18.22.
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0 0 12px;font-size:0.82em;color:#7a5a00;">
+            <strong>Scope of this first build:</strong> homogeneous sand profile above and below
+            the dredge line; cantilever (no anchor); optional uniform surcharge on backfill;
+            water table located anywhere within or below the retained height. Clay (&sect;18.6),
+            layered soil, and anchored sheet piles (&sect;18.9&ndash;18.16) are deferred to a later build.
+        </p>
+
+        <div class="form-row">
+            <div>
+                <h3>Wall Geometry</h3>
+                <div class="form-group">
+                    <label>Wall Height above Dredge Line, L (m)
+                        <span class="qa-note" tabindex="0" data-note="Total unsupported height measured from the top of the sheet pile down to the dredge line (the lower ground surface on the waterward side). See Das Fig. 18.11, p. 758."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0.5" name="L" value="{{ params.L }}">
+                </div>
+                <div class="form-group">
+                    <label>Water Table Depth from Top, L<sub>1</sub> (m)
+                        <span class="qa-note" tabindex="0" data-note="Depth from the top of wall down to the water table. Set L1 ≥ L to model a dry profile. Water is assumed balanced across the sheet pile (dredge-line free water on both sides)."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="L1" value="{{ params.L1 }}">
+                </div>
+                <div class="form-group">
+                    <label>Surcharge on Backfill, q (kPa)
+                        <span class="qa-note" tabindex="0" data-note="Uniform surcharge on the backfill surface. Modeled as an equivalent additional soil height hq = q/γ (Das §18.3, p. 757)."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="q" value="{{ params.q }}">
+                </div>
+            </div>
+            <div>
+                <h3>Soil &amp; Section Properties</h3>
+                <div class="form-group">
+                    <label>Moist Unit Weight, &gamma; (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Moist (above-water-table) unit weight of sand. Typical range: 17–20 kN/m³."></span>
+                    </label>
+                    <input type="number" step="0.1" min="10" name="gamma" value="{{ params.gamma }}">
+                </div>
+                <div class="form-group">
+                    <label>Saturated Unit Weight, &gamma;<sub>sat</sub> (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Saturated unit weight below the water table. Used to compute γ' = γsat − γw (with γw = 9.81 kN/m³)."></span>
+                    </label>
+                    <input type="number" step="0.1" min="10" name="gamma_sat" value="{{ params.gamma_sat }}">
+                </div>
+                <div class="form-group">
+                    <label>Friction Angle, &phi;' (deg)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of sand, uniform above and below the dredge line for this first build. Typical range: 28–38°."></span>
+                    </label>
+                    <input type="number" step="0.1" min="5" max="45" name="phi" value="{{ params.phi }}">
+                </div>
+                <div class="form-group">
+                    <label>Allowable Bending Stress, &sigma;<sub>allow</sub> (kPa)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Allowable bending stress of the steel sheet pile. Default 170 MPa = 170000 kPa for typical structural steel piles (ASTM A572 Grade 50 gives ~230 MPa, but most codes use a reduced allowable for permanent works)."></span>
+                    </label>
+                    <input type="number" step="100" min="50000" name="sigma_allow" value="{{ params.sigma_allow }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="no-print">
+            <input type="submit" class="btn btn-accent" value="Calculate">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
+        </div>
+    </div>
+    </form>
+
+    {% if results %}
+    <div class="card">
+        <h2>Design Summary</h2>
+        <table class="data-table" style="max-width:600px;">
+            <tbody>
+                <tr><td>Active coefficient, K<sub>a</sub></td><td><strong>{{ "%.4f"|format(results.Ka) }}</strong></td></tr>
+                <tr><td>Passive coefficient, K<sub>p</sub></td><td><strong>{{ "%.4f"|format(results.Kp) }}</strong></td></tr>
+                <tr><td>Distance L<sub>3</sub> to zero-pressure point</td><td>{{ "%.3f"|format(results.L3) }} m</td></tr>
+                <tr><td>Theoretical embedment D<sub>theoretical</sub></td><td>{{ "%.3f"|format(results.D_theoretical) }} m</td></tr>
+                <tr style="background:#fef9e7;"><td><strong>Design embedment D<sub>design</sub> (&times; 1.30)</strong></td><td><strong>{{ "%.2f"|format(results.D_design) }} m</strong></td></tr>
+                <tr><td>Max bending moment, M<sub>max</sub></td><td>{{ "%.2f"|format(results.M_max) }} kN&middot;m/m</td></tr>
+                <tr style="background:#fef9e7;"><td><strong>Required section modulus, S<sub>req</sub></strong></td><td><strong>{{ "%.1f"|format(results.S_req_cm3_per_m) }} cm&sup3;/m</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Detailed Calculations</h2>
+        <div class="results-box">
+            {{ results.report|safe }}
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Pressure Diagram</h2>
+        <div id="pressure-plot"></div>
+    </div>
+
+    <script>
+        Plotly.newPlot('pressure-plot',
+            {{ results.chart_traces|tojson }},
+            {{ results.chart_layout|tojson }},
+            {responsive: true, displayModeBar: false});
+    </script>
+    {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 18 &mdash; Sheet-Pile Walls</strong>: &sect;18.3 Cantilever sheet-pile walls (p.&nbsp;757); <strong>&sect;18.4 Cantilever Sheet Piling Penetrating Sandy Soil (pp.&nbsp;758&ndash;764)</strong>, Eq.&nbsp;18.7&ndash;18.22 &mdash; the closed-form used by this calculator.</li>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <strong>Ch.&nbsp;7 &mdash; Lateral Loading of Single Piles</strong> provides the theoretical backdrop for the simplified earth-pressure treatment used in cantilever sheet-pile analysis.</li>
+            <li>Teng, W.C. (1962). <em>Foundation Design</em>. Prentice-Hall. Classical sheet-pile design reference.</li>
+            <li>USS Steel (1975). <em>Sheet Pile Design Manual</em>. United States Steel Corporation. Catalog of PZ/AZ sections and allowable stresses.</li>
+            <li>Rankine, W.J.M. (1857). On the stability of loose earth. <em>Phil. Trans. Royal Society of London</em>, 147. Source of the K<sub>a</sub>/K<sub>p</sub> coefficients used.</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
