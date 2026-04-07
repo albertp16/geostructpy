@@ -16,7 +16,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 from calculators import terzaghi, meyerhof, mononobe_okabe, stability, micropile
 from calculators import slope_stability, spt_depth, borehole_log, bored_pile
-from calculators import sheet_pile, anchor
+from calculators import sheet_pile, anchor, braced_cut
 
 app = Flask(__name__)
 
@@ -536,6 +536,38 @@ def anchor_view():
                 'chart_traces': [], 'chart_layout': {},
             }
     return render_template("anchor.html", params=params, results=results)
+
+
+@app.route("/braced-cut", methods=["GET", "POST"])
+def braced_cut_view():
+    defaults = dict(
+        soil_type='soft_medium_clay',
+        H=8.0, gamma=18.0, phi=32.0, cu=40.0,
+        h_strut_spacing=2.0, n_strut_levels=3, FS_heave=1.5,
+    )
+    results = None
+    params = defaults
+    if request.method == "POST":
+        params = dict(
+            soil_type=request.form.get('soil_type', 'soft_medium_clay'),
+            H=_float('H', 8.0),
+            gamma=_float('gamma', 18.0),
+            phi=_float('phi', 32.0),
+            cu=_float('cu', 40.0),
+            h_strut_spacing=_float('h_strut_spacing', 2.0),
+            n_strut_levels=int(_float('n_strut_levels', 3)),
+            FS_heave=_float('FS_heave', 1.5),
+        )
+        try:
+            results = braced_cut.calculate(**params)
+        except (ValueError, ZeroDivisionError) as e:
+            results = {
+                'report': f'<p style="color:#c0392b;"><strong>Calculation error:</strong> {e}</p>',
+                'sigma_max': 0, 'Pa': 0, 'F_strut': 0,
+                'Ns': None, 'FS_heave_actual': None,
+                'chart_traces': [], 'chart_layout': {},
+            }
+    return render_template("braced_cut.html", params=params, results=results)
 
 
 @app.route("/changelog")

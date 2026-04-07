@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Braced-Cut Excavation - GeoStructPy{% endblock %}
+{% block content %}
+<div>
+    <form method="POST" action="/braced-cut">
+    <div class="card">
+        <h2>Braced-Cut Excavation &mdash; Apparent Earth-Pressure Envelope</h2>
+        <p style="color:var(--muted);font-size:0.9em;">
+            Peck (1969) apparent earth-pressure envelope, design strut force, and (for clay)
+            Bjerrum &amp; Eide (1956) bottom-heave check for a single-stage braced excavation in
+            homogeneous soil. Per
+            Das &amp; Sivakugan (2019, 9th SI) <strong>Ch.&nbsp;19</strong>
+            (&sect;19.3 envelope, p.&nbsp;820; &sect;19.5 design, p.&nbsp;823;
+            &sect;19.7 bottom heave, p.&nbsp;835) and
+            Bowles (1996, 5e) <strong>Ch.&nbsp;14</strong> Walls for Excavations
+            (&sect;14.2&ndash;14.3 pp.&nbsp;791&ndash;803; &sect;14.6 heave).
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0 0 12px;font-size:0.82em;color:#7a5a00;">
+            <strong>Scope of this first build:</strong> homogeneous single soil profile
+            (sand OR clay), uniform vertical strut spacing, no surcharge, no groundwater
+            pressure differential across the wall. The intent is preliminary sizing &mdash;
+            full design should use the Das &sect;19.4 layered-soil envelope and a more
+            rigorous tool (e.g., LPILE or PLAXIS) for final values.
+        </p>
+
+        <div class="form-row">
+            <div>
+                <h3>Geometry &amp; Strut Layout</h3>
+                <div class="form-group">
+                    <label>Excavation Depth, H (m)
+                        <span class="qa-note" tabindex="0" data-note="Total depth from ground surface to the excavation bottom. Per Das §19.3 p. 820."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0.5" name="H" value="{{ params.H }}">
+                </div>
+                <div class="form-group">
+                    <label>Vertical Strut Spacing, h<sub>strut</sub> (m)
+                        <span class="qa-note" tabindex="0" data-note="Vertical distance between adjacent strut levels along the wall. The design strut force is sigma_a × h_strut per metre run of wall (Das §19.5)."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0.5" name="h_strut_spacing" value="{{ params.h_strut_spacing }}">
+                </div>
+                <div class="form-group">
+                    <label>Number of Strut Levels, n
+                        <span class="qa-note" tabindex="0" data-note="Number of horizontal strut levels along the wall. Used only for the cross-section drawing — the design strut force is on a per-level basis."></span>
+                    </label>
+                    <input type="number" step="1" min="1" name="n_strut_levels" value="{{ params.n_strut_levels }}">
+                </div>
+                <div class="form-group">
+                    <label>Required FS against Bottom Heave
+                        <span class="qa-note" tabindex="0" data-note="Bowles (1996, 5e) §14.6 recommends FS = 1.5 against bottom heave (clay only). Das §19.7 p. 835 uses the Bjerrum & Eide (1956) chart values."></span>
+                    </label>
+                    <input type="number" step="0.1" min="1" name="FS_heave" value="{{ params.FS_heave }}">
+                </div>
+            </div>
+            <div>
+                <h3>Soil Properties</h3>
+                <div class="form-group">
+                    <label>Soil Type
+                        <span class="qa-note qa-right" tabindex="0" data-note="Sand: rectangular envelope, sigma_a = 0.65·gamma·H·Ka (Das Eq. 19.1, p. 820). Soft-medium clay: trapezoidal envelope, max of 0.3·gamma·H or m·gamma·H·(1−4cu/gamma·H) with Peck reduction m=0.4 when Ns>6. Stiff clay: trapezoidal 0.3·gamma·H."></span>
+                    </label>
+                    <select name="soil_type">
+                        <option value="sand" {% if params.soil_type == 'sand' %}selected{% endif %}>Sand (rectangular envelope)</option>
+                        <option value="soft_medium_clay" {% if params.soil_type == 'soft_medium_clay' %}selected{% endif %}>Soft / Medium Clay (trapezoidal)</option>
+                        <option value="stiff_clay" {% if params.soil_type == 'stiff_clay' %}selected{% endif %}>Stiff Clay (trapezoidal)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit Weight, &gamma; (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Total (moist) unit weight of soil. Bowles (1996, 5e) §2-2 / Table 2-7 ranges. Typical 17–20 kN/m³ for sand, 17–19 for clay."></span>
+                    </label>
+                    <input type="number" step="0.1" min="10" name="gamma" value="{{ params.gamma }}">
+                </div>
+                <div class="form-group">
+                    <label>Friction Angle, &phi;' (deg) &mdash; sand only
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle. Used only for the sand case. Ignored for clay."></span>
+                    </label>
+                    <input type="number" step="0.1" min="5" max="45" name="phi" value="{{ params.phi }}">
+                </div>
+                <div class="form-group">
+                    <label>Undrained Shear Strength, c<sub>u</sub> (kPa) &mdash; clay only
+                        <span class="qa-note qa-right" tabindex="0" data-note="From UCS, vane, or CPT. Used only for clay cases. The Bjerrum stability number Ns = gamma·H/cu drives the envelope branch and the bottom-heave check."></span>
+                    </label>
+                    <input type="number" step="1" min="0" name="cu" value="{{ params.cu }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="no-print">
+            <input type="submit" class="btn btn-accent" value="Calculate">
+            <button type="button" class="btn btn-print" onclick="window.print()">Print Report</button>
+        </div>
+    </div>
+    </form>
+
+    {% if results %}
+    <div class="card">
+        <h2>Design Summary</h2>
+        <table class="data-table" style="max-width:640px;">
+            <tbody>
+                <tr><td>Peak apparent pressure, &sigma;<sub>a</sub></td><td><strong>{{ "%.2f"|format(results.sigma_max) }} kPa</strong></td></tr>
+                <tr><td>Total horizontal load, P<sub>a</sub> (per m run)</td><td><strong>{{ "%.2f"|format(results.Pa) }} kN/m</strong></td></tr>
+                <tr style="background:#fef9e7;"><td><strong>Design strut force, F<sub>strut</sub> (per level, per m run)</strong></td><td><strong>{{ "%.2f"|format(results.F_strut) }} kN/m</strong></td></tr>
+                {% if results.Ns is not none %}
+                <tr><td>Bjerrum stability number, N<sub>s</sub> = &gamma;H/c<sub>u</sub></td><td>{{ "%.2f"|format(results.Ns) }}</td></tr>
+                {% endif %}
+                {% if results.FS_heave_actual is not none %}
+                <tr><td>Bottom-heave FS (Bjerrum &amp; Eide)</td><td><strong>{{ "%.2f"|format(results.FS_heave_actual) }}</strong></td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Detailed Calculations</h2>
+        <div class="results-box">
+            {{ results.report|safe }}
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Apparent Pressure Envelope</h2>
+        <div id="envelope-plot"></div>
+    </div>
+
+    <script>
+        Plotly.newPlot('envelope-plot',
+            {{ results.chart_traces|tojson }},
+            {{ results.chart_layout|tojson }},
+            {responsive: true, displayModeBar: false});
+    </script>
+    {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li><strong>Das, B.M. &amp; Sivakugan, N. (2019).</strong> <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 19 &mdash; Braced Cuts</strong>: &sect;19.2 Braced-cut analysis based on general wedge theory (p.&nbsp;817); <strong>&sect;19.3 Pressure envelope for braced-cut design (p.&nbsp;820, Fig.&nbsp;19.4)</strong>; &sect;19.4 Pressure envelope for cuts in layered soil (p.&nbsp;822); <strong>&sect;19.5 Design of various components of a braced cut (p.&nbsp;823)</strong>; <strong>&sect;19.7 Bottom heave of a cut in clay (p.&nbsp;835, Eq.&nbsp;19.18, Fig.&nbsp;19.18)</strong>; &sect;19.8 Stability of the bottom of a cut in sand (p.&nbsp;839); &sect;19.9 Lateral yielding of sheet piles and ground settlement (p.&nbsp;843).</li>
+            <li><strong>Bowles, J.E. (1996).</strong> <em>Foundation Analysis and Design</em>, 5th Edition. McGraw-Hill. <strong>Ch.&nbsp;14 &mdash; Walls for Excavations</strong>: &sect;14.1 Construction excavations (p.&nbsp;785); &sect;14.2 Soil pressures on braced excavation walls (p.&nbsp;791); <strong>&sect;14.3 Conventional design of braced excavation walls (p.&nbsp;795)</strong>; &sect;14.4 Estimation of ground loss around excavations (p.&nbsp;803); <strong>&sect;14.6 Instability due to heave of bottom of excavation</strong>.</li>
+            <li>Peck, R.B. (1969). Deep excavations and tunneling in soft ground. <em>Proc. 7th Int. Conf. Soil Mechanics and Foundation Engineering</em>, State-of-the-Art Volume, Mexico City, pp.&nbsp;225&ndash;290. <em>(The original source of the apparent earth-pressure envelopes used here.)</em></li>
+            <li>Terzaghi, K. &amp; Peck, R.B. (1967). <em>Soil Mechanics in Engineering Practice</em>, 2nd Edition. Wiley. <em>(Earlier presentation of similar empirical envelopes.)</em></li>
+            <li>Bjerrum, L. &amp; Eide, O. (1956). Stability of strutted excavations in clay. <em>G&eacute;otechnique</em>, 6(1), 32&ndash;47. <em>(Bottom-heave bearing-capacity formulation used in this calculator.)</em></li>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <strong>Ch.&nbsp;7 &mdash; Lateral loading of single piles</strong> &mdash; theoretical backdrop for soil&ndash;wall interaction in deep excavations.</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
