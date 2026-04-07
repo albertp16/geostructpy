@@ -40,12 +40,20 @@
                     <input type="number" step="0.01" name="t_base" value="{{ params.t_base }}">
                 </div>
                 <div class="form-group">
-                    <label>Total Base Width, b<sub>base</sub> (m)</label>
+                    <label>Total Base Width, b (m)
+                        <span class="qa-note" tabindex="0" data-note="Total width of the base slab. If you provide an explicit Toe Width below (b_toe > 0), this field is auto-recomputed as b = b_toe + t_stem + b_heel and the supplied value is ignored. Ref: Das &amp; Sivakugan §17.2 Proportioning Retaining Walls, p. 697 / Fig. 17.4."></span>
+                    </label>
                     <input type="number" step="0.01" name="b_base" value="{{ params.b_base }}">
                 </div>
                 <div class="form-group">
+                    <label>Toe Width, b<sub>toe</sub> (m) &mdash; explicit
+                        <span class="qa-note" tabindex="0" data-note="Plan width of the toe slab projection IN FRONT of the stem (per Das §17.2 Fig. 17.4, p. 697). Set to 0 to derive b_toe = b_base − t_stem − b_heel from the existing inputs (legacy mode). Set > 0 to use it explicitly; b_base will be auto-recomputed as b_toe + t_stem + b_heel. Typical b_toe ≈ 1/3 to 1/4 of b_base for cantilever walls (Das §17.2 / Bowles 1996 §12.4)."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0" name="b_toe" value="{{ params.b_toe }}">
+                </div>
+                <div class="form-group">
                     <label>Heel Width, b<sub>heel</sub> (m)
-                        <span class="qa-note" tabindex="0" data-note="Plan width of the heel measured from the back face of the stem. Toe width = b_base − t_stem − b_heel. See wall diagram for the H₁/H₂/toe/heel/shear-key convention used by the calculator."></span>
+                        <span class="qa-note" tabindex="0" data-note="Plan width of the heel projection BEHIND the stem. Together with b_toe and t_stem this defines the full base width per Das Fig. 17.4 (p. 697)."></span>
                     </label>
                     <input type="number" step="0.01" name="b_heel" value="{{ params.b_heel }}">
                 </div>
@@ -165,8 +173,8 @@
     <div class="ref-box">
         <h4>References &amp; Methodology</h4>
         <ol>
-            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 8</strong> &mdash; Vertical Stress Increase in Soil (&sect;8.4&ndash;8.5 line/strip loads, &sect;8.12 Westergaard); <strong>Ch. 16</strong> &mdash; Lateral Earth Pressure (&sect;16.2 K<sub>0</sub>, &sect;16.3 Rankine active, &sect;16.7 Coulomb, &sect;16.8 surcharge); <strong>Ch. 17</strong> &mdash; Retaining Walls (&sect;17.4 stability, &sect;17.5 overturning, &sect;17.6 sliding, &sect;17.7 bearing-capacity check).</li>
-            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <em>(Reference for general soil&ndash;structure interaction principles applicable to wall&ndash;soil contact pressures.)</em></li>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 8</strong> &mdash; Vertical Stress Increase in Soil (&sect;8.4&ndash;8.5 line/strip loads, &sect;8.12 Westergaard); <strong>Ch. 16</strong> &mdash; Lateral Earth Pressure (&sect;16.2 K<sub>0</sub>, &sect;16.3 Rankine active, &sect;16.7 Coulomb, &sect;16.8 surcharge, &sect;16.11 Rankine passive p.&nbsp;676); <strong>Ch. 17 &mdash; Retaining Walls</strong>: <strong>&sect;17.2 Proportioning Retaining Walls (p.&nbsp;697, Fig.&nbsp;17.4)</strong> &mdash; the toe / stem / heel / shear-key geometry convention used by this calculator; &sect;17.3 Application of lateral earth pressure theories (p.&nbsp;698); <strong>&sect;17.4 Stability of Retaining Walls (p.&nbsp;699)</strong>; &sect;17.5 Overturning check (p.&nbsp;701); &sect;17.6 Sliding-along-base check (p.&nbsp;703, Table 17.4 for &delta; values); &sect;17.7 Bearing-capacity-failure check (p.&nbsp;706); &sect;17.10 Gravity retaining-wall design for earthquake conditions (p.&nbsp;720).</li>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <strong>Ch.&nbsp;2</strong> covers the effective-stress concepts (&gamma;' below the water table) used in the toe-side passive resistance and front-soil overburden calculations; <strong>Ch.&nbsp;7</strong> on lateral loading of single piles is the theoretical backdrop for the soil&ndash;structure interaction at the wall&ndash;soil contact.</li>
             <li>ACI Committee 318 (2019). <em>Building Code Requirements for Structural Concrete (ACI 318-19)</em>. American Concrete Institute.</li>
             <li>ACI Committee SP-17 (2014). <em>The Reinforced Concrete Design Handbook &mdash; Chapter 2: Cantilever Retaining Walls</em>. ACI.</li>
             <li>Bowles, J.E. (1996). <em>Foundation Analysis and Design</em> (5th ed.), Chapters 11&ndash;12. McGraw-Hill.</li>
