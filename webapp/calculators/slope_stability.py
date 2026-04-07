@@ -610,7 +610,9 @@ def build_report(layer):
         f'<td>w = MC / 100</td>'
         f'<td>{_f(w, 4)}</td>'
         f'<td style="{_cs}">Das &amp; Sivakugan (2019, 9th SI) &sect;2.5 Weight&ndash;Volume '
-        f'Relationships, Eq.&nbsp;2.16 (Ch.&nbsp;2, pp.&nbsp;19&ndash;45)</td></tr>'
+        f'Relationships, Eq.&nbsp;2.16 (Ch.&nbsp;2, pp.&nbsp;19&ndash;45). '
+        f'<strong>Bowles (1996, 5e) &sect;2-2 Eq.&nbsp;2-3</strong> &mdash; w = W<sub>w</sub>/W<sub>s</sub> '
+        f'(usually expressed as a percentage but used in decimal form).</td></tr>'
     )
 
     if mc > 0:
@@ -620,14 +622,17 @@ def build_report(layer):
             f'<td>{_f(e0, 4)}</td>'
             f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.5 Eq.&nbsp;2.22 '
             f'(derived from S<sub>r</sub>&middot;e = w&middot;G<sub>s</sub> at S<sub>r</sub>&nbsp;=&nbsp;1, '
-            f'i.e., fully saturated)</td></tr>'
+            f'i.e., fully saturated). '
+            f'<strong>Bowles (1996, 5e) &sect;2-3 Eq.&nbsp;2-10</strong>: e = wG<sub>s</sub>/S; '
+            f'when S = 1 (saturated), e = wG<sub>s</sub>.</td></tr>'
         )
     else:
         r += (
             f'<tr><td>Void ratio, e₀</td>'
             f'<td>Assumed (no MC data)</td>'
             f'<td>{_f(e0, 4)}</td>'
-            f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.5 (fallback default when MC is not provided)</td></tr>'
+            f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.5 (fallback default when MC is not provided); '
+            f'Bowles (1996, 5e) &sect;2-2 Eq.&nbsp;2-1: e = V<sub>v</sub>/V<sub>s</sub>, 0 &lt; e &laquo; &infin;</td></tr>'
         )
 
     r += (
@@ -635,7 +640,10 @@ def build_report(layer):
         f'<td>&gamma;<sub>d</sub> = &gamma; / (1 + w) = {_f(gamma)} / (1 + {_f(w, 4)})</td>'
         f'<td>{_f(gamma_d)} kN/m&sup3;</td>'
         f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.6 Eq.&nbsp;2.28 &mdash; relationship between '
-        f'moist and dry unit weights</td></tr>'
+        f'moist and dry unit weights. '
+        f'<strong>Bowles (1996, 5e) &sect;2-3 Eq.&nbsp;2-9</strong>: '
+        f'&gamma;<sub>dry</sub> = &gamma;<sub>wet</sub> / (1 + w), with w in decimal form '
+        f'(derived from W<sub>t</sub> = W<sub>s</sub> + W<sub>w</sub> = W<sub>s</sub>(1 + w)).</td></tr>'
     )
 
     r += (
@@ -644,7 +652,10 @@ def build_report(layer):
         f'= ({_f(Gs)} + {_f(e0, 4)}) / (1 + {_f(e0, 4)}) &times; {_f(gamma_w)}</td>'
         f'<td>{_f(gamma_sat)} kN/m&sup3;</td>'
         f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.6 Eq.&nbsp;2.32 &mdash; saturated unit '
-        f'weight from G<sub>s</sub> and void ratio</td></tr>'
+        f'weight from G<sub>s</sub> and void ratio. '
+        f'<strong>Bowles (1996, 5e) &sect;2-3 Eq.&nbsp;2-11</strong>: '
+        f'&gamma;<sub>dry</sub> = &gamma;<sub>w</sub>G<sub>s</sub>/(1 + e), with the saturated form '
+        f'recovered by adding the pore-water volume e&middot;&gamma;<sub>w</sub>.</td></tr>'
     )
 
     r += (
@@ -652,7 +663,9 @@ def build_report(layer):
         f'<td>&gamma;\' = &gamma;<sub>sat</sub> &minus; &gamma;<sub>w</sub> = {_f(gamma_sat)} &minus; {_f(gamma_w)}</td>'
         f'<td>{_f(gamma_eff)} kN/m&sup3;</td>'
         f'<td style="{_cs}">Das &amp; Sivakugan &sect;2.6 Eq.&nbsp;2.33 (buoyant unit weight); '
-        f'Poulos &amp; Davis (1980) Ch.&nbsp;2 for effective-stress principle in pile skin friction</td></tr>'
+        f'Poulos &amp; Davis (1980) Ch.&nbsp;2 for effective-stress principle in pile skin friction. '
+        f'<strong>Bowles (1996, 5e) Notation list</strong>: &gamma;\' = &gamma; &minus; &gamma;<sub>w</sub>, '
+        f'used throughout &sect;2-9 Soil Hydraulics and &sect;2-10 Consolidation.</td></tr>'
     )
 
     if phi > 0:
@@ -661,7 +674,12 @@ def build_report(layer):
             f'<td>K₀ = 1 &minus; sin(&phi;) = 1 &minus; sin({_f(phi, 0)}&deg;)</td>'
             f'<td>{_f(Ko, 9)}</td>'
             f'<td style="{_cs}">Jaky (1944); Das &amp; Sivakugan &sect;16.2 Eq.&nbsp;16.3, '
-            f'<strong>p.&nbsp;640</strong> &mdash; K<sub>0</sub> for normally consolidated soils</td></tr>'
+            f'<strong>p.&nbsp;640</strong> &mdash; K<sub>0</sub> for normally consolidated soils. '
+            f'<strong>Bowles (1996, 5e) &sect;2-8 Eq.&nbsp;2-18a, p.&nbsp;39</strong>: '
+            f'K<sub>0</sub> = 1 &minus; sin&phi;\' is the simplified Jaky equation, validated by '
+            f'Mayne &amp; Kulhawy (1982) regression analysis. For sloping ground use Eq.&nbsp;2-19: '
+            f'K<sub>0</sub> = (1 &minus; sin&phi;\')/(1 + sin&beta;). For overconsolidated soils '
+            f'apply Eq.&nbsp;2-23: K<sub>0,OCR</sub> = K<sub>0,nc</sub> &times; OCR<sup>n</sup>.</td></tr>'
         )
     else:
         r += (
@@ -669,7 +687,10 @@ def build_report(layer):
             f'<td>Assumed (&phi; = 0)</td>'
             f'<td>{_f(Ko, 4)}</td>'
             f'<td style="{_cs}">Das &amp; Sivakugan &sect;16.2, p.&nbsp;640 &mdash; fallback for '
-            f'&phi;&nbsp;=&nbsp;0 (undrained cohesive)</td></tr>'
+            f'&phi;&nbsp;=&nbsp;0 (undrained cohesive). '
+            f'Bowles (1996, 5e) &sect;2-8 notes K<sub>0</sub> &asymp; 0.5 is commonly used for &phi; '
+            f'unknown; Eq.&nbsp;2-22 (K<sub>0</sub> = &mu;/(1&minus;&mu;), with &mu; from Table&nbsp;2-7) '
+            f'gives an alternative from Poisson&apos;s ratio.</td></tr>'
         )
 
     if phi > 30:
@@ -679,7 +700,10 @@ def build_report(layer):
             f'<td>{_f(psi, 0)}&deg;</td>'
             f'<td style="{_cs}">Bolton, M.D. (1986) "The strength and dilatancy of sands," '
             f'<em>G&eacute;otechnique</em> 36(1), pp.&nbsp;65&ndash;78; Midas GTS NX User Manual '
-            f'(2023) Material Models &sect;Mohr&ndash;Coulomb. Valid for medium-dense to dense sands.</td></tr>'
+            f'(2023) Material Models &sect;Mohr&ndash;Coulomb. Valid for medium-dense to dense sands. '
+            f'<strong>Bowles (1996, 5e) &sect;2-11.3 Cohesionless Soils</strong> notes that &phi;\' '
+            f'depends on density / relative density and confining pressure, with peak values above '
+            f'the critical-state &phi;<sub>cv</sub> driving the dilation behaviour modeled by &psi;.</td></tr>'
         )
     else:
         r += (
@@ -687,7 +711,9 @@ def build_report(layer):
             f'<td>&psi; = max(0, &phi; &minus; 30&deg;) &rarr; &phi; &le; 30&deg;</td>'
             f'<td>{_f(psi, 0)}&deg;</td>'
             f'<td style="{_cs}">Bolton (1986) <em>G&eacute;otechnique</em> 36(1) &mdash; empirical '
-            f'formula is non-negative; &psi;&nbsp;=&nbsp;0 is set for clays and loose sands</td></tr>'
+            f'formula is non-negative; &psi;&nbsp;=&nbsp;0 is set for clays and loose sands. '
+            f'Bowles (1996, 5e) &sect;2-11 (Shear Strength) treats clays as non-dilative under '
+            f'undrained loading, consistent with &psi;&nbsp;=&nbsp;0 for cohesive soils.</td></tr>'
         )
 
     r += (
@@ -696,17 +722,24 @@ def build_report(layer):
         f'<td>{Ss:.6e} 1/m</td>'
         f'<td style="{_cs}">Midas GTS NX / PLAXIS software convention &mdash; <em>simplified</em> '
         f'parameter input, not a textbook formula. Background theory: Terzaghi (1925) 1-D '
-        f'consolidation; Das &amp; Sivakugan &sect;9.12, <strong>p.&nbsp;382</strong></td></tr>'
+        f'consolidation; Das &amp; Sivakugan &sect;9.12, <strong>p.&nbsp;382</strong>. '
+        f'<strong>Bowles (1996, 5e) &sect;2-10 Consolidation Principles, p.&nbsp;56</strong> &mdash; '
+        f'derives the coefficient of volume compressibility m<sub>v</sub> = &Delta;e/[(1+e)&sigma;\']; '
+        f'this S<sub>s</sub> = &gamma;<sub>w</sub>/E shortcut is the equivalent in terms of E rather '
+        f'than m<sub>v</sub> for input to seepage / consolidation FEA.</td></tr>'
     )
 
     r += '</tbody></table>'
     r += (
         '<p style="color:#6c757d;font-size:0.78em;margin-top:6px;font-style:italic;">'
-        'Das &amp; Sivakugan page numbers marked in bold are verified against the 9th SI Ed. table '
-        'of contents. Ch.&nbsp;2 section-level citations (&sect;2.5, &sect;2.6) use approximate page '
-        'ranges since Ch.&nbsp;2 spans pp.&nbsp;15&ndash;62 in that edition. Poulos &amp; Davis (1980) '
-        'is cited only where the formula connects to effective-stress / pile-soil interaction '
-        'principles.</p>'
+        'Page numbers shown in bold are verified against the source TOCs. Bowles 5e citations '
+        'reference physical formulas and tables in <em>Foundation Analysis and Design</em>, 5th Ed. '
+        '(McGraw-Hill, 1996): &sect;2-2/2-3 weight&ndash;volume relationships, &sect;2-8 K<sub>0</sub> '
+        '(p.&nbsp;39), &sect;2-10 consolidation (p.&nbsp;56), &sect;2-11 shear strength (p.&nbsp;90), '
+        '&sect;2-14 elastic properties (p.&nbsp;121, Tables 2-7 &amp; 2-8). Ch.&nbsp;2 of Das &amp; '
+        'Sivakugan (2019, 9th SI) covers the same topics in pp.&nbsp;15&ndash;62. Poulos &amp; '
+        'Davis (1980) is cited where the formula connects to effective-stress / pile-soil '
+        'interaction principles.</p>'
     )
 
     # General tab

@@ -4,6 +4,14 @@
 <div class="card">
     <h2>Changelog</h2>
 
+    <h3>v0.5.0 &mdash; 2026-04-08 (Braced Cut + Bowles Citations)</h3>
+    <ul style="line-height:1.8;">
+        <li><strong>New module:</strong> <code>/braced-cut</code> &mdash; basic braced excavation analysis using the Peck (1969) apparent earth-pressure envelope. Three soil cases: sand (rectangular envelope), soft / medium clay (trapezoidal with Peck reduction factor m = 0.4 when N<sub>s</sub> &gt; 6), and stiff clay. Per-strut design force and Bjerrum &amp; Eide (1956) bottom-heave check for clay. Per Das &amp; Sivakugan Ch.&nbsp;19 (&sect;19.3 envelope p.&nbsp;820, &sect;19.5 design p.&nbsp;823, &sect;19.7 bottom heave p.&nbsp;835) and Bowles 5e Ch.&nbsp;14.</li>
+        <li><strong>Slope stability citations:</strong> integrated Bowles (1996, 5e) Ch.&nbsp;2 references throughout the per-layer report and top callout. Each formula row now lists Bowles equation numbers alongside Das &amp; Sivakugan: w &rarr; Bowles &sect;2-2 Eq.&nbsp;2-3; e₀ &rarr; &sect;2-3 Eq.&nbsp;2-10; &gamma;<sub>d</sub> &rarr; Eq.&nbsp;2-9; &gamma;<sub>sat</sub> &rarr; Eq.&nbsp;2-11; K<sub>0</sub> &rarr; <strong>Bowles &sect;2-8 Eq.&nbsp;2-18a, p.&nbsp;39</strong> (Jaky simplified) plus Eq.&nbsp;2-19 sloping ground / Eq.&nbsp;2-23 OCR adjustment / Eq.&nbsp;2-22 from Poisson&apos;s ratio; dilatancy &rarr; &sect;2-11.3 cohesionless soils; S<sub>s</sub> &rarr; <strong>&sect;2-10 Consolidation Principles, p.&nbsp;56</strong>. Top callout adds full Table&nbsp;2-8 E<sub>s</sub> ranges (very soft clay 2&ndash;15 MPa through dense sand+gravel 100&ndash;200 MPa) and Table&nbsp;2-7 Poisson&apos;s ratio ranges.</li>
+        <li><strong>Theory page:</strong> Bowles 5e added as the third Primary Textbook with full chapter map (Ch.&nbsp;2 properties, &sect;2-8 K<sub>0</sub> p.&nbsp;39, &sect;2-10 consolidation p.&nbsp;56, &sect;2-11 shear p.&nbsp;90, &sect;2-14 elastic p.&nbsp;121 with Tables 2-7/2-8, plus Ch.&nbsp;4/11/12/13/14/16-18 cross-references).</li>
+        <li><strong>Nav:</strong> "Braced Cut" link added to the top bar. Total routes now 19 (was 18).</li>
+    </ul>
+
     <h3>v0.4.0 &mdash; 2026-04-07 (Bundled QAQC Sprint II)</h3>
     <ul style="line-height:1.8;">
         <li><strong>New module:</strong> <code>/sheet-pile</code> &mdash; cantilever sheet pile in sand per Das &amp; Sivakugan &sect;18.4 (pp.&nbsp;758&ndash;764). Solves the Das Eq.&nbsp;18.17 quartic for required embedment depth, computes maximum moment, and reports required section modulus.</li>
