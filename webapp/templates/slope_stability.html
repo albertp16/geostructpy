@@ -33,17 +33,26 @@
         <h2>Slope Stability Parameters (Midas GTS NX Input)</h2>
         <p style="color:var(--muted);font-size:0.9em;">
             Enter soil layer properties from borehole data. Computes derived parameters for Midas GTS NX
-            Mohr-Coulomb material model: General, Porous, and Non-Linear tabs (Mohr 1900; Coulomb 1776;
-            Midas IT 2023 GTS NX User Manual).
+            Mohr-Coulomb material model: General, Porous, and Non-Linear tabs.
+            Variable definitions and parameter ranges are aligned with
+            <strong>Bowles (1996, 5e) Ch.&nbsp;2</strong> (&sect;2-2/2-3 weight&ndash;volume,
+            &sect;2-8 K<sub>0</sub> p.&nbsp;39, &sect;2-10 consolidation p.&nbsp;56, &sect;2-11 shear
+            strength p.&nbsp;90, &sect;2-14 elastic properties p.&nbsp;121),
+            Das &amp; Sivakugan (2019, 9th SI) Ch.&nbsp;2, Mohr (1900), Coulomb (1776), and the
+            Midas IT (2023) GTS NX User Manual.
         </p>
         <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:6px 0 12px;font-size:0.82em;color:#7a5a00;">
             <strong>QA notes on the column inputs (hover the
             <span class="qa-note" style="cursor:default" data-note="info icons next to each label">i</span>
             icons in the table headers below):</strong>
-            <br>&bull; <strong>c (cohesion):</strong> Provide a value only if a UCS / unconsolidated-undrained triaxial result is available. Otherwise leave 0 and let the SPT correlation drive c (Polish PN-59/B-03020) &mdash; do not enter empirical values for cohesionless soils.
-            <br>&bull; <strong>&gamma;<sub>sat</sub>:</strong> Derived as (G<sub>s</sub> + e)/(1 + e) &middot; &gamma;<sub>w</sub> with e = G<sub>s</sub>&middot;w (saturated state). If your moisture content is field-not-saturated, &gamma;<sub>sat</sub> in the report is theoretical, not measured.
+            <br>&bull; <strong>c (cohesion, kPa):</strong> Provide a value only if a UCS / unconsolidated-undrained triaxial result is available. Otherwise leave 0 and let the SPT correlation drive c (Polish PN-59/B-03020). Bowles (1996, 5e) &sect;2-11 (p.&nbsp;90) classifies cohesion as the interparticle attraction component of shear strength, s = c + &sigma;tan&phi;.
+            <br>&bull; <strong>&phi; (friction angle, deg):</strong> Bowles (1996, 5e) &sect;2-11.3 &mdash; depends on density / relative density and confining pressure for cohesionless soils. Use &phi;\' (effective) for drained CD tests; for cohesionless soils Bowles notes "saturated CU/U conditions are meaningless" because the sample drains during loading.
+            <br>&bull; <strong>E (stress&ndash;strain modulus, kPa):</strong> Bowles (1996, 5e) Table&nbsp;2-8 (p.&nbsp;148) gives ranges &mdash; very soft clay 2&ndash;15 MPa, soft 5&ndash;25, medium 15&ndash;50, hard 50&ndash;100, sandy clay 25&ndash;250; loose sand 10&ndash;25, dense 50&ndash;81; loose sand+gravel 50&ndash;150, dense 100&ndash;200; loess 15&ndash;60; shale 150&ndash;5000. Field values "depend on stress history, water content, density, and age of deposit."
+            <br>&bull; <strong>&nu; (Poisson&apos;s ratio):</strong> Bowles (1996, 5e) Table&nbsp;2-7 (p.&nbsp;145) &mdash; saturated clay 0.4&ndash;0.5, unsaturated clay 0.1&ndash;0.3, sandy clay 0.2&ndash;0.3, silt 0.3&ndash;0.35, sand/gravelly sand 0.1&ndash;1.0 (commonly used 0.3&ndash;0.4).
+            <br>&bull; <strong>&gamma;<sub>sat</sub> (saturated unit weight):</strong> Derived as (G<sub>s</sub> + e)/(1 + e) &middot; &gamma;<sub>w</sub> with e = G<sub>s</sub>&middot;w. Bowles (1996, 5e) &sect;2-3 Eq.&nbsp;2-11 derives the same expression from W<sub>s</sub> = V<sub>s</sub>&gamma;<sub>w</sub>G<sub>s</sub>. If your moisture content is field-not-saturated, &gamma;<sub>sat</sub> in the report is theoretical, not measured.
+            <br>&bull; <strong>K<sub>0</sub> (at-rest earth pressure):</strong> Bowles (1996, 5e) &sect;2-8 Eq.&nbsp;2-18a (p.&nbsp;39): K<sub>0</sub> = 1 &minus; sin&phi;\' (simplified Jaky 1948). For sloping ground use Eq.&nbsp;2-19, for OCR &gt; 1 use Eq.&nbsp;2-23: K<sub>0,OCR</sub> = K<sub>0,nc</sub>&middot;OCR<sup>n</sup>.
             <br>&bull; <strong>Porous tab (k<sub>x</sub>, k<sub>y</sub>, k<sub>z</sub>):</strong> Currently set to a constant 1&times;10<sup>&minus;5</sup> m/s default. Replace with project-specific permeability from falling-head / pumping tests when available.
-            <br>&bull; <strong>Dilatancy &psi; = max(&phi; &minus; 30&deg;, 0):</strong> Bolton (1986) empirical relation &mdash; valid only for medium-dense to dense sands. For clays / loose sands set &psi; = 0.
+            <br>&bull; <strong>Dilatancy &psi; = max(&phi; &minus; 30&deg;, 0):</strong> Bolton (1986) empirical relation &mdash; valid only for medium-dense to dense sands. For clays / loose sands set &psi; = 0. Bowles (1996, 5e) &sect;2-11 treats clays as non-dilative under undrained loading.
             <br>&bull; <strong>Tensile strength:</strong> Set to 0 (soil cannot sustain tension; tension cut-off in Mohr-Coulomb).
             <br>&bull; <strong>Interface reduction R<sub>inter</sub>:</strong> Not auto-computed &mdash; for soil-structure interaction in Midas GTS NX use R<sub>inter</sub> = 0.6&ndash;0.8 for sand/concrete, 0.5 for clay/concrete (Plaxis Material Models Manual).
         </p>
@@ -171,6 +180,7 @@
     <div class="ref-box">
         <h4>References &amp; Methodology</h4>
         <ol>
+            <li><strong>Bowles, J.E. (1996).</strong> <em>Foundation Analysis and Design</em>, 5th Edition. McGraw-Hill. <strong>Ch.&nbsp;2 &mdash; Geotechnical and Index Properties</strong>: &sect;2-2 Basic relationships and definitions, &sect;2-3 Major factors that affect the engineering properties of soils (Eq.&nbsp;2-1 to Eq.&nbsp;2-11 weight&ndash;volume); <strong>&sect;2-8 In Situ Stresses and K<sub>0</sub> Conditions, p.&nbsp;39</strong> (Eq.&nbsp;2-17 K<sub>0</sub> = &sigma;<sub>h</sub>/&sigma;<sub>v</sub>; Eq.&nbsp;2-18a Jaky simplified K<sub>0</sub> = 1 &minus; sin&phi;\'; Eq.&nbsp;2-19 sloping ground; Eq.&nbsp;2-22 K<sub>0</sub> from &nu;; Eq.&nbsp;2-23 OCR adjustment); <strong>&sect;2-10 Consolidation Principles, p.&nbsp;56</strong>; <strong>&sect;2-11 Shear Strength, p.&nbsp;90</strong> (Eq.&nbsp;2-52 s = c + &sigma;tan&phi;; UU/CU/CD test conditions; &sect;2-11.3 cohesionless soils); <strong>&sect;2-14 Elastic Properties of Soil, p.&nbsp;121</strong> (Hooke&apos;s law; Table&nbsp;2-7 Poisson&apos;s ratio ranges; <strong>Table&nbsp;2-8 stress&ndash;strain modulus E<sub>s</sub> ranges</strong>).</li>
             <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 2 &mdash; Geotechnical Properties of Soil</strong>: weight&ndash;volume relationships, shear strength parameters; <strong>Ch. 3 &mdash; Subsoil Exploration</strong>: &sect;3.15 Split-spoon and SPT, &sect;3.21 CPT, &sect;3.27 Boring logs.</li>
             <li>Coulomb, C.A. (1776). Essai sur une application des r&egrave;gles de maximis et minimis &agrave; quelques probl&egrave;mes de statique. <em>M&eacute;m. Acad. Roy. Sci.</em></li>
             <li>Mohr, O. (1900). Welche Umst&auml;nde bedingen die Elastizit&auml;tsgrenze und den Bruch eines Materials? <em>Zeitschrift VDI</em>, 44.</li>
