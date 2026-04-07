@@ -111,9 +111,9 @@
                 </div>
                 <div class="form-group">
                     <label>Concrete Unit Weight, &gamma;<sub>c</sub> (kN/m&sup3;)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Normal-weight reinforced concrete ≈ 23.6 kN/m³ per ACI 318-19 §19.2.4 / ASCE 7-22 Table C3.1-1a."></span>
+                        <span class="qa-note qa-right" tabindex="0" data-note="Normal-weight reinforced concrete ≈ 23.56 kN/m³ (≈ 150 pcf) per ACI 318-19 §19.2.4 / ASCE 7-22 Table C3.1-1a."></span>
                     </label>
-                    <input type="number" step="0.1" min="0" name="gamma_c" value="{{ params.gamma_c }}">
+                    <input type="number" step="0.01" min="0" name="gamma_c" value="{{ params.gamma_c }}">
                 </div>
                 <div class="form-group">
                     <label>Surcharge, q (kPa) <span style="color:var(--muted);font-weight:400;">&mdash; positive only</span>
