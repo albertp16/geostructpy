@@ -6,28 +6,46 @@
     <div class="card">
         <h2>Terzaghi (1943) Bearing Capacity Calculator</h2>
         <p style="color:var(--muted);font-size:0.9em;">
-            Ultimate bearing capacity for strip, square, and circular footings based on Terzaghi's general shear failure theory.
+            Ultimate bearing capacity for strip, square, and circular footings using Terzaghi's general
+            shear failure equation, q<sub>u</sub> = cN<sub>c</sub>S<sub>c</sub> + qN<sub>q</sub> + ½&gamma;BN<sub>&gamma;</sub>S<sub>&gamma;</sub>
+            (Terzaghi 1943; Das &amp; Sivakugan 2019 9th SI, &sect;6.3 Eq. 6.2).
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0 0 12px;font-size:0.82em;color:#7a5a00;">
+            <strong>Groundwater note:</strong> The current build assumes the water table is well below the failure
+            zone (no GWT correction). When the water table is within or above the influence zone, apply
+            <strong>Das &amp; Sivakugan (2019) &sect;6.5 &mdash; Modification of Bearing Capacity Equations for Water Table</strong>,
+            using one of the three cases (Case I: GWT in q-term zone above footing; Case II: GWT between footing
+            base and depth B below; Case III: GWT below B). Substitute the appropriate effective unit weight
+            (&gamma;<sup>'</sup> = &gamma;<sub>sat</sub> &minus; &gamma;<sub>w</sub>) into the &gamma; or q term as required.
         </p>
         <div class="form-row">
             <div>
                 <h3>Soil Parameters</h3>
                 <div class="form-group">
-                    <label>Cohesion, c' (kPa)</label>
+                    <label>Cohesion, c' (kPa)
+                        <span class="qa-note" tabindex="0" data-note="Effective cohesion from drained triaxial / direct-shear tests. For undrained clay use cu with φ = 0 (φ-zero analysis). Cohesionless soils: c' ≈ 0."></span>
+                    </label>
                     <input type="number" step="0.1" name="cohesion" value="{{ params.cohesion }}">
                 </div>
                 <div class="form-group">
-                    <label>Unit Weight of Soil, &gamma; (kN/m&sup3;)</label>
+                    <label>Unit Weight of Soil, &gamma; (kN/m&sup3;)
+                        <span class="qa-note" tabindex="0" data-note="Use γm (moist) for GWT well below B beneath the footing; γ' = γsat − γw (effective) when GWT is at footing base or shallower. For partial submergence apply Das &amp; Sivakugan Ch. 4 Cases I/II/III. γw = 9.81 kN/m³."></span>
+                    </label>
                     <input type="number" step="0.1" name="gamma" value="{{ params.gamma }}">
                 </div>
                 <div class="form-group">
-                    <label>Angle of Internal Friction, &phi;' (deg)</label>
+                    <label>Angle of Internal Friction, &phi;' (deg)
+                        <span class="qa-note" tabindex="0" data-note="Effective friction angle. For loose to medium sands consider Terzaghi's local-shear reduction: tan(φ*) = ⅔ tan(φ'), c* = ⅔c'."></span>
+                    </label>
                     <input type="number" step="1" min="0" max="50" name="phi" value="{{ params.phi }}">
                 </div>
             </div>
             <div>
                 <h3>Foundation Parameters</h3>
                 <div class="form-group">
-                    <label>Foundation Type</label>
+                    <label>Foundation Type
+                        <span class="qa-note qa-right" tabindex="0" data-note="Shape factors per Terzaghi (1943): Strip Sc=1.0 Sγ=1.0; Square Sc=1.3 Sγ=0.8; Circular Sc=1.3 Sγ=0.6."></span>
+                    </label>
                     <select name="ftype">
                         <option value="strip" {% if params.ftype == 'strip' %}selected{% endif %}>Strip Footing</option>
                         <option value="square" {% if params.ftype == 'square' %}selected{% endif %}>Square Footing</option>
@@ -39,11 +57,15 @@
                     <input type="number" step="0.01" name="B" value="{{ params.B }}">
                 </div>
                 <div class="form-group">
-                    <label>Depth of Foundation, D<sub>f</sub> (m)</label>
+                    <label>Depth of Foundation, D<sub>f</sub> (m)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Footing embedment from finished grade to base. Surcharge at base level is q = γ·Df."></span>
+                    </label>
                     <input type="number" step="0.01" name="Df" value="{{ params.Df }}">
                 </div>
                 <div class="form-group">
-                    <label>Factor of Safety, FS</label>
+                    <label>Factor of Safety, FS
+                        <span class="qa-note qa-right" tabindex="0" data-note="Typical FS = 3.0 for shallow foundations on soil (Terzaghi &amp; Peck 1967). Higher FS may apply for sensitive structures or unverified soil parameters."></span>
+                    </label>
                     <input type="number" step="0.1" name="FS" value="{{ params.FS }}">
                 </div>
             </div>
@@ -68,5 +90,16 @@
         Plotly.newPlot('bc-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 6 &mdash; Shallow Foundations: Ultimate Bearing Capacity</strong>: &sect;6.3 Terzaghi's bearing capacity theory; &sect;6.4 Factor of safety; <strong>&sect;6.5 Modification of bearing capacity equations for water table</strong> (Cases I&ndash;III); &sect;6.6 General bearing capacity equation; &sect;6.10&ndash;6.13 Eccentrically loaded foundations.</li>
+            <li>Terzaghi, K. (1943). <em>Theoretical Soil Mechanics</em>. John Wiley &amp; Sons, New York.</li>
+            <li>Terzaghi, K. &amp; Peck, R.B. (1967). <em>Soil Mechanics in Engineering Practice</em> (2nd ed.). Wiley.</li>
+            <li>Vesic, A.S. (1973). Analysis of ultimate loads of shallow foundations. <em>J. Soil Mech. and Found. Div.</em>, ASCE, 99(SM1), 45&ndash;73.</li>
+            <li>NAVFAC (1986). <em>Design Manual 7.02 &mdash; Foundations and Earth Structures</em>, Ch. 4 &mdash; Bearing capacity and groundwater corrections.</li>
+        </ol>
+    </div>
 </div>
 {% endblock %}

@@ -119,11 +119,16 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     qmax_display = _f(qmax) if math.isfinite(qmax) else '\u221e'
     r += f'\\[ q_{{max}} = {qmax_display} \\text{{ kPa}}, \\quad q_{{min}} = {_f(qmin)} \\text{{ kPa}} \\]'
 
-    bearingOK = qmax <= q_bearing
-    r += f'<p><strong>Bearing check:</strong> q<sub>max</sub> = {qmax_display} kPa '
-    r += '\u2264' if bearingOK else '>'
-    r += f' q<sub>all</sub> = {_f(q_bearing)} kPa \u2192 '
-    r += f'<span style="color:{"#27ae60" if bearingOK else "#e74c3c"};font-weight:bold">{"PASS" if bearingOK else "FAIL"}</span></p>'
+    do_bearing_check = q_bearing > 0
+    if do_bearing_check:
+        bearingOK = qmax <= q_bearing
+        r += f'<p><strong>Bearing check:</strong> q<sub>max</sub> = {qmax_display} kPa '
+        r += '\u2264' if bearingOK else '>'
+        r += f' q<sub>all</sub> = {_f(q_bearing)} kPa \u2192 '
+        r += f'<span style="color:{"#27ae60" if bearingOK else "#e74c3c"};font-weight:bold">{"PASS" if bearingOK else "FAIL"}</span></p>'
+    else:
+        bearingOK = True
+        r += '<p><strong>Bearing check:</strong> <em>skipped &mdash; q<sub>all</sub> not provided</em></p>'
 
     # Summary table
     summary = [
@@ -151,15 +156,16 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             'req': 'e \u2264 B/6',
             'pass': e_abs <= b_base / 6 + 0.001,
         },
-        {
+    ]
+    if do_bearing_check:
+        summary.append({
             'name': 'Bearing Pressure',
             'driving': qmax_display + ' kPa',
             'resisting': _f(q_bearing) + ' kPa',
             'fs': _f(q_bearing / (qmax if qmax else 1)),
             'req': 'q_max \u2264 q_all',
             'pass': bearingOK,
-        },
-    ]
+        })
     allPass = all(s['pass'] for s in summary)
 
     # Wall plot data

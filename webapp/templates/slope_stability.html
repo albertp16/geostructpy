@@ -33,7 +33,19 @@
         <h2>Slope Stability Parameters (Midas GTS NX Input)</h2>
         <p style="color:var(--muted);font-size:0.9em;">
             Enter soil layer properties from borehole data. Computes derived parameters for Midas GTS NX
-            Mohr-Coulomb material model: General, Porous, and Non-Linear tabs.
+            Mohr-Coulomb material model: General, Porous, and Non-Linear tabs (Mohr 1900; Coulomb 1776;
+            Midas IT 2023 GTS NX User Manual).
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:6px 0 12px;font-size:0.82em;color:#7a5a00;">
+            <strong>QA notes on the column inputs (hover the
+            <span class="qa-note" style="cursor:default" data-note="info icons next to each label">i</span>
+            icons in the table headers below):</strong>
+            <br>&bull; <strong>c (cohesion):</strong> Provide a value only if a UCS / unconsolidated-undrained triaxial result is available. Otherwise leave 0 and let the SPT correlation drive c (Polish PN-59/B-03020) &mdash; do not enter empirical values for cohesionless soils.
+            <br>&bull; <strong>&gamma;<sub>sat</sub>:</strong> Derived as (G<sub>s</sub> + e)/(1 + e) &middot; &gamma;<sub>w</sub> with e = G<sub>s</sub>&middot;w (saturated state). If your moisture content is field-not-saturated, &gamma;<sub>sat</sub> in the report is theoretical, not measured.
+            <br>&bull; <strong>Porous tab (k<sub>x</sub>, k<sub>y</sub>, k<sub>z</sub>):</strong> Currently set to a constant 1&times;10<sup>&minus;5</sup> m/s default. Replace with project-specific permeability from falling-head / pumping tests when available.
+            <br>&bull; <strong>Dilatancy &psi; = max(&phi; &minus; 30&deg;, 0):</strong> Bolton (1986) empirical relation &mdash; valid only for medium-dense to dense sands. For clays / loose sands set &psi; = 0.
+            <br>&bull; <strong>Tensile strength:</strong> Set to 0 (soil cannot sustain tension; tension cut-off in Mohr-Coulomb).
+            <br>&bull; <strong>Interface reduction R<sub>inter</sub>:</strong> Not auto-computed &mdash; for soil-structure interaction in Midas GTS NX use R<sub>inter</sub> = 0.6&ndash;0.8 for sand/concrete, 0.5 for clay/concrete (Plaxis Material Models Manual).
         </p>
 
         <!-- Import from Borehole JSON -->
@@ -155,6 +167,23 @@
         </div>
     </div>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 2 &mdash; Geotechnical Properties of Soil</strong>: weight&ndash;volume relationships, shear strength parameters; <strong>Ch. 3 &mdash; Subsoil Exploration</strong>: &sect;3.15 Split-spoon and SPT, &sect;3.21 CPT, &sect;3.27 Boring logs.</li>
+            <li>Coulomb, C.A. (1776). Essai sur une application des r&egrave;gles de maximis et minimis &agrave; quelques probl&egrave;mes de statique. <em>M&eacute;m. Acad. Roy. Sci.</em></li>
+            <li>Mohr, O. (1900). Welche Umst&auml;nde bedingen die Elastizit&auml;tsgrenze und den Bruch eines Materials? <em>Zeitschrift VDI</em>, 44.</li>
+            <li>PN-59/B-03020 (1959). <em>Posadowienie bezpo&sacute;rednie budowli &mdash; Obliczenia statyczne i projektowe</em> (Polish Code &mdash; soil parameters from SPT-N tables).</li>
+            <li>Bolton, M.D. (1986). The strength and dilatancy of sands. <em>G&eacute;otechnique</em>, 36(1), 65&ndash;78. <em>(Source of &psi; &asymp; &phi; &minus; 30&deg; for dense sands.)</em></li>
+            <li>Jaky, J. (1944). The coefficient of earth pressure at rest. <em>J. Soc. Hungarian Architects and Engineers</em>, 78(22), 355&ndash;358. <em>(K<sub>0</sub> = 1 &minus; sin&phi;.)</em></li>
+            <li>Schmertmann, J.H. (1970). Static cone to compute static settlement over sand. <em>J. Soil Mech. Found. Div.</em>, ASCE, 96(SM3). <em>(E<sub>s</sub> &asymp; 500(N<sub>60</sub>+15) kPa.)</em></li>
+            <li>Midas IT (2023). <em>Midas GTS NX User Manual &mdash; Material Models: General, Porous, Non-Linear (Mohr-Coulomb)</em>.</li>
+            <li>Plaxis (Bentley Systems, 2023). <em>PLAXIS Material Models Manual &mdash; Interface Reduction Factor R<sub>inter</sub></em>.</li>
+            <li>ASTM D2166 / D2166M-16. <em>Standard Test Method for Unconfined Compressive Strength of Cohesive Soil</em>.</li>
+            <li>ASTM D1586 / D1586M-18. <em>Standard Test Method for Standard Penetration Test (SPT) and Split-Barrel Sampling of Soils</em>.</li>
+        </ol>
+    </div>
 </div>
 
 <script>

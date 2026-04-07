@@ -7,17 +7,28 @@
         <h2>Cantilever Retaining Wall Stability Analysis</h2>
         <p style="color:var(--muted);font-size:0.9em;">
             Stability checks for cantilever retaining walls: sliding, overturning, eccentricity, and bearing pressure.
-            Aligned with ACI SP-17 Chapter 2 methodology.
+            Aligned with ACI SP-17 Ch. 2 and Rankine active-pressure theory
+            (Das &amp; Sivakugan 2019, &sect;16.3 &amp; &sect;17.4&ndash;17.7; Bowles 1996, Ch. 12).
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0 0 12px;font-size:0.82em;color:#7a5a00;">
+            <strong>Modeling assumptions (current build):</strong> Backfill is on the heel side only; toe side is bare
+            (no passive resistance credited); soil is dry/moist with hydrostatic pressure ignored; surcharge is taken
+            as a uniform strip load on the full heel width; active (Rankine) earth pressure with vertical wall back
+            and horizontal backfill (&alpha; = 0). Verify these match the site condition before using results.
         </p>
         <div class="form-row">
             <div>
                 <h3>Wall Geometry</h3>
                 <div class="form-group">
-                    <label>Height Above Ground, h<sub>1</sub> (m)</label>
+                    <label>Height Above Ground, h<sub>1</sub> (m)
+                        <span class="qa-note" tabindex="0" data-note="Exposed stem above grade on the heel (backfill) side. See diagram below — H = h1 + h2 is the total wall height used in Pa = ½KaγH²."></span>
+                    </label>
                     <input type="number" step="0.1" name="h1" value="{{ params.h1 }}">
                 </div>
                 <div class="form-group">
-                    <label>Height Below Ground, h<sub>2</sub> (m)</label>
+                    <label>Height Below Ground, h<sub>2</sub> (m)
+                        <span class="qa-note" tabindex="0" data-note="Embedded depth from grade to top of base slab. Passive resistance from soil in front of the toe is conservatively neglected per ACI SP-17 Ch. 2 guidance."></span>
+                    </label>
                     <input type="number" step="0.1" name="h2" value="{{ params.h2 }}">
                 </div>
                 <div class="form-group">
@@ -33,34 +44,48 @@
                     <input type="number" step="0.01" name="b_base" value="{{ params.b_base }}">
                 </div>
                 <div class="form-group">
-                    <label>Heel Width, b<sub>heel</sub> (m)</label>
+                    <label>Heel Width, b<sub>heel</sub> (m)
+                        <span class="qa-note" tabindex="0" data-note="Plan width of the heel measured from the back face of the stem. Toe width = b_base − t_stem − b_heel. See wall diagram for the H₁/H₂/toe/heel/shear-key convention used by the calculator."></span>
+                    </label>
                     <input type="number" step="0.01" name="b_heel" value="{{ params.b_heel }}">
                 </div>
             </div>
             <div>
                 <h3>Soil &amp; Material Properties</h3>
                 <div class="form-group">
-                    <label>Soil Unit Weight, &gamma;<sub>s</sub> (kN/m&sup3;)</label>
+                    <label>Soil Unit Weight, &gamma;<sub>s</sub> (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Use the appropriate value for the site condition: γm (moist, above water table), γd (dry, fully drained), or γ' = γsat − γw (effective, when groundwater is at or above the heel). The calculator does NOT add hydrostatic pressure — model water effects by switching to γ'. Ref: Das &amp; Sivakugan (2019, 9th SI), Ch. 2 §2.5–2.7 (weight–volume relationships)."></span>
+                    </label>
                     <input type="number" step="0.1" name="gamma_s" value="{{ params.gamma_s }}">
                 </div>
                 <div class="form-group">
-                    <label>Soil Friction Angle, &phi; (deg)</label>
+                    <label>Soil Friction Angle, &phi; (deg)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle from triaxial CD or direct shear (preferred), or correlated from SPT N60 (Peck-Hanson-Thornburn). Cohesion is conservatively ignored — only φ is used in the active Ka. Ref: Das &amp; Sivakugan (2019) §2.18–2.19, shear strength parameters."></span>
+                    </label>
                     <input type="number" step="0.1" name="phi" value="{{ params.phi }}">
                 </div>
                 <div class="form-group">
-                    <label>Soil-Concrete Friction Coefficient, &mu;</label>
+                    <label>Soil-Concrete Friction Coefficient, &mu;
+                        <span class="qa-note qa-right" tabindex="0" data-note="Base–soil interface friction. Typical: μ = tan(δ) where δ ≈ ⅔φ for cast-in-place concrete on coarse-grained soil. Ref: Das &amp; Sivakugan (2019) §17.6 Table 17.4 (sliding check); AASHTO LRFD §10.6.3.4; NAVFAC DM-7.02 Table 1."></span>
+                    </label>
                     <input type="number" step="0.01" name="mu" value="{{ params.mu }}">
                 </div>
                 <div class="form-group">
-                    <label>Allowable Soil Bearing, q<sub>all</sub> (kPa)</label>
-                    <input type="number" step="1" name="q_bearing" value="{{ params.q_bearing }}">
+                    <label>Allowable Soil Bearing, q<sub>all</sub> (kPa) <span style="color:var(--muted);font-weight:400;">&mdash; optional</span>
+                        <span class="qa-note qa-right" tabindex="0" data-note="Net allowable bearing pressure from the geotechnical report (qult / FS). Typically already includes a factor of safety of 3. Ref: Das &amp; Sivakugan (2019) §17.7. Leave 0 to skip the bearing-pressure check."></span>
+                    </label>
+                    <input type="number" step="1" min="0" name="q_bearing" value="{{ params.q_bearing }}">
                 </div>
                 <div class="form-group">
-                    <label>Concrete Unit Weight, &gamma;<sub>c</sub> (kN/m&sup3;)</label>
+                    <label>Concrete Unit Weight, &gamma;<sub>c</sub> (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Normal-weight reinforced concrete ≈ 23.6 kN/m³ per ACI 318-19 §19.2.4 / ASCE 7-22 Table C3.1-1a."></span>
+                    </label>
                     <input type="number" step="0.1" name="gamma_c" value="{{ params.gamma_c }}">
                 </div>
                 <div class="form-group">
-                    <label>Surcharge, q (kPa)</label>
+                    <label>Surcharge, q (kPa)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Uniform vertical strip load on the heel (extending full b_heel). For finite-strip / point / line / wheel loads use Boussinesq or Westergaard influence solutions. Ref: Das &amp; Sivakugan (2019) §16.8 (lateral pressure due to surcharge) and Ch. 8 §8.4–8.5 &amp; §8.12 (Westergaard) for the underlying stress-influence integrals."></span>
+                    </label>
                     <input type="number" step="0.1" name="q" value="{{ params.q }}">
                 </div>
             </div>
@@ -123,5 +148,19 @@
         Plotly.newPlot('pressure-plot', {{ results.pressure_traces|tojson }}, {{ results.pressure_layout|tojson }}, {responsive: true, displayModeBar: false});
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 8</strong> &mdash; Vertical Stress Increase in Soil (&sect;8.4&ndash;8.5 line/strip loads, &sect;8.12 Westergaard); <strong>Ch. 16</strong> &mdash; Lateral Earth Pressure (&sect;16.2 K<sub>0</sub>, &sect;16.3 Rankine active, &sect;16.7 Coulomb, &sect;16.8 surcharge); <strong>Ch. 17</strong> &mdash; Retaining Walls (&sect;17.4 stability, &sect;17.5 overturning, &sect;17.6 sliding, &sect;17.7 bearing-capacity check).</li>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <em>(Reference for general soil&ndash;structure interaction principles applicable to wall&ndash;soil contact pressures.)</em></li>
+            <li>ACI Committee 318 (2019). <em>Building Code Requirements for Structural Concrete (ACI 318-19)</em>. American Concrete Institute.</li>
+            <li>ACI Committee SP-17 (2014). <em>The Reinforced Concrete Design Handbook &mdash; Chapter 2: Cantilever Retaining Walls</em>. ACI.</li>
+            <li>Bowles, J.E. (1996). <em>Foundation Analysis and Design</em> (5th ed.), Chapters 11&ndash;12. McGraw-Hill.</li>
+            <li>Rankine, W.J.M. (1857). On the stability of loose earth. <em>Phil. Trans. Royal Society of London</em>, 147.</li>
+            <li>NAVFAC (1986). <em>Design Manual 7.02 &mdash; Foundations and Earth Structures</em>, Ch. 3 (Surcharge influence: Boussinesq/Westergaard solutions, Fig. 1).</li>
+            <li>AASHTO (2020). <em>LRFD Bridge Design Specifications</em>, &sect;10.6 &mdash; Spread footings (sliding, eccentricity, bearing pressure).</li>
+        </ol>
+    </div>
 </div>
 {% endblock %}

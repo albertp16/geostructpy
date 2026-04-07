@@ -35,16 +35,21 @@
             </div>
             <div>
                 <h3>Seismic Parameters</h3>
+                <p style="color:var(--muted);font-size:0.78em;margin:0 0 8px;">
+                    Enter k<sub>h</sub> and k<sub>v</sub> as the <strong>effective</strong> coefficients
+                    (i.e., the reduction factor &alpha; on PGA already applied: k<sub>h</sub> = &alpha;&middot;a<sub>max</sub>/g).
+                    Typical &alpha; = 0.5 per AASHTO &sect;11.6.5.2 / Seed &amp; Whitman 1970.
+                </p>
                 <div class="form-group">
-                    <label>Peak Ground Acceleration, PGA (g)</label>
-                    <input type="number" step="0.01" name="pga" value="{{ params.pga }}">
-                </div>
-                <div class="form-group">
-                    <label>Horizontal Seismic Coefficient, k<sub>h</sub></label>
+                    <label>Horizontal Seismic Coefficient, k<sub>h</sub>
+                        <span class="qa-note" tabindex="0" data-note="Effective horizontal pseudo-static coefficient. Example: PGA = 0.40 g and α = 0.5 → kh = 0.20. Ref: AASHTO §11.6.5.2; Das &amp; Sivakugan §16.9."></span>
+                    </label>
                     <input type="number" step="0.01" name="kh" value="{{ params.kh }}">
                 </div>
                 <div class="form-group">
-                    <label>Vertical Seismic Coefficient, k<sub>v</sub></label>
+                    <label>Vertical Seismic Coefficient, k<sub>v</sub>
+                        <span class="qa-note" tabindex="0" data-note="Often taken as 0 or ⅔·kh per AASHTO. Positive kv acts upward."></span>
+                    </label>
                     <input type="number" step="0.01" name="kv" value="{{ params.kv }}">
                 </div>
             </div>
@@ -71,5 +76,18 @@
         Plotly.newPlot('pressure-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 16 &mdash; Lateral Earth Pressure</strong>: &sect;16.5 Generalized case for Rankine seismic active earth pressure (granular backfill); <strong>&sect;16.9 Active earth pressure for earthquake conditions &mdash; granular backfill (M-O method)</strong>; &sect;16.10 Active earth pressure for earthquake condition (vertical backface and c'-&phi;' backfill); &sect;16.17 Passive force on walls with earthquake forces. <strong>Ch. 17</strong>: &sect;17.10 Gravity retaining-wall design for earthquake conditions.</li>
+            <li>Mononobe, N. &amp; Matsuo, H. (1929). On the determination of earth pressures during earthquakes. <em>Proc. World Engineering Conference</em>, Tokyo, 9, 177&ndash;185.</li>
+            <li>Okabe, S. (1926). General theory of earth pressures. <em>J. Japan Society of Civil Engineers</em>, 12(1).</li>
+            <li>Seed, H.B. &amp; Whitman, R.V. (1970). Design of earth retaining structures for dynamic loads. <em>ASCE Specialty Conf. on Lateral Stresses in the Ground and Design of Earth Retaining Structures</em>, 103&ndash;147.</li>
+            <li>Kramer, S.L. (1996). <em>Geotechnical Earthquake Engineering</em>, Ch. 11. Prentice Hall. <em>(Modern treatment of pseudo-static M-O method.)</em></li>
+            <li>AASHTO (2020). <em>LRFD Bridge Design Specifications</em>, &sect;11.6.5 &mdash; Seismic earth pressure on retaining walls.</li>
+            <li>Eurocode 8 Part 5 (EN 1998-5:2004). <em>Foundations, retaining structures and geotechnical aspects</em>, Annex E (M-O method).</li>
+        </ol>
+    </div>
 </div>
 {% endblock %}

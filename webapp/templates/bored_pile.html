@@ -16,7 +16,15 @@
         <h2>Bored Pile Design &mdash; Static Capacity</h2>
         <p style="color:var(--muted);font-size:0.9em;">
             Paste borehole log JSON data (from the Borehole Log Digitizer), set pile parameters,
-            and compute skin resistance (Beta/Alpha methods) and base resistance.
+            and compute skin resistance (Beta/Alpha methods) and base resistance per Reese &amp; O'Neill (1988)
+            and FHWA-NHI-10-016 <em>Drilled Shafts</em>.
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0;font-size:0.82em;color:#7a5a00;">
+            <strong>Scope note:</strong> The current build returns axial capacity only (skin friction +
+            base resistance). Transverse-shear capacity from spiral / horizontal ties (ACI 318-19 &sect;22.5
+            and &sect;25.7.3 for spirals) is not yet automated &mdash; perform this check manually if the pile is
+            subject to lateral or seismic shear demand. Lateral-load (p-y) analysis is also out of scope here;
+            use LPILE or FB-MultiPier for laterally loaded shafts.
         </p>
     </div>
 
@@ -41,22 +49,32 @@
             <h3 style="margin:0 0 8px;">Pile Properties</h3>
             <div class="param-row">
                 <div><label>Diameter, D (mm)</label><input type="number" name="D" value="{{ params.D }}" step="1"></div>
-                <div><label>Pile Length, L<sub>p</sub> (m)</label><input type="number" name="Lp" value="{{ params.Lp }}" step="0.1"></div>
+                <div><label>Pile Length, L<sub>p</sub> (m)
+                    <span class="qa-note" tabindex="0" data-note="Total embedded length below cut-off / cap soffit. Skin resistance is integrated over Lp using the borehole soil column."></span>
+                </label><input type="number" name="Lp" value="{{ params.Lp }}" step="0.1"></div>
             </div>
             <div class="param-row">
-                <div><label>Water Table, W<sub>t</sub> (m)</label><input type="number" name="Wt" value="{{ params.Wt }}" step="0.1"></div>
-                <div><label>Factor of Safety, FS</label><input type="number" name="FS" value="{{ params.FS }}" step="0.1"></div>
+                <div><label>Water Table, W<sub>t</sub> (m)
+                    <span class="qa-note" tabindex="0" data-note="Depth from grade. Effective overburden q'0 above Wt uses γm; below Wt uses γ' = γsat − γw (Reese &amp; O'Neill 1988)."></span>
+                </label><input type="number" name="Wt" value="{{ params.Wt }}" step="0.1"></div>
+                <div><label>Factor of Safety, FS
+                    <span class="qa-note" tabindex="0" data-note="Typical FS = 2.5–3.0 for service-load (working stress) design of bored piles per AASHTO LRFD §10.8.3 and FHWA-NHI-10-016."></span>
+                </label><input type="number" name="FS" value="{{ params.FS }}" step="0.1"></div>
             </div>
         </div>
 
         <div class="card">
             <h3 style="margin:0 0 8px;">Concrete Properties</h3>
             <div class="param-row">
-                <div><label>f'<sub>c</sub> (MPa)</label><input type="number" name="fc" value="{{ params.fc }}" step="0.01"></div>
+                <div><label>f'<sub>c</sub> (MPa)
+                    <span class="qa-note" tabindex="0" data-note="Specified 28-day compressive strength per ACI 318-19 §19.2.1. Bored piles with tremie placement: minimum f'c = 25 MPa is typical."></span>
+                </label><input type="number" name="fc" value="{{ params.fc }}" step="0.01"></div>
                 <div><label>&gamma;<sub>c</sub> (kN/m&sup3;)</label><input type="number" name="Yc" value="{{ params.Yc }}" step="0.1"></div>
             </div>
             <div class="param-row">
-                <div><label>Cover, C<sub>c</sub> (mm)</label><input type="number" name="Cc" value="{{ params.Cc }}" step="1"></div>
+                <div><label>Cover, C<sub>c</sub> (mm)
+                    <span class="qa-note" tabindex="0" data-note="ACI 318-19 §20.5.1.3.2: minimum 75 mm cover for cast-against-earth concrete (drilled shafts)."></span>
+                </label><input type="number" name="Cc" value="{{ params.Cc }}" step="1"></div>
                 <div></div>
             </div>
         </div>
@@ -64,7 +82,9 @@
         <div class="card">
             <h3 style="margin:0 0 8px;">Reinforcement</h3>
             <div class="param-row">
-                <div><label>F<sub>y</sub> (MPa)</label><input type="number" name="Fy" value="{{ params.Fy }}" step="0.01"></div>
+                <div><label>F<sub>y</sub> (MPa)
+                    <span class="qa-note" tabindex="0" data-note="Specified yield strength per ASTM A615 (Grade 60 ≈ 415 MPa, Grade 75 ≈ 520 MPa)."></span>
+                </label><input type="number" name="Fy" value="{{ params.Fy }}" step="0.01"></div>
                 <div><label>Bar Diameter, d<sub>b</sub> (mm)</label>
                     <select name="db">
                         {% for s in [10,12,16,20,25,28,32,36,40] %}
@@ -74,20 +94,39 @@
                 </div>
             </div>
             <div class="param-row">
-                <div><label>Number of Bars</label><input type="number" name="nbar" value="{{ params.nbar }}" step="1" min="1"></div>
+                <div><label>Number of Bars
+                    <span class="qa-note" tabindex="0" data-note="Minimum longitudinal steel ratio: ACI 318-19 §10.6.1.1 = 0.01 Ag for compression members; AASHTO §5.13.4 allows 0.008 Ag for drilled shafts."></span>
+                </label><input type="number" name="nbar" value="{{ params.nbar }}" step="1" min="1"></div>
                 <div></div>
             </div>
         </div>
 
-        <div class="card">
-            <h3 style="margin:0 0 8px;">Rock Properties (at Pile Tip)</h3>
-            <div class="param-row">
-                <div><label>Rock Type</label><input type="text" name="rock_type" value="{{ params.rock_type }}"></div>
-                <div><label>C<sub>o</sub> (kPa)</label><input type="number" name="Co" value="{{ params.Co }}" step="1"></div>
-            </div>
-            <div class="param-row">
-                <div><label>N<sub>ms</sub></label><input type="number" name="Nms" value="{{ params.Nms }}" step="0.01"></div>
-                <div><label>RQD Range</label><input type="text" name="RQD" value="{{ params.RQD }}"></div>
+        <div class="card" id="rock-card">
+            <h3 style="margin:0 0 8px;">
+                Rock Properties (at Pile Tip)
+                <label style="font-size:0.75em;font-weight:400;color:var(--muted);float:right;">
+                    <input type="checkbox" id="rock-toggle" checked
+                        onchange="document.getElementById('rock-fields').style.display = this.checked ? '' : 'none';">
+                    Tip socketed in rock
+                </label>
+            </h3>
+            <div id="rock-fields">
+                <div class="param-row">
+                    <div><label>Rock Type</label><input type="text" name="rock_type" value="{{ params.rock_type }}"></div>
+                    <div><label>C<sub>o</sub> (kPa)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Uniaxial compressive strength of intact rock (UCS / σc). Per ASTM D7012 / ISRM (1981) suggested method."></span>
+                    </label><input type="number" name="Co" value="{{ params.Co }}" step="1"></div>
+                </div>
+                <div class="param-row">
+                    <div><label>N<sub>ms</sub>
+                        <span class="qa-note" tabindex="0" data-note="Hoek-Brown rock-mass constant (m). Tabulated by rock type and quality &mdash; typical 0.05 (very poor) to 25 (intact strong rock). See Hoek &amp; Brown (1997) Fig. 1."></span>
+                    </label><input type="number" name="Nms" value="{{ params.Nms }}" step="0.01"></div>
+                    <div><label>RQD Range</label><input type="text" name="RQD" value="{{ params.RQD }}"></div>
+                </div>
+                <p style="font-size:0.78em;color:var(--muted);margin:6px 0 0;">
+                    Rock parameters are only used by the base-resistance computation when the tip layer is
+                    classified as rock in the borehole log. Uncheck to hide if your pile terminates in soil.
+                </p>
             </div>
         </div>
     </div>
@@ -147,6 +186,23 @@
     })();
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 12 &mdash; Pile Foundations</strong>: &sect;12.7 Load transfer mechanism; &sect;12.8 Equations for estimating pile capacity; &sect;12.13 Frictional resistance Q<sub>s</sub> in sand (&beta;-method); &sect;12.14 Skin resistance in clay (&alpha;-method); &sect;12.16 Point bearing on rock; &sect;12.23 Negative skin friction. <strong>Ch. 13 &mdash; Drilled-Shaft Foundations</strong>: &sect;13.5 Load transfer; &sect;13.6&ndash;13.10 Bearing capacity in granular soil and clay; &sect;13.13 Drilled shafts extending into rock.</li>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <em>The authoritative monograph on pile&ndash;soil interaction; chapters cover single-pile axial capacity, settlement (elastic theory), pile groups, negative skin friction, lateral loading, and dynamic effects.</em></li>
+            <li>Reese, L.C. &amp; O'Neill, M.W. (1988). <em>Drilled Shafts: Construction Procedures and Design Methods</em>. FHWA-HI-88-042. <em>(Source of &beta;-method for granular soils.)</em></li>
+            <li>Tomlinson, M.J. (1971). Some effects of pile driving on skin friction. <em>Proc. ICE Conf. on Behaviour of Piles</em>, London. <em>(&alpha;-method for cohesive soils.)</em></li>
+            <li>Burland, J.B. (1973). Shaft friction of piles in clay &mdash; a simple fundamental approach. <em>Ground Engineering</em>, 6(3), 30&ndash;42. <em>(Effective stress &beta;-method.)</em></li>
+            <li>FHWA (2010). <em>Drilled Shafts: Construction Procedures and LRFD Design Methods</em>, FHWA-NHI-10-016, Brown et al.</li>
+            <li>AASHTO (2020). <em>LRFD Bridge Design Specifications</em>, &sect;10.8 &mdash; Drilled shafts. &sect;5.13.4 &mdash; Reinforcing.</li>
+            <li>ACI Committee 318 (2019). <em>Building Code Requirements for Structural Concrete (ACI 318-19)</em>: &sect;10.6.1.1, &sect;19.2.1, &sect;20.5.1.3.2, &sect;22.5 (shear), &sect;25.7.3 (spirals).</li>
+            <li>Hoek, E. &amp; Brown, E.T. (1997). Practical estimates of rock mass strength. <em>Int. J. Rock Mech. &amp; Min. Sci.</em>, 34(8), 1165&ndash;1186.</li>
+            <li>ISRM (1981). <em>Rock Characterization, Testing and Monitoring &mdash; ISRM Suggested Methods</em>. Pergamon Press.</li>
+            <li>ASTM D7012-14. <em>Standard Test Methods for Compressive Strength and Elastic Moduli of Intact Rock Core Specimens</em>.</li>
+        </ol>
+    </div>
 </div>
 
 <script>

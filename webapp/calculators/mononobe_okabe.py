@@ -8,7 +8,7 @@ def _f(v, d=3):
     return f"{v:.{d}f}"
 
 
-def calculate(soil_weight, h_wall, alpha, phi, beta, delta, pga, kh, kv):
+def calculate(soil_weight, h_wall, alpha, phi, beta, delta, kh, kv):
     g = soil_weight
     H = h_wall
     a = alpha
@@ -18,9 +18,9 @@ def calculate(soil_weight, h_wall, alpha, phi, beta, delta, pga, kh, kv):
 
     results = []
 
-    # Seismic coefficients
-    kh_val = kh * pga
-    kv_val = kv * pga
+    # Effective seismic coefficients (already include any reduction factor on PGA)
+    kh_val = kh
+    kv_val = kv
     results.append(
         f"<h4>Seismic Parameters</h4>"
         f"\\[ k_h = {_f(kh_val)} \\quad k_v = {_f(kv_val)} \\]"

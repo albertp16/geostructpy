@@ -77,5 +77,17 @@
         Plotly.newPlot('mey-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 6 &mdash; Shallow Foundations: Ultimate Bearing Capacity</strong>: &sect;6.6 The general bearing capacity equation (Meyerhof / Hansen / Vesic), Eq. 6.36; &sect;6.7 Other solutions for bearing capacity, shape, and depth factors. <strong>Ch. 7</strong>: &sect;7.10 Seismic bearing capacity in granular soil; &sect;7.11 Foundations on rock.</li>
+            <li>Meyerhof, G.G. (1963). Some recent research on the bearing capacity of foundations. <em>Canadian Geotechnical Journal</em>, 1(1), 16&ndash;26.</li>
+            <li>Hansen, J.B. (1970). A revised and extended formula for bearing capacity. <em>Bulletin No. 28</em>, Danish Geotechnical Institute. <em>(Source of depth factors.)</em></li>
+            <li>De Beer, E.E. (1970). Experimental determination of the shape factors and the bearing capacity factors of sand. <em>G&eacute;otechnique</em>, 20(4), 387&ndash;411. <em>(Source of shape factors.)</em></li>
+            <li>Vesic, A.S. (1973). Analysis of ultimate loads of shallow foundations. <em>J. Soil Mech. Found. Div.</em>, ASCE, 99(SM1), 45&ndash;73.</li>
+            <li>Das, B.M. &amp; Sivakugan, N. (2017). <em>Principles of Foundation Engineering</em> (9th ed.), Ch. 4. Cengage.</li>
+        </ol>
+    </div>
 </div>
 {% endblock %}
