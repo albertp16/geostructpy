@@ -66,9 +66,21 @@
                 <div class="form-group">
                     <label style="display:flex;align-items:center;gap:6px;">
                         <input type="checkbox" name="include_passive" value="1" {% if params.include_passive %}checked{% endif %}>
-                        Credit passive resistance from front soil
-                        <span class="qa-note" tabindex="0" data-note="Unchecked (default) = passive conservatively ignored per ACI SP-17 Ch. 2 guidance. Checked = Pp added to sliding (μW + Pp) and overturning (Mr + Mp) checks. Leave unchecked unless the front soil is reliably permanent and dense enough to mobilize passive pressure."></span>
+                        Credit passive resistance from front soil <em style="color:var(--muted);font-weight:400;">(default ON)</em>
+                        <span class="qa-note" tabindex="0" data-note="Default ON: Pp is added to the sliding numerator (μW + Pp) and to the overturning resisting moment (Mr + Mp). Untick to switch to the conservative ACI SP-17 Ch. 2 ignore-passive analysis (recommended only when the front cover is uncertain or temporary)."></span>
                     </label>
+                </div>
+                <div class="form-group">
+                    <label>Toe-Corner Cut Distance, x<sub>cut</sub> (m)
+                        <span class="qa-note" tabindex="0" data-note="Horizontal extent of the right-triangular chamfer at the front-top corner of the toe slab. Set to 0 for no cut. The cut is clamped so it cannot exceed the toe width or the base thickness."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0" name="x_cut" value="{{ params.x_cut }}">
+                </div>
+                <div class="form-group">
+                    <label>Toe-Corner Cut Angle, &theta;<sub>cut</sub> (deg)
+                        <span class="qa-note" tabindex="0" data-note="Angle of the chamfer face from horizontal (default 45°). Vertical drop of the cut on the front face = x_cut · tan(θ_cut)."></span>
+                    </label>
+                    <input type="number" step="1" min="1" max="89" name="angle_cut" value="{{ params.angle_cut }}">
                 </div>
             </div>
             <div>
@@ -77,19 +89,19 @@
                     <label>Soil Unit Weight, &gamma;<sub>s</sub> (kN/m&sup3;)
                         <span class="qa-note qa-right" tabindex="0" data-note="Use the appropriate value for the site condition: γm (moist, above water table), γd (dry, fully drained), or γ' = γsat − γw (effective, when groundwater is at or above the heel). The calculator does NOT add hydrostatic pressure — model water effects by switching to γ'. Ref: Das &amp; Sivakugan (2019, 9th SI), Ch. 2 §2.5–2.7 (weight–volume relationships)."></span>
                     </label>
-                    <input type="number" step="0.1" name="gamma_s" value="{{ params.gamma_s }}">
+                    <input type="number" step="0.1" min="0" name="gamma_s" value="{{ params.gamma_s }}">
                 </div>
                 <div class="form-group">
                     <label>Soil Friction Angle, &phi; (deg)
                         <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle from triaxial CD or direct shear (preferred), or correlated from SPT N60 (Peck-Hanson-Thornburn). Cohesion is conservatively ignored — only φ is used in the active Ka. Ref: Das &amp; Sivakugan (2019) §2.18–2.19, shear strength parameters."></span>
                     </label>
-                    <input type="number" step="0.1" name="phi" value="{{ params.phi }}">
+                    <input type="number" step="0.1" min="0" name="phi" value="{{ params.phi }}">
                 </div>
                 <div class="form-group">
                     <label>Soil-Concrete Friction Coefficient, &mu;
                         <span class="qa-note qa-right" tabindex="0" data-note="Base–soil interface friction. Typical: μ = tan(δ) where δ ≈ ⅔φ for cast-in-place concrete on coarse-grained soil. Ref: Das &amp; Sivakugan (2019) §17.6 Table 17.4 (sliding check); AASHTO LRFD §10.6.3.4; NAVFAC DM-7.02 Table 1."></span>
                     </label>
-                    <input type="number" step="0.01" name="mu" value="{{ params.mu }}">
+                    <input type="number" step="0.01" min="0" name="mu" value="{{ params.mu }}">
                 </div>
                 <div class="form-group">
                     <label>Allowable Soil Bearing, q<sub>all</sub> (kPa) <span style="color:var(--muted);font-weight:400;">&mdash; optional</span>
@@ -101,13 +113,36 @@
                     <label>Concrete Unit Weight, &gamma;<sub>c</sub> (kN/m&sup3;)
                         <span class="qa-note qa-right" tabindex="0" data-note="Normal-weight reinforced concrete ≈ 23.6 kN/m³ per ACI 318-19 §19.2.4 / ASCE 7-22 Table C3.1-1a."></span>
                     </label>
-                    <input type="number" step="0.1" name="gamma_c" value="{{ params.gamma_c }}">
+                    <input type="number" step="0.1" min="0" name="gamma_c" value="{{ params.gamma_c }}">
                 </div>
                 <div class="form-group">
-                    <label>Surcharge, q (kPa)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Uniform vertical strip load on the heel (extending full b_heel). For finite-strip / point / line / wheel loads use Boussinesq or Westergaard influence solutions. Ref: Das &amp; Sivakugan (2019) §16.8 (lateral pressure due to surcharge) and Ch. 8 §8.4–8.5 &amp; §8.12 (Westergaard) for the underlying stress-influence integrals."></span>
+                    <label>Surcharge, q (kPa) <span style="color:var(--muted);font-weight:400;">&mdash; positive only</span>
+                        <span class="qa-note qa-right" tabindex="0" data-note="Uniform vertical strip load on the heel (extending full b_heel). Only positive values are accepted (downward gravity load). For finite-strip / point / line / wheel loads use Boussinesq or Westergaard influence solutions. Ref: Das &amp; Sivakugan (2019) §16.8 (lateral pressure due to surcharge) and Ch. 8 §8.4–8.5 &amp; §8.12 (Westergaard)."></span>
                     </label>
-                    <input type="number" step="0.1" name="q" value="{{ params.q }}">
+                    <input type="number" step="0.1" min="0" name="q" value="{{ params.q }}">
+                </div>
+                <h3 style="margin-top:14px;">Top-of-Toe Applied Loads (mid-toe)</h3>
+                <p style="color:var(--muted);font-size:0.78em;margin:0 0 6px;">
+                    Optional point loads at the centerline of the toe-slab top, all positive.
+                    H is in the active direction; V is downward; M is in the overturning sense.
+                </p>
+                <div class="form-group">
+                    <label>H<sub>top</sub> &mdash; horizontal force (kN/m)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Horizontal force at (b_toe/2, top of base) in the same direction as the active pressure. Adds to Pa_total (sliding driving) and to Mo with lever arm = t_base."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="H_top" value="{{ params.H_top }}">
+                </div>
+                <div class="form-group">
+                    <label>V<sub>top</sub> &mdash; vertical force (kN/m)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Vertical downward force at (b_toe/2, top of base). Adds to Wt and to Mr with lever arm = b_toe/2."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="V_top" value="{{ params.V_top }}">
+                </div>
+                <div class="form-group">
+                    <label>M<sub>top</sub> &mdash; applied moment (kN&middot;m/m)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Applied moment at the toe-top mid-point in the same sense as the active overturning moment. Adds directly to Mo."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="M_top" value="{{ params.M_top }}">
                 </div>
             </div>
         </div>

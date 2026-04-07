@@ -121,7 +121,9 @@ def stability_view():
     defaults = dict(
         h1=1.0, h2=1.0, t_stem=0.20, t_base=0.30, b_base=1.00, b_heel=0.80,
         gamma_s=18, phi=35.2, mu=0.35, q_bearing=125, gamma_c=23.56, q=0,
-        y_front=0.0, include_passive=False, b_toe=0.0,
+        y_front=0.0, include_passive=True, b_toe=0.0,
+        x_cut=0.0, angle_cut=45.0,
+        H_top=0.0, V_top=0.0, M_top=0.0,
     )
     results = None
     params = defaults
@@ -133,15 +135,20 @@ def stability_view():
             t_base=_float('t_base', 0.30),
             b_base=_float('b_base', 1.00),
             b_heel=_float('b_heel', 0.80),
-            gamma_s=_float('gamma_s', 18),
-            phi=_float('phi', 35.2),
-            mu=_float('mu', 0.35),
-            q_bearing=_float('q_bearing', 125),
-            gamma_c=_float('gamma_c', 23.56),
-            q=_float('q', 0),
-            y_front=_float('y_front', 0.0),
+            gamma_s=max(_float('gamma_s', 18), 0),
+            phi=max(_float('phi', 35.2), 0),
+            mu=max(_float('mu', 0.35), 0),
+            q_bearing=max(_float('q_bearing', 125), 0),
+            gamma_c=max(_float('gamma_c', 23.56), 0),
+            q=max(_float('q', 0), 0),
+            y_front=max(_float('y_front', 0.0), 0),
             include_passive=bool(request.form.get('include_passive')),
-            b_toe=_float('b_toe', 0.0),
+            b_toe=max(_float('b_toe', 0.0), 0),
+            x_cut=max(_float('x_cut', 0.0), 0),
+            angle_cut=max(_float('angle_cut', 45.0), 1),
+            H_top=max(_float('H_top', 0.0), 0),
+            V_top=max(_float('V_top', 0.0), 0),
+            M_top=max(_float('M_top', 0.0), 0),
         )
         results = stability.calculate(**params)
     return render_template("stability.html", params=params, results=results)

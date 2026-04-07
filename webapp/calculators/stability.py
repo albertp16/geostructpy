@@ -9,7 +9,9 @@ def _f(v, d=2):
 
 
 def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearing, gamma_c, q,
-              y_front=0.0, include_passive=False, b_toe=0.0):
+              y_front=0.0, include_passive=True, b_toe=0.0,
+              x_cut=0.0, angle_cut=45.0,
+              H_top=0.0, V_top=0.0, M_top=0.0):
     """Cantilever retaining-wall stability analysis.
 
     Geometry convention (per Das & Sivakugan 2019, 9th SI, §17.2 Proportioning
@@ -27,6 +29,26 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     b_toe + t_stem + b_heel. When b_toe == 0 (legacy default), the calculator
     derives b_toe = max(b_base - t_stem - b_heel, 0) so the existing form
     inputs continue to work without modification.
+
+    Optional features
+    -----------------
+    x_cut, angle_cut : float
+        Right-triangular chamfer at the front-top corner of the toe slab.
+        x_cut is the horizontal extent (m) of the cut along the toe top
+        and angle_cut is the angle of the cut face from horizontal (deg,
+        default 45). The vertical drop of the cut on the front face is
+        x_cut · tan(angle_cut). Both values are clamped so the cut
+        does not exceed the toe width or the base thickness.
+    H_top, V_top, M_top : float
+        External point loads applied at the middle of the top of the
+        toe slab, point of application = (b_toe/2, top of base):
+            H_top : horizontal force (kN/m), positive in the direction
+                    of the active pressure (toward the toe). Adds to
+                    Pa_total and to Mo (lever arm = t_base).
+            V_top : vertical force (kN/m), positive downward. Adds to
+                    Wt and to Mr (lever arm = b_toe/2).
+            M_top : applied moment (kN·m/m), positive in the same sense
+                    as the active overturning moment. Adds to Mo.
 
     Refs: Das & Sivakugan (2019) §17.2 (proportioning, p. 697), §17.4
     (stability checks, p. 699), §17.5-17.7 (overturning, sliding, bearing,
@@ -49,19 +71,47 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     x_stem_front = b_toe
     x_stem_back = b_toe + t_stem
 
+    # Resolve the toe-corner chamfer. x_cut and angle_cut define a right
+    # triangle removed from the front-top corner of the base slab:
+    #     vertices: (0, y_iface), (x_cut_eff, y_iface), (0, y_iface − cut_drop)
+    # where y_iface is the top of the base slab (y_iface = y_bot + t_base).
+    # Both x_cut and the vertical drop are clamped so the cut cannot
+    # exceed the toe width or the base thickness.
+    x_cut_eff = 0.0
+    cut_drop = 0.0
+    cut_area = 0.0
+    cut_centroid_x = 0.0
+    cut_centroid_y_offset = 0.0   # downward from y_iface
+    if x_cut > 0 and angle_cut > 0 and b_toe > 0:
+        x_cut_eff = min(x_cut, b_toe)
+        ang = min(max(angle_cut, 1.0), 89.0)
+        cut_drop = x_cut_eff * math.tan(ang * DEG)
+        if cut_drop > t_base:
+            cut_drop = t_base
+            x_cut_eff = cut_drop / math.tan(ang * DEG)
+        cut_area = 0.5 * x_cut_eff * cut_drop
+        # Right triangle with legs along (+x) on top and (−y) on left,
+        # right-angle vertex at (0, y_iface). Centroid: (x_leg/3, −y_leg/3).
+        cut_centroid_x = x_cut_eff / 3.0
+        cut_centroid_y_offset = cut_drop / 3.0
+
     # Vertical loads (restoring), moments taken about the toe at x = 0
     # P1 = stem self-weight; centroid at x = b_toe + t_stem/2 per the
     #      geometry convention above (Das §17.4 p. 699).
     P1 = gc * t_stem * (totalHeight - t_base)
-    # P2 = base slab self-weight; centroid at x = b_base/2.
-    P2 = gc * t_base * b_base
+    # P2 = base slab self-weight (full slab less the toe-corner chamfer).
+    P2_full = gc * t_base * b_base
+    P2_cut = gc * cut_area
+    P2 = P2_full - P2_cut
     # P3 = backfill weight ABOVE THE HEEL only (width = b_heel, not the entire
     #      base minus stem). When b_toe = 0 this reduces to the legacy
     #      formula (b_base - t_stem) so existing baselines are preserved.
     P3 = gs * (totalHeight - t_base) * b_heel
 
     m1 = P1 * (x_stem_front + t_stem / 2)
-    m2 = P2 * (b_base / 2)
+    m2_full = P2_full * (b_base / 2)
+    m2_cut = P2_cut * cut_centroid_x
+    m2 = m2_full - m2_cut
     m3 = P3 * (b_base - b_heel / 2)
 
     Wt = P1 + P2 + P3
@@ -89,16 +139,27 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         P_toe_soil = 0.0
         m_toe_soil = 0.0
 
+    # Top-of-toe applied loads. Point of application: (b_toe/2, y_iface).
+    #   V_top: vertical (positive down) -> Wt and Mr (lever arm = b_toe/2)
+    #   H_top: horizontal (positive in active direction) -> Pa_total and Mo
+    #          (lever arm = t_base, since the toe pivot is at the base bottom)
+    #   M_top: applied moment (positive overturning) -> Mo
+    if V_top > 0:
+        Wt += V_top
+        Mr += V_top * (b_toe / 2.0)
+    m_V_top = V_top * (b_toe / 2.0) if V_top > 0 else 0.0
+    m_H_top = H_top * t_base if H_top > 0 else 0.0  # added to Mo below
+
     # Lateral loads (active, back side)
     Ka = (1 - math.sin(phi * DEG)) / (1 + math.sin(phi * DEG))
     maxHP = Ka * gs * totalHeight
     Pa_soil = 0.5 * Ka * gs * totalHeight * totalHeight
     Pa_sur = q * Ka * totalHeight
-    Pa_total = Pa_soil + Pa_sur
+    Pa_total = Pa_soil + Pa_sur + (H_top if H_top > 0 else 0.0)
 
     Mo_soil = Pa_soil * (totalHeight / 3)
     Mo_sur = Pa_sur * (totalHeight / 2)
-    Mo = Mo_soil + Mo_sur
+    Mo = Mo_soil + Mo_sur + m_H_top + (M_top if M_top > 0 else 0.0)
 
     # Passive resistance from front (toe-side) soil per Rankine
     # Ref: Das & Sivakugan (2019, 9th SI) §16.11 Eq. 16.47, p. 676; §17.4 Stability checks, p. 699.
@@ -200,28 +261,100 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         r += f'\\[ P_p = \\tfrac{{1}}{{2}} K_p \\gamma_s y^2 = {_f(Pp_soil)} \\text{{ kN/m}} \\quad (\\text{{at }} y/3 = {_f(y_front/3)} \\text{{ m from base}}) \\]'
         if include_passive:
             r += (
-                f'<p><strong>Credited</strong> in sliding and overturning checks '
-                f'(M<sub>p</sub> = {_f(Mp_resist)} kN&middot;m/m added to restoring moment).</p>'
+                f'<p><strong style="color:#27ae60;">CREDITED</strong> in sliding and overturning '
+                f'checks (M<sub>p</sub> = {_f(Mp_resist)} kN&middot;m/m added to the restoring '
+                f'moment, P<sub>p</sub> added to &mu;W in the sliding numerator). This is the '
+                f'default behavior &mdash; untick the "Credit passive resistance" checkbox to '
+                f'switch to the conservative ACI SP-17 Ch.&nbsp;2 ignore-passive option.</p>'
             )
         else:
             r += (
                 '<p><em>Computed but NOT credited</em> in sliding / overturning '
-                '(checkbox unticked, per ACI SP-17 Ch.&nbsp;2 conservative guidance).</p>'
+                '(checkbox unticked &mdash; conservative analysis per ACI SP-17 Ch.&nbsp;2).</p>'
             )
     else:
         r += '<p><em>Front soil depth y = 0 &mdash; no passive resistance available.</em></p>'
 
+    # Toe-corner chamfer (cut)
+    if x_cut_eff > 0:
+        r += '<h4>Toe-Corner Chamfer (Cut)</h4>'
+        r += (
+            '<p style="font-size:0.85em;color:#6c757d;margin:0 0 6px;">'
+            'Right-triangular cut at the front-top corner of the toe slab. The removed '
+            'concrete weight and its moment about the toe pivot are subtracted from P2 '
+            'and m2 in the vertical-loads table below.</p>'
+        )
+        r += (
+            f'\\[ x_{{cut}} = {_f(x_cut_eff)} \\text{{ m}}, \\quad '
+            f'\\theta = {_f(angle_cut, 1)}^\\circ, \\quad '
+            f'\\Delta y = x_{{cut}} \\tan\\theta = {_f(cut_drop)} \\text{{ m}} \\]'
+        )
+        r += (
+            f'\\[ A_{{cut}} = \\tfrac{{1}}{{2}} x_{{cut}} \\Delta y = '
+            f'{_f(cut_area, 4)} \\text{{ m}}^2, \\quad '
+            f'\\Delta P_2 = \\gamma_c A_{{cut}} = {_f(P2_cut)} \\text{{ kN/m}} \\]'
+        )
+        r += (
+            f'\\[ \\Delta M_2 = \\Delta P_2 \\cdot \\bar{{x}}_{{cut}} = '
+            f'{_f(P2_cut)} \\times {_f(cut_centroid_x, 4)} = '
+            f'{_f(m2_cut)} \\text{{ kN}}\\cdot\\text{{m/m}} \\]'
+        )
+        if x_cut > x_cut_eff or cut_drop >= t_base:
+            r += (
+                '<p style="color:#b7791f;font-size:0.82em;"><em>Note: requested cut '
+                'was clamped to the available toe width / base thickness. Effective '
+                f'x_cut = {_f(x_cut_eff)} m, &Delta;y = {_f(cut_drop)} m.</em></p>'
+            )
+
+    # Top-of-toe applied loads (H, V, M at b_toe/2, top of base)
+    if H_top > 0 or V_top > 0 or M_top > 0:
+        r += '<h4>Applied Loads at Top of Toe (mid-toe)</h4>'
+        r += (
+            '<p style="font-size:0.85em;color:#6c757d;margin:0 0 6px;">'
+            'Point loads applied at the centerline of the toe slab top, '
+            f'(x = b<sub>toe</sub>/2 = {_f(b_toe/2)} m, y = top of base). '
+            'Conventions: H positive in the direction of the active pressure '
+            '(toward the toe), V positive downward, M positive in the same sense '
+            'as the active overturning moment.</p>'
+        )
+        r += '<table class="data-table" style="max-width:560px;margin:0 0 8px;">'
+        r += '<thead><tr><th>Load</th><th>Value</th><th>Lever arm</th><th>Contribution</th></tr></thead><tbody>'
+        if V_top > 0:
+            r += (
+                f'<tr><td>V (vertical, kN/m)</td><td>{_f(V_top)}</td>'
+                f'<td>b<sub>toe</sub>/2 = {_f(b_toe/2)} m</td>'
+                f'<td>+M<sub>R</sub> = {_f(m_V_top)} kN&middot;m/m, +W<sub>t</sub> = {_f(V_top)} kN/m</td></tr>'
+            )
+        if H_top > 0:
+            r += (
+                f'<tr><td>H (horizontal, kN/m)</td><td>{_f(H_top)}</td>'
+                f'<td>t<sub>base</sub> = {_f(t_base)} m</td>'
+                f'<td>+P<sub>a,total</sub> = {_f(H_top)} kN/m, +M<sub>o</sub> = {_f(m_H_top)} kN&middot;m/m</td></tr>'
+            )
+        if M_top > 0:
+            r += (
+                f'<tr><td>M (moment, kN&middot;m/m)</td><td>{_f(M_top)}</td>'
+                f'<td>&mdash;</td>'
+                f'<td>+M<sub>o</sub> = {_f(M_top)} kN&middot;m/m</td></tr>'
+            )
+        r += '</tbody></table>'
+
     r += '<h4>Vertical Loads &amp; Restoring Moment</h4>'
     r += '<table class="data-table"><thead><tr><th>Component</th><th>W (kN/m)</th><th>Arm (m)</th><th>M<sub>R</sub> (kN\u00b7m/m)</th></tr></thead><tbody>'
     parts = [
-        {'name': 'P1 \u2013 Stem', 'W': P1, 'x': t_stem / 2, 'M': m1},
+        {'name': 'P1 \u2013 Stem', 'W': P1, 'x': x_stem_front + t_stem / 2, 'M': m1},
         {'name': 'P2 \u2013 Base slab', 'W': P2, 'x': b_base / 2, 'M': m2},
         {'name': 'P3 \u2013 Backfill', 'W': P3, 'x': b_base - b_heel / 2, 'M': m3},
     ]
+    if x_cut_eff > 0:
+        # Negative entry to show the chamfer subtraction explicitly
+        parts.append({'name': '&minus; Toe-cut chamfer', 'W': -P2_cut, 'x': cut_centroid_x, 'M': -m2_cut})
     if q > 0:
         parts.append({'name': 'Surcharge', 'W': P_sur, 'x': b_base - b_heel / 2, 'M': m_sur})
     if P_toe_soil > 0:
         parts.append({'name': 'P4 \u2013 Toe-side soil', 'W': P_toe_soil, 'x': b_toe / 2, 'M': m_toe_soil})
+    if V_top > 0:
+        parts.append({'name': 'V \u2013 Top-of-toe load', 'W': V_top, 'x': b_toe / 2, 'M': m_V_top})
     for p in parts:
         r += f'<tr><td>{p["name"]}</td><td>{_f(p["W"])}</td><td>{_f(p["x"])}</td><td>{_f(p["M"])}</td></tr>'
     r += f'<tr style="font-weight:bold"><td>Total</td><td>{_f(Wt)}</td><td></td><td>{_f(Mr)}</td></tr>'
@@ -341,14 +474,16 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     span = totalHeight
 
     # Stem positioned with explicit toe in front (per Das §17.2 Fig. 17.4 convention).
-    # Outer wall outline traces: top -> stem outer -> base outer -> close.
+    # Outer wall outline traces: top -> stem outer -> base outer -> chamfer -> close.
+    # When x_cut_eff = 0 the chamfer vertices collapse to (0, y_iface) and the
+    # outline is identical to the no-cut polygon.
     wallX = [
         x_stem_front, x_stem_back, x_stem_back, b_base, b_base,
-        0, 0, x_stem_front, x_stem_front,
+        0, 0, x_cut_eff, x_stem_front, x_stem_front,
     ]
     wallY = [
         y_top, y_top, y_iface, y_iface, y_bot,
-        y_bot, y_iface, y_iface, y_top,
+        y_bot, y_iface - cut_drop, y_iface, y_iface, y_top,
     ]
 
     margin_val = 0.12 * b_base
@@ -403,12 +538,21 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         "fill": "toself", "fillcolor": "rgba(160,160,160,0.55)", "line": {"width": 0},
         "showlegend": False, "hoverinfo": "skip"
     })
-    # Concrete fill (base slab — full width including toe)
+    # Concrete fill (base slab — full width including toe, with chamfer cut)
+    base_x = [0, x_cut_eff, b_base, b_base, 0, 0]
+    base_y = [y_iface - cut_drop, y_iface, y_iface, y_bot, y_bot, y_iface - cut_drop]
     wall_traces.append({
-        "x": [0, b_base, b_base, 0], "y": [y_iface, y_iface, y_bot, y_bot],
+        "x": base_x, "y": base_y,
         "fill": "toself", "fillcolor": "rgba(160,160,160,0.55)", "line": {"width": 0},
         "showlegend": False, "hoverinfo": "skip"
     })
+    # Chamfer outline highlight (only visible if cut > 0)
+    if x_cut_eff > 0:
+        wall_traces.append({
+            "x": [x_cut_eff, 0], "y": [y_iface, y_iface - cut_drop],
+            "mode": "lines", "line": {"color": "#c0392b", "width": 2.5, "dash": "dash"},
+            "showlegend": False, "hoverinfo": "skip"
+        })
 
     # Active pressure triangle (right side of wall, behind the heel)
     triBaseW = 0.35 * span
@@ -531,6 +675,55 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             "font": {"size": 11, "color": dark},
         })
 
+    # Top-of-toe applied loads (H, V, M arrows at b_toe/2, top of base)
+    if (V_top > 0 or H_top > 0 or M_top > 0) and b_toe > 0:
+        x_load = b_toe / 2.0
+        y_load = y_iface
+        load_color = '#7b1fa2'   # purple, distinct from active green and surcharge orange
+        if V_top > 0:
+            # Vertical down arrow with tail above the load point
+            ann.append({
+                "x": x_load, "y": y_load,
+                "ax": x_load, "ay": y_load + 0.18 * span,
+                "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
+                "showarrow": True, "arrowhead": 2, "arrowsize": 1.3,
+                "arrowwidth": 2.5, "arrowcolor": load_color,
+            })
+            ann.append({
+                "x": x_load - 0.04 * b_base, "y": y_load + 0.21 * span,
+                "text": f"<b>V = {V_top:.1f}</b>", "showarrow": False,
+                "font": {"size": 11, "color": load_color}, "xanchor": "right",
+            })
+        if H_top > 0:
+            # Horizontal arrow toward the toe (negative x direction = leftward,
+            # same as active pressure direction)
+            ann.append({
+                "x": x_load - 0.18 * b_base, "y": y_load + 0.05 * span,
+                "ax": x_load + 0.05 * b_base, "ay": y_load + 0.05 * span,
+                "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
+                "showarrow": True, "arrowhead": 2, "arrowsize": 1.3,
+                "arrowwidth": 2.5, "arrowcolor": load_color,
+            })
+            ann.append({
+                "x": x_load - 0.20 * b_base, "y": y_load + 0.05 * span + 0.03 * span,
+                "text": f"<b>H = {H_top:.1f}</b>", "showarrow": False,
+                "font": {"size": 11, "color": load_color}, "xanchor": "right",
+            })
+        if M_top > 0:
+            # Curved-arrow proxy: a rotated arrow + "M = ..." label
+            ann.append({
+                "x": x_load + 0.05 * b_base, "y": y_load + 0.13 * span,
+                "ax": x_load - 0.05 * b_base, "ay": y_load + 0.13 * span,
+                "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
+                "showarrow": True, "arrowhead": 2, "arrowsize": 1.0,
+                "arrowwidth": 2, "arrowcolor": load_color,
+            })
+            ann.append({
+                "x": x_load, "y": y_load + 0.18 * span,
+                "text": f"<b>M = {M_top:.1f}</b>", "showarrow": False,
+                "font": {"size": 11, "color": load_color},
+            })
+
     # Surcharge load arrows on top of the heel + label
     if q > 0:
         n_sur_arrows = 5
@@ -611,7 +804,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             "arrowcolor": passive_color
         })
         pp_label = (
-            f"<b>Pp = {Pp_soil:.2f}</b>" if include_passive
+            f"<b>Pp = {Pp_soil:.2f}</b> (credited)" if include_passive
             else f"<b>Pp = {Pp_soil:.2f}</b> (not credited)"
         )
         ann.append({
