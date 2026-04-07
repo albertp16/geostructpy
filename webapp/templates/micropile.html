@@ -194,6 +194,20 @@
         Plotly.newPlot('interaction-plot', {{ results.chart_traces|tojson }}, {{ results.chart_layout|tojson }}, {responsive: true});
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <em>Source for laterally loaded single-pile analysis (Broms / characteristic load and moment methods) and elastic settlement of piles.</em></li>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 12</strong>: &sect;12.18 Elastic settlement of piles; &sect;12.19 Laterally loaded piles.</li>
+            <li>ACI Committee 318 (2019). <em>Building Code Requirements for Structural Concrete (ACI 318-19)</em>: Ch. 22 (sectional strength), &sect;22.5 (one-way shear), Ch. 10 (compression members).</li>
+            <li>ACI Committee 318 (2014). <em>ACI 318-14</em> &mdash; legacy reference for axial and flexural interaction.</li>
+            <li>NSCP (2015). <em>National Structural Code of the Philippines</em> (7th ed.), Ch. 4 &mdash; Structural concrete and lateral soil pressure.</li>
+            <li>AISC (2010). <em>Steel Construction Manual</em>, 14th ed. &mdash; Chapter E (compression) and Chapter D (tension), used for slenderness checks.</li>
+            <li>FHWA (2005). <em>Micropile Design and Construction Guidelines</em>, FHWA-NHI-05-039.</li>
+            <li>FHWA (2000). <em>Micropile Design and Construction Guidelines &mdash; Implementation Manual</em>, Bruce, D.A. &amp; Juran, I., FHWA-SA-97-070.</li>
+        </ol>
+    </div>
 </div>
 
 <script>

@@ -474,17 +474,104 @@
         <div class="section" id="references">
             <div class="card">
                 <h2>References</h2>
-                <ol style="line-height:2;">
-                    <li>Terzaghi, K. (1943). <em>Theoretical Soil Mechanics</em>. Wiley.</li>
-                    <li>Meyerhof, G.G. (1963). Some recent research on the bearing capacity of foundations. <em>Canadian Geotechnical Journal</em>, 1(1), 16-26.</li>
-                    <li>Das, B., Sivakugan, N. (2017). <em>Principles of Foundation Engineering</em> (9th ed.). Cengage.</li>
-                    <li>Poulos, H. (2017). <em>Tall Building Foundation Design</em>. CRC Press.</li>
-                    <li>Bowles, J.E. (1987). Elastic foundation settlements on sand deposits. <em>J. Geotech. Eng.</em>, ASCE.</li>
-                    <li>Vesic, A.S. (1973). Analysis of ultimate loads of shallow foundations. <em>J. Soil Mech. Found. Div.</em>, ASCE.</li>
-                    <li>Mononobe, N. &amp; Matsuo, H. (1929). On the determination of earth pressures during earthquakes.</li>
-                    <li>Okabe, S. (1926). General theory of earth pressures. <em>J. Japan Society of Civil Engineers</em>.</li>
-                    <li>Chao, G. (2019). CE75.05 Geotechnical Engineering Lecture Notes, AIT Thailand.</li>
-                    <li>ISRM (1981). Rock characterization, testing and monitoring &mdash; suggested methods.</li>
+                <p style="color:var(--muted);font-size:0.9em;">
+                    Consolidated bibliography for all GeoStructPy calculators. Each per-calculator page also has a
+                    focused references box at the bottom citing only the sources used by that module.
+                </p>
+
+                <h3>Primary Textbooks (used throughout)</h3>
+                <ol style="line-height:1.85;">
+                    <li><strong>Das, B.M. &amp; Sivakugan, N. (2019).</strong> <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <em>Provides chapter-by-chapter coverage of every shallow- and deep-foundation calculation in this app:</em>
+                        <ul style="margin:4px 0 4px 16px;font-size:0.92em;line-height:1.55;">
+                            <li>Ch. 2 &mdash; Geotechnical properties of soil (weight&ndash;volume, shear strength)</li>
+                            <li>Ch. 3 &mdash; Subsoil exploration, SPT (&sect;3.15), CPT (&sect;3.21), boring logs (&sect;3.27)</li>
+                            <li>Ch. 6 &mdash; Shallow foundations: ultimate bearing capacity (Terzaghi &sect;6.3, water table &sect;6.5, general equation &sect;6.6, eccentricity &sect;6.10&ndash;6.13)</li>
+                            <li>Ch. 7 &mdash; Special bearing-capacity cases incl. seismic (&sect;7.10), rock (&sect;7.11)</li>
+                            <li>Ch. 8 &mdash; Vertical stress increase (Boussinesq, Westergaard &sect;8.12)</li>
+                            <li>Ch. 11 &mdash; LRFD design philosophy</li>
+                            <li>Ch. 12 &mdash; Pile foundations (&beta; &sect;12.13, &alpha; &sect;12.14, rock tip &sect;12.16, lateral &sect;12.19, negative skin friction &sect;12.23)</li>
+                            <li>Ch. 13 &mdash; Drilled-shaft foundations (&sect;13.5&ndash;13.13)</li>
+                            <li>Ch. 14 &mdash; Piled rafts (Poulos&ndash;Davis&ndash;Randolph method &sect;14.3)</li>
+                            <li>Ch. 16 &mdash; Lateral earth pressure (Rankine &sect;16.3, Coulomb &sect;16.7, surcharge &sect;16.8, seismic M-O &sect;16.9)</li>
+                            <li>Ch. 17 &mdash; Retaining walls (stability &sect;17.4, overturning &sect;17.5, sliding &sect;17.6, bearing &sect;17.7)</li>
+                            <li>Ch. 18 &mdash; Sheet-pile walls and anchors (&sect;18.3 cantilever, &sect;18.9 anchored, &sect;18.18 deadman holding capacity)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Poulos, H.G. &amp; Davis, E.H. (1980).</strong> <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <em>The classic monograph on pile&ndash;soil interaction. Covers axial capacity of single piles, elastic-theory settlement, group effects, negative skin friction, lateral loading on single piles and groups, piled rafts, and dynamic effects. Used as the primary reference for the bored-pile and micropile modules.</em></li>
+                </ol>
+
+                <h3>Foundation Analysis &amp; Bearing Capacity</h3>
+                <ol style="line-height:1.85;">
+                    <li>Terzaghi, K. (1943). <em>Theoretical Soil Mechanics</em>. John Wiley &amp; Sons.</li>
+                    <li>Terzaghi, K. &amp; Peck, R.B. (1967). <em>Soil Mechanics in Engineering Practice</em> (2nd ed.). Wiley.</li>
+                    <li>Meyerhof, G.G. (1963). Some recent research on the bearing capacity of foundations. <em>Canadian Geotechnical Journal</em>, 1(1), 16&ndash;26.</li>
+                    <li>Hansen, J.B. (1970). A revised and extended formula for bearing capacity. <em>Bulletin No. 28</em>, Danish Geotechnical Institute.</li>
+                    <li>De Beer, E.E. (1970). Experimental determination of the shape factors and the bearing capacity factors of sand. <em>G&eacute;otechnique</em>, 20(4), 387&ndash;411.</li>
+                    <li>Vesic, A.S. (1973). Analysis of ultimate loads of shallow foundations. <em>J. Soil Mech. Found. Div.</em>, ASCE, 99(SM1), 45&ndash;73.</li>
+                    <li>Bowles, J.E. (1996). <em>Foundation Analysis and Design</em> (5th ed.). McGraw-Hill.</li>
+                    <li>Bowles, J.E. (1987). Elastic foundation settlements on sand deposits. <em>J. Geotech. Eng.</em>, ASCE, 113(8), 846&ndash;860.</li>
+                    <li>Das, B.M. &amp; Sivakugan, N. (2017). <em>Principles of Foundation Engineering</em> (9th ed.). Cengage.</li>
+                    <li>Poulos, H.G. (2017). <em>Tall Building Foundation Design</em>. CRC Press.</li>
+                </ol>
+
+                <h3>Earth Pressure &amp; Retaining Walls</h3>
+                <ol start="11" style="line-height:1.85;">
+                    <li>Coulomb, C.A. (1776). Essai sur une application des r&egrave;gles de maximis et minimis &agrave; quelques probl&egrave;mes de statique. <em>M&eacute;m. Acad. Roy. Sci.</em></li>
+                    <li>Rankine, W.J.M. (1857). On the stability of loose earth. <em>Phil. Trans. Royal Society of London</em>, 147.</li>
+                    <li>Jaky, J. (1944). The coefficient of earth pressure at rest. <em>J. Soc. Hungarian Architects and Engineers</em>, 78(22), 355&ndash;358.</li>
+                    <li>Mononobe, N. &amp; Matsuo, H. (1929). On the determination of earth pressures during earthquakes. <em>Proc. World Engineering Conference</em>, Tokyo, 9, 177&ndash;185.</li>
+                    <li>Okabe, S. (1926). General theory of earth pressures. <em>J. Japan Society of Civil Engineers</em>, 12(1).</li>
+                    <li>Seed, H.B. &amp; Whitman, R.V. (1970). Design of earth retaining structures for dynamic loads. <em>ASCE Specialty Conf. on Lateral Stresses in the Ground and Design of Earth Retaining Structures</em>, 103&ndash;147.</li>
+                    <li>Kramer, S.L. (1996). <em>Geotechnical Earthquake Engineering</em>. Prentice Hall.</li>
+                </ol>
+
+                <h3>Site Investigation &amp; Soil Parameters</h3>
+                <ol start="18" style="line-height:1.85;">
+                    <li>Skempton, A.W. (1986). Standard penetration test procedures and the effects in sands of overburden pressure, relative density, particle size, ageing and overconsolidation. <em>G&eacute;otechnique</em>, 36(3), 425&ndash;447.</li>
+                    <li>Stroud, M.A. (1974). The standard penetration test in insensitive clays and soft rocks. <em>Proc. Eur. Symp. Penetration Testing</em>, Stockholm, 2.2, 367&ndash;375.</li>
+                    <li>Schmertmann, J.H. (1970). Static cone to compute static settlement over sand. <em>J. Soil Mech. Found. Div.</em>, ASCE, 96(SM3), 1011&ndash;1043.</li>
+                    <li>Peck, R.B., Hanson, W.E. &amp; Thornburn, T.H. (1974). <em>Foundation Engineering</em> (2nd ed.). Wiley.</li>
+                    <li>Bolton, M.D. (1986). The strength and dilatancy of sands. <em>G&eacute;otechnique</em>, 36(1), 65&ndash;78.</li>
+                    <li>PN-59/B-03020 (1959). <em>Posadowienie bezpo&sacute;rednie budowli &mdash; Obliczenia statyczne i projektowe</em>. Polish Standard for SPT-derived soil parameters.</li>
+                </ol>
+
+                <h3>Constitutive Models &amp; Slope Stability</h3>
+                <ol start="24" style="line-height:1.85;">
+                    <li>Mohr, O. (1900). Welche Umst&auml;nde bedingen die Elastizit&auml;tsgrenze und den Bruch eines Materials? <em>Zeitschrift VDI</em>, 44.</li>
+                    <li>Hoek, E. &amp; Brown, E.T. (1997). Practical estimates of rock mass strength. <em>Int. J. Rock Mech. &amp; Min. Sci.</em>, 34(8), 1165&ndash;1186.</li>
+                    <li>Midas IT (2023). <em>Midas GTS NX User Manual &mdash; Material Models</em>. Midas Information Technology.</li>
+                    <li>Plaxis (Bentley Systems, 2023). <em>PLAXIS Material Models Manual</em> &mdash; Interface reduction factor R<sub>inter</sub>.</li>
+                </ol>
+
+                <h3>Pile Foundations</h3>
+                <ol start="28" style="line-height:1.85;">
+                    <li>Reese, L.C. &amp; O'Neill, M.W. (1988). <em>Drilled Shafts: Construction Procedures and Design Methods</em>. FHWA-HI-88-042.</li>
+                    <li>Tomlinson, M.J. (1971). Some effects of pile driving on skin friction. <em>Proc. ICE Conf. on Behaviour of Piles</em>, London.</li>
+                    <li>Burland, J.B. (1973). Shaft friction of piles in clay &mdash; a simple fundamental approach. <em>Ground Engineering</em>, 6(3), 30&ndash;42.</li>
+                    <li>FHWA (2010). <em>Drilled Shafts: Construction Procedures and LRFD Design Methods</em>, FHWA-NHI-10-016 (Brown, Turner &amp; Castelli).</li>
+                    <li>FHWA (2005). <em>Micropile Design and Construction Guidelines</em>, FHWA-NHI-05-039 (Sabatini et al.).</li>
+                    <li>Bruce, D.A. &amp; Juran, I. (2000). <em>Drilled and Grouted Micropiles &mdash; State-of-Practice Review</em>, FHWA-RD-96-016/019.</li>
+                </ol>
+
+                <h3>Codes &amp; Standards</h3>
+                <ol start="34" style="line-height:1.85;">
+                    <li>ACI Committee 318 (2019). <em>Building Code Requirements for Structural Concrete (ACI 318-19)</em>. American Concrete Institute.</li>
+                    <li>ACI Committee SP-17 (2014). <em>The Reinforced Concrete Design Handbook &mdash; Chapter 2: Cantilever Retaining Walls</em>. ACI.</li>
+                    <li>AASHTO (2020). <em>LRFD Bridge Design Specifications</em> (9th ed.).</li>
+                    <li>AISC (2010). <em>Steel Construction Manual</em>, 14th ed. American Institute of Steel Construction.</li>
+                    <li>NSCP (2015). <em>National Structural Code of the Philippines</em> (7th ed.). ASEP.</li>
+                    <li>Eurocode 7 (EN 1997-1:2004). <em>Geotechnical design &mdash; General rules</em>. CEN.</li>
+                    <li>Eurocode 8 Part 5 (EN 1998-5:2004). <em>Foundations, retaining structures and geotechnical aspects</em>. CEN.</li>
+                    <li>NAVFAC (1986). <em>Design Manual 7.02 &mdash; Foundations and Earth Structures</em>. Naval Facilities Engineering Command.</li>
+                    <li>ASTM D1586 / D1586M-18. <em>Standard Test Method for Standard Penetration Test (SPT) and Split-Barrel Sampling of Soils</em>.</li>
+                    <li>ASTM D2166 / D2166M-16. <em>Standard Test Method for Unconfined Compressive Strength of Cohesive Soil</em>.</li>
+                    <li>ASTM D7012-14. <em>Standard Test Methods for Compressive Strength and Elastic Moduli of Intact Rock Core Specimens</em>.</li>
+                    <li>ISRM (1981). <em>Rock Characterization, Testing and Monitoring &mdash; ISRM Suggested Methods</em>. Pergamon Press.</li>
+                </ol>
+
+                <h3>Lecture Notes</h3>
+                <ol start="46" style="line-height:1.85;">
+                    <li>Chao, G. (2019). <em>CE75.05 Geotechnical Engineering &mdash; Lecture Notes</em>. Asian Institute of Technology, Thailand.</li>
                 </ol>
             </div>
         </div>

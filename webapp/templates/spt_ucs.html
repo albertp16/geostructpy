@@ -19,8 +19,17 @@
         </p>
         <p style="color:var(--muted);font-size:0.85em;">
             <strong>Correlations used:</strong>
-            N<sub>60</sub> = N &times; (E<sub>r</sub>/60), where E<sub>r</sub> = 72% (safety hammer) &nbsp;|&nbsp;
+            N<sub>60</sub> = N &times; (E<sub>r</sub>/60), where E<sub>r</sub> = 72% (safety hammer)
+            <span class="qa-note" tabindex="0" data-note="Energy ratio correction per Skempton (1986) and ASTM D1586. Safety hammers in PH/SE Asia commonly deliver Er ≈ 70–75%; verify with the drilling contractor's hammer-energy report (ETR) when available."></span>
+            &nbsp;|&nbsp;
             UCS &asymp; 12.5 &times; N<sub>60</sub> (kPa)
+            <span class="qa-note" tabindex="0" data-note="Stroud (1974) cohesive-soil correlation: cu ≈ 4.5·N60 to 6.25·N60 kPa, so qu = 2cu ≈ 9·N60 to 12.5·N60. Used here as an upper-bound default. Always prefer a measured UCS or unconfined compression test result over correlation when available."></span>
+        </p>
+        <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0;font-size:0.82em;color:#7a5a00;">
+            <strong>QA rule:</strong> The chart panels show correlated UCS by default. If a measured UCS test result
+            is available for any sample, supply it via the Borehole Log Digitizer (the <code>ucs</code> field) and the
+            stronger measured value will take precedence over the SPT correlation in downstream calculators (bored
+            pile &alpha;-method, slope stability cohesion). Rely on correlations only when no laboratory UCS is provided.
         </p>
     </div>
 
@@ -98,6 +107,20 @@
         Plotly.newPlot('chart-ucs', charts.ucs.traces, Object.assign({}, charts.ucs.layout, compactLayout), {responsive: true});
     </script>
     {% endif %}
+
+    <div class="ref-box">
+        <h4>References &amp; Methodology</h4>
+        <ol>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 3 &mdash; Natural Soil Deposits and Subsoil Exploration</strong>: &sect;3.13 Exploratory borings; <strong>&sect;3.15 Split-spoon sampling and the standard penetration test</strong> (energy correction, N<sub>60</sub>, overburden correction); &sect;3.21 Cone penetration test; &sect;3.27 Preparation of boring logs.</li>
+            <li>ASTM D1586 / D1586M-18. <em>Standard Test Method for Standard Penetration Test (SPT) and Split-Barrel Sampling of Soils</em>.</li>
+            <li>ASTM D2166 / D2166M-16. <em>Standard Test Method for Unconfined Compressive Strength of Cohesive Soil</em>.</li>
+            <li>Skempton, A.W. (1986). Standard penetration test procedures and the effects in sands of overburden pressure, relative density, particle size, ageing and overconsolidation. <em>G&eacute;otechnique</em>, 36(3), 425&ndash;447.</li>
+            <li>Stroud, M.A. (1974). The standard penetration test in insensitive clays and soft rocks. <em>Proc. Eur. Symp. Penetration Testing</em>, Stockholm, 2.2, 367&ndash;375.</li>
+            <li>Terzaghi, K. &amp; Peck, R.B. (1967). <em>Soil Mechanics in Engineering Practice</em> (2nd ed.) &mdash; consistency-N table for clays. Wiley.</li>
+            <li>Schmertmann, J.H. (1970). Static cone to compute static settlement over sand. <em>J. Soil Mech. Found. Div.</em>, ASCE, 96(SM3).</li>
+            <li>Peck, R.B., Hanson, W.E. &amp; Thornburn, T.H. (1974). <em>Foundation Engineering</em> (2nd ed.) &mdash; SPT-&phi; correlation for sands.</li>
+        </ol>
+    </div>
 </div>
 
 <script>

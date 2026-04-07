@@ -76,7 +76,7 @@ def meyerhof_view():
 def mononobe_okabe_view():
     defaults = dict(
         soil_weight=7.2, h_wall=1.35, alpha=0, phi=40,
-        beta=90, delta=20, pga=0.60, kh=0.50, kv=0.0,
+        beta=90, delta=20, kh=0.30, kv=0.0,
     )
     results = None
     params = defaults
@@ -88,8 +88,7 @@ def mononobe_okabe_view():
             phi=_float('phi', 40),
             beta=_float('beta', 90),
             delta=_float('delta', 20),
-            pga=_float('pga', 0.60),
-            kh=_float('kh', 0.50),
+            kh=_float('kh', 0.30),
             kv=_float('kv', 0.0),
         )
         results = mononobe_okabe.calculate(**params)
