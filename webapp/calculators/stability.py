@@ -12,7 +12,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
               y_front=0.0, include_passive=True, b_toe=0.0,
               x_cut=0.0, angle_cut=45.0,
               H_top=0.0, V_top=0.0, M_top=0.0,
-              x_load=-1.0):
+              x_load=-1.0, abs_fs=True):
     """Cantilever retaining-wall stability analysis.
 
     Geometry convention (per Das & Sivakugan 2019, 9th SI, §17.2 Proportioning
@@ -62,6 +62,14 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         (y = t_base above base bottom), so the lever arm for H_top is
         the fixed base thickness t_base. The lever arm for V_top is
         x_load measured from the toe pivot at x = 0.
+    abs_fs : bool
+        Default True. When True, the Design Summary table shows the
+        absolute value of every numeric column (driving, resisting,
+        FS) and the pass/fail check uses |FS| ≥ required. This keeps
+        the table free of negative numbers when reversed loads (e.g.
+        a negative H_top that resists sliding) flip the sign of
+        Pa_total or Mr. Set to False to see the raw signed values for
+        diagnostic / sign-tracing work.
 
     Refs: Das & Sivakugan (2019) §17.2 (proportioning, p. 697), §17.4
     (stability checks, p. 699), §17.5-17.7 (overturning, sliding, bearing,
@@ -470,32 +478,44 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
 
     # Summary table — values here are rendered by Jinja without |safe,
     # so use plain Unicode (no HTML entities, no <sub> tags).
+    #
+    # When abs_fs is True (default) every numeric column shows the
+    # absolute value and the pass/fail check uses |FS| ≥ required.
+    # This keeps the table free of negative numbers when reversed loads
+    # (e.g. very large negative H_top) flip the sign of Pa_total or Mr.
+    def _disp(val):
+        return abs(val) if abs_fs else val
+
+    _slide_num = _disp(mu * Wt + Pp_soil) if (include_passive and y_front > 0) else _disp(mu * Wt)
+    _over_num  = _disp(Mr + Mp_resist) if (include_passive and y_front > 0) else _disp(Mr)
     _slide_resisting = (
-        f'{_f(mu * Wt + Pp_soil)} kN/m (incl. Pp)'
+        f'{_f(_slide_num)} kN/m (incl. Pp)'
         if include_passive and y_front > 0
-        else f'{_f(mu * Wt)} kN/m'
+        else f'{_f(_slide_num)} kN/m'
     )
     _over_resisting = (
-        f'{_f(Mr + Mp_resist)} kN\u00b7m/m (incl. Mp)'
+        f'{_f(_over_num)} kN\u00b7m/m (incl. Mp)'
         if include_passive and y_front > 0
-        else f'{_f(Mr)} kN\u00b7m/m'
+        else f'{_f(_over_num)} kN\u00b7m/m'
     )
+    FS_slide_disp = abs(FS_slide) if abs_fs else FS_slide
+    FS_over_disp  = abs(FS_over)  if abs_fs else FS_over
     summary = [
         {
             'name': 'Sliding',
-            'driving': _f(Pa_total) + ' kN/m',
+            'driving': _f(_disp(Pa_total)) + ' kN/m',
             'resisting': _slide_resisting,
-            'fs': _f(FS_slide),
+            'fs': _f(FS_slide_disp),
             'req': '\u2265 1.5',
-            'pass': FS_slide >= 1.5,
+            'pass': FS_slide_disp >= 1.5,
         },
         {
             'name': 'Overturning',
-            'driving': _f(Mo) + ' kN\u00b7m/m',
+            'driving': _f(_disp(Mo)) + ' kN\u00b7m/m',
             'resisting': _over_resisting,
-            'fs': _f(FS_over),
+            'fs': _f(FS_over_disp),
             'req': '\u2265 2.0',
-            'pass': FS_over >= 2.0,
+            'pass': FS_over_disp >= 2.0,
         },
         {
             'name': 'Eccentricity',
