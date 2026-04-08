@@ -371,19 +371,19 @@ def _build_cross_section(H, g, ka, kae, alpha, beta, theta, Pa_static, Pa_seismi
     # α (slope) near top of backfill
     ann.append({
         "x": x_back_top + 0.35 * bf_len, "y": H + 0.12 * H,
-        "text": f"&alpha; = {alpha:.1f}&deg;", "showarrow": False,
+        "text": f"\u03b1 = {alpha:.1f}\u00b0", "showarrow": False,
         "font": {"size": 11, "color": "#555"},
     })
     # β (wall back angle) near wall top
     ann.append({
         "x": x_back_top + 0.01 * H, "y": H * 0.08,
-        "text": f"&beta; = {beta:.1f}&deg;", "showarrow": False,
+        "text": f"\u03b2 = {beta:.1f}\u00b0", "showarrow": False,
         "font": {"size": 11, "color": "#555"}, "xanchor": "left",
     })
     # θ (seismic inclination)
     ann.append({
         "x": x_front_top + 0.08 * H, "y": H * 0.92,
-        "text": f"&theta; = {theta:.2f}&deg;", "showarrow": False,
+        "text": f"\u03b8 = {theta:.2f}\u00b0", "showarrow": False,
         "font": {"size": 11, "color": "#c0392b"}, "xanchor": "left",
     })
     # Static resultant arrow at H/3
@@ -433,7 +433,7 @@ def _build_cross_section(H, g, ka, kae, alpha, beta, theta, Pa_static, Pa_seismi
     # 0.6H label for seismic
     ann.append({
         "x": seismic_arrow_start - 0.03 * H, "y": y_seismic_resultant + 0.1 * H,
-        "text": "0.6H (Seed &amp; Whitman 1970)", "showarrow": False,
+        "text": "0.6H (Seed & Whitman 1970)", "showarrow": False,
         "font": {"size": 9, "color": "#c0392b"}, "xanchor": "right",
     })
 
@@ -449,7 +449,7 @@ def _build_cross_section(H, g, ka, kae, alpha, beta, theta, Pa_static, Pa_seismi
         "annotations": ann,
         "legend": {"orientation": "h", "x": 0.5, "y": -0.02, "xanchor": "center",
                    "font": {"size": 10}},
-        "title": {"text": "Wall Cross-Section &mdash; Static vs. Seismic Active Pressure",
+        "title": {"text": "Wall Cross-Section \u2014 Static vs. Seismic Active Pressure",
                   "font": {"size": 13}, "x": 0.5},
     }
     return {"traces": traces, "layout": layout}
@@ -529,7 +529,7 @@ def _build_force_polygon(H, g, alpha, beta, phi, theta, kh, kv, Pae):
     # Failure plane angle label
     ann.append({
         "x": x_fail / 2, "y": H / 2 * 0.3,
-        "text": f"&psi;<sub>a</sub> = {psi_a:.1f}&deg;",
+        "text": f"\u03c8<sub>a</sub> = {psi_a:.1f}\u00b0",
         "showarrow": False,
         "font": {"size": 11, "color": "#8b6914"},
     })
@@ -609,7 +609,7 @@ def _build_force_polygon(H, g, alpha, beta, phi, theta, kh, kv, Pae):
         "height": 520,
         "plot_bgcolor": "white", "paper_bgcolor": "white",
         "annotations": ann,
-        "title": {"text": "Trial Failure Wedge &mdash; Pseudo-Static Forces",
+        "title": {"text": "Trial Failure Wedge \u2014 Pseudo-Static Forces",
                   "font": {"size": 13}, "x": 0.5},
     }
     return {"traces": traces, "layout": layout}
