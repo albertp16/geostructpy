@@ -153,6 +153,13 @@
                     </label>
                     <input type="number" step="0.1" name="M_top" value="{{ params.M_top }}">
                 </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="checkbox" name="abs_fs" value="1" {% if params.abs_fs %}checked{% endif %}>
+                        Show Design Summary as absolute values (recommended)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Default ON. When checked, the Design Summary table shows |FS|, |driving|, |resisting| and the pass/fail check uses |FS| ≥ required. This keeps the table free of negative numbers when reversed loads (e.g. very large negative H_top) flip the sign of Pa_total or Mr. Untick to see the raw signed values for diagnostic / sign-tracing work."></span>
+                    </label>
+                </div>
             </div>
         </div>
 

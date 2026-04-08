@@ -125,6 +125,7 @@ def stability_view():
         x_cut=0.0, angle_cut=45.0,
         H_top=0.0, V_top=0.0, M_top=0.0,
         x_load=-1.0,
+        abs_fs=True,
     )
     results = None
     params = defaults
@@ -151,6 +152,7 @@ def stability_view():
             V_top=_float('V_top', 0.0),
             M_top=_float('M_top', 0.0),
             x_load=_float('x_load', -1.0),
+            abs_fs=bool(request.form.get('abs_fs')),
         )
         results = stability.calculate(**params)
     return render_template("stability.html", params=params, results=results)
