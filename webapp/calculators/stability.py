@@ -12,7 +12,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
               y_front=0.0, include_passive=True, b_toe=0.0,
               x_cut=0.0, angle_cut=45.0,
               H_top=0.0, V_top=0.0, M_top=0.0,
-              x_load=-1.0, y_load=-1.0):
+              x_load=-1.0):
     """Cantilever retaining-wall stability analysis.
 
     Geometry convention (per Das & Sivakugan 2019, 9th SI, §17.2 Proportioning
@@ -53,19 +53,15 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
                     Wt and to Mr.
             M_top : applied moment (kN·m/m), positive in the same sense
                     as the active overturning moment. Adds to Mo.
-    x_load, y_load : float
-        Point of application of the H/V/M loads expressed in the
-        calculator's coordinate system above. Both lever arms are
-        measured from the TOE pivot at (x = 0, y = -h2):
-            - Horizontal lever arm for V_top = x_load
-            - Vertical lever arm for H_top   = y_load − (−h2) = y_load + h2
-              (but since the pivot is at y = -h2 and y_load is measured
-              from the SAME y = -h2 origin, the arm is just y_load)
-        Sentinel value -1 means "use legacy default":
+    x_load : float
+        Horizontal distance from the toe pivot at x = 0 to the point
+        of application of the H/V/M loads (toward the heel, 0 ≤ x_load
+        ≤ b_base). Sentinel value -1 means "use legacy default":
             x_load = b_toe / 2            (middle of the toe slab)
-            y_load = t_base               (top of the base slab)
-        The defaults reproduce the previous hard-coded mid-toe /
-        base-top application point.
+        The point of application is ALWAYS on the top of the base slab
+        (y = t_base above base bottom), so the lever arm for H_top is
+        the fixed base thickness t_base. The lever arm for V_top is
+        x_load measured from the toe pivot at x = 0.
 
     Refs: Das & Sivakugan (2019) §17.2 (proportioning, p. 697), §17.4
     (stability checks, p. 699), §17.5-17.7 (overturning, sliding, bearing,
@@ -156,17 +152,16 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         P_toe_soil = 0.0
         m_toe_soil = 0.0
 
-    # Top-of-toe applied loads. Application point is user-configurable via
-    # (x_load, y_load). The legacy default is (b_toe/2, t_base) = middle of
-    # the top of the toe slab, preserving backward compatibility.
+    # Applied point loads. The vertical position is fixed at the TOP of the
+    # base slab (y_load_eff = t_base above the base bottom pivot). Only the
+    # horizontal position x_load is user-configurable via the form input.
+    # Legacy default: x_load = b_toe/2 (middle of the toe slab).
     #
     # Coordinate system (for the load location):
     #   x_load : horizontal distance from the toe pivot at x = 0, meters
-    #            (toward the heel). Must be 0 ≤ x_load ≤ b_base.
-    #   y_load : vertical distance from the toe pivot at y = -h2, meters
-    #            (positive upward). y_load = 0 is base bottom;
-    #            y_load = t_base is base top; y_load = h2 is grade;
-    #            y_load = h1 + h2 is top of stem.
+    #            (toward the heel). Clamped to 0 ≤ x_load ≤ b_base.
+    #   y      : ALWAYS on top of the base slab, so the lever arm for H_top
+    #            is the fixed base thickness t_base.
     #
     # Sign convention on the loads (any non-zero value is applied with its sign):
     #   V_top (kN/m): vertical, positive = downward.
@@ -176,7 +171,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     #   H_top (kN/m): horizontal, positive = in the active direction
     #       (toward the toe, i.e. −x in the plot).
     #       -> Pa_total += H_top
-    #       -> Mo += H_top · y_load     (lever arm from base bottom pivot)
+    #       -> Mo += H_top · t_base     (fixed lever arm = base thickness)
     #       Negative H resists sliding and restores overturning.
     #   M_top (kN·m/m): applied moment, positive = same sense as the active
     #       overturning moment. Adds directly to Mo.
@@ -184,10 +179,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         x_load_eff = b_toe / 2.0
     else:
         x_load_eff = max(0.0, min(float(x_load), b_base))
-    if y_load is None or y_load < 0:
-        y_load_eff = t_base
-    else:
-        y_load_eff = max(0.0, min(float(y_load), h1 + h2))
+    y_load_eff = t_base  # always on top of the base slab
 
     if V_top != 0.0:
         Wt += V_top
@@ -351,10 +343,10 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
                 f'x_cut = {_f(x_cut_eff)} m, &Delta;y = {_f(cut_drop)} m.</em></p>'
             )
 
-    # Top-of-toe applied loads (H, V, M at user-configurable (x_load, y_load))
+    # Applied point loads (H, V, M) at (x_load, top of base slab)
     if H_top != 0.0 or V_top != 0.0 or M_top != 0.0:
-        r += '<h4>Applied Point Loads (user location)</h4>'
-        # Describe the location in the geometry's natural terms
+        r += '<h4>Applied Point Loads</h4>'
+        # Describe the x location in the geometry's natural terms
         if abs(x_load_eff - b_toe / 2.0) < 1e-9:
             x_label = f'b<sub>toe</sub>/2 = {_f(x_load_eff)} m'
         elif x_load_eff <= b_toe + 1e-9:
@@ -363,22 +355,14 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             x_label = f'{_f(x_load_eff)} m (on stem)'
         else:
             x_label = f'{_f(x_load_eff)} m (on heel slab)'
-        if abs(y_load_eff - t_base) < 1e-9:
-            y_label = f't<sub>base</sub> = {_f(y_load_eff)} m (top of base)'
-        elif y_load_eff <= t_base + 1e-9:
-            y_label = f'{_f(y_load_eff)} m (within base slab)'
-        elif abs(y_load_eff - h2) < 1e-9:
-            y_label = f'h<sub>2</sub> = {_f(y_load_eff)} m (at grade)'
-        elif abs(y_load_eff - (h1 + h2)) < 1e-9:
-            y_label = f'h<sub>1</sub>+h<sub>2</sub> = {_f(y_load_eff)} m (top of stem)'
-        else:
-            y_label = f'{_f(y_load_eff)} m (from base bottom)'
         r += (
             '<p style="font-size:0.85em;color:#6c757d;margin:0 0 6px;">'
-            f'Point of application: x<sub>load</sub> = <strong>{x_label}</strong>, '
-            f'y<sub>load</sub> = <strong>{y_label}</strong>. '
-            'The lever arms are measured from the toe pivot at (x = 0, y = &minus;h<sub>2</sub>), '
-            'so for V<sub>top</sub> the arm is x<sub>load</sub> and for H<sub>top</sub> the arm is y<sub>load</sub>. '
+            f'Point of application: <strong>x<sub>load</sub> = {x_label}</strong>, '
+            'vertical position <strong>always on the top of the base slab</strong> '
+            f'(y = t<sub>base</sub> = {_f(t_base)} m above the toe pivot). '
+            'The lever arms are measured from the toe pivot at (x = 0, y = &minus;h<sub>2</sub>): '
+            'for V<sub>top</sub> the arm is x<sub>load</sub>; for H<sub>top</sub> the arm is the '
+            'fixed base thickness t<sub>base</sub>. '
             'Sign convention: H positive in the direction of the active pressure '
             '(toward the toe); V positive downward; M positive in the same sense '
             'as the active overturning moment. Negative values flip the direction.</p>'
@@ -394,7 +378,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         if H_top != 0.0:
             r += (
                 f'<tr><td>H (horizontal, kN/m)</td><td>{_f(H_top)}</td>'
-                f'<td>y<sub>load</sub> = {_f(y_load_eff)} m</td>'
+                f'<td>t<sub>base</sub> = {_f(t_base)} m</td>'
                 f'<td>&Delta;P<sub>a,total</sub> = {_f(H_top)} kN/m, &Delta;M<sub>o</sub> = {_f(m_H_top)} kN&middot;m/m</td></tr>'
             )
         if M_top != 0.0:
