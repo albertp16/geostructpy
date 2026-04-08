@@ -124,6 +124,7 @@ def stability_view():
         y_front=0.0, include_passive=True, b_toe=0.0,
         x_cut=0.0, angle_cut=45.0,
         H_top=0.0, V_top=0.0, M_top=0.0,
+        x_load=-1.0, y_load=-1.0,
     )
     results = None
     params = defaults
@@ -149,6 +150,8 @@ def stability_view():
             H_top=_float('H_top', 0.0),
             V_top=_float('V_top', 0.0),
             M_top=_float('M_top', 0.0),
+            x_load=_float('x_load', -1.0),
+            y_load=_float('y_load', -1.0),
         )
         results = stability.calculate(**params)
     return render_template("stability.html", params=params, results=results)
