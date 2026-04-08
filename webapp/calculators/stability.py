@@ -11,7 +11,8 @@ def _f(v, d=2):
 def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearing, gamma_c, q,
               y_front=0.0, include_passive=True, b_toe=0.0,
               x_cut=0.0, angle_cut=45.0,
-              H_top=0.0, V_top=0.0, M_top=0.0):
+              H_top=0.0, V_top=0.0, M_top=0.0,
+              x_load=-1.0, y_load=-1.0):
     """Cantilever retaining-wall stability analysis.
 
     Geometry convention (per Das & Sivakugan 2019, 9th SI, §17.2 Proportioning
@@ -21,6 +22,10 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         x = b_toe      : front face of stem
         x = b_toe+t_stem: back face of stem
         x = b_base     : back (heel-side) edge of base slab
+        y = -h2        : bottom of base slab (toe pivot elevation)
+        y = -h2+t_base : top of base slab
+        y = 0          : grade (ground level)
+        y = h1         : top of stem
 
     where b_base = b_toe + t_stem + b_heel.
 
@@ -40,15 +45,27 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         x_cut · tan(angle_cut). Both values are clamped so the cut
         does not exceed the toe width or the base thickness.
     H_top, V_top, M_top : float
-        External point loads applied at the middle of the top of the
-        toe slab, point of application = (b_toe/2, top of base):
+        External point loads (user-defined, positive/negative allowed):
             H_top : horizontal force (kN/m), positive in the direction
                     of the active pressure (toward the toe). Adds to
-                    Pa_total and to Mo (lever arm = t_base).
+                    Pa_total and to Mo.
             V_top : vertical force (kN/m), positive downward. Adds to
-                    Wt and to Mr (lever arm = b_toe/2).
+                    Wt and to Mr.
             M_top : applied moment (kN·m/m), positive in the same sense
                     as the active overturning moment. Adds to Mo.
+    x_load, y_load : float
+        Point of application of the H/V/M loads expressed in the
+        calculator's coordinate system above. Both lever arms are
+        measured from the TOE pivot at (x = 0, y = -h2):
+            - Horizontal lever arm for V_top = x_load
+            - Vertical lever arm for H_top   = y_load − (−h2) = y_load + h2
+              (but since the pivot is at y = -h2 and y_load is measured
+              from the SAME y = -h2 origin, the arm is just y_load)
+        Sentinel value -1 means "use legacy default":
+            x_load = b_toe / 2            (middle of the toe slab)
+            y_load = t_base               (top of the base slab)
+        The defaults reproduce the previous hard-coded mid-toe /
+        base-top application point.
 
     Refs: Das & Sivakugan (2019) §17.2 (proportioning, p. 697), §17.4
     (stability checks, p. 699), §17.5-17.7 (overturning, sliding, bearing,
@@ -139,20 +156,44 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         P_toe_soil = 0.0
         m_toe_soil = 0.0
 
-    # Top-of-toe applied loads. Point of application: (b_toe/2, y_iface).
-    # Sign convention (any non-zero value is applied with its sign):
-    #   V_top: vertical, positive = downward -> Wt and Mr (lever arm = b_toe/2)
-    #          Negative V lifts the wall and reduces restoring weight.
-    #   H_top: horizontal, positive = in the active direction (toward the toe)
-    #          -> Pa_total and Mo (lever arm = t_base, toe pivot at base bottom)
-    #          Negative H resists sliding and restores overturning.
-    #   M_top: applied moment, positive = same sense as active overturning -> Mo
-    #          Negative M is restoring.
+    # Top-of-toe applied loads. Application point is user-configurable via
+    # (x_load, y_load). The legacy default is (b_toe/2, t_base) = middle of
+    # the top of the toe slab, preserving backward compatibility.
+    #
+    # Coordinate system (for the load location):
+    #   x_load : horizontal distance from the toe pivot at x = 0, meters
+    #            (toward the heel). Must be 0 ≤ x_load ≤ b_base.
+    #   y_load : vertical distance from the toe pivot at y = -h2, meters
+    #            (positive upward). y_load = 0 is base bottom;
+    #            y_load = t_base is base top; y_load = h2 is grade;
+    #            y_load = h1 + h2 is top of stem.
+    #
+    # Sign convention on the loads (any non-zero value is applied with its sign):
+    #   V_top (kN/m): vertical, positive = downward.
+    #       -> Wt += V_top
+    #       -> Mr += V_top · x_load     (hand-right rule about the toe pivot)
+    #       Negative V lifts the wall and reduces restoring weight.
+    #   H_top (kN/m): horizontal, positive = in the active direction
+    #       (toward the toe, i.e. −x in the plot).
+    #       -> Pa_total += H_top
+    #       -> Mo += H_top · y_load     (lever arm from base bottom pivot)
+    #       Negative H resists sliding and restores overturning.
+    #   M_top (kN·m/m): applied moment, positive = same sense as the active
+    #       overturning moment. Adds directly to Mo.
+    if x_load is None or x_load < 0:
+        x_load_eff = b_toe / 2.0
+    else:
+        x_load_eff = max(0.0, min(float(x_load), b_base))
+    if y_load is None or y_load < 0:
+        y_load_eff = t_base
+    else:
+        y_load_eff = max(0.0, min(float(y_load), h1 + h2))
+
     if V_top != 0.0:
         Wt += V_top
-        Mr += V_top * (b_toe / 2.0)
-    m_V_top = V_top * (b_toe / 2.0)
-    m_H_top = H_top * t_base                       # added to Mo below
+        Mr += V_top * x_load_eff
+    m_V_top = V_top * x_load_eff
+    m_H_top = H_top * y_load_eff                   # added to Mo below
 
     # Lateral loads (active, back side)
     Ka = (1 - math.sin(phi * DEG)) / (1 + math.sin(phi * DEG))
@@ -310,29 +351,50 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
                 f'x_cut = {_f(x_cut_eff)} m, &Delta;y = {_f(cut_drop)} m.</em></p>'
             )
 
-    # Top-of-toe applied loads (H, V, M at b_toe/2, top of base) — any non-zero value is applied
+    # Top-of-toe applied loads (H, V, M at user-configurable (x_load, y_load))
     if H_top != 0.0 or V_top != 0.0 or M_top != 0.0:
-        r += '<h4>Applied Loads at Top of Toe (mid-toe)</h4>'
+        r += '<h4>Applied Point Loads (user location)</h4>'
+        # Describe the location in the geometry's natural terms
+        if abs(x_load_eff - b_toe / 2.0) < 1e-9:
+            x_label = f'b<sub>toe</sub>/2 = {_f(x_load_eff)} m'
+        elif x_load_eff <= b_toe + 1e-9:
+            x_label = f'{_f(x_load_eff)} m (on toe slab)'
+        elif x_load_eff <= x_stem_back + 1e-9:
+            x_label = f'{_f(x_load_eff)} m (on stem)'
+        else:
+            x_label = f'{_f(x_load_eff)} m (on heel slab)'
+        if abs(y_load_eff - t_base) < 1e-9:
+            y_label = f't<sub>base</sub> = {_f(y_load_eff)} m (top of base)'
+        elif y_load_eff <= t_base + 1e-9:
+            y_label = f'{_f(y_load_eff)} m (within base slab)'
+        elif abs(y_load_eff - h2) < 1e-9:
+            y_label = f'h<sub>2</sub> = {_f(y_load_eff)} m (at grade)'
+        elif abs(y_load_eff - (h1 + h2)) < 1e-9:
+            y_label = f'h<sub>1</sub>+h<sub>2</sub> = {_f(y_load_eff)} m (top of stem)'
+        else:
+            y_label = f'{_f(y_load_eff)} m (from base bottom)'
         r += (
             '<p style="font-size:0.85em;color:#6c757d;margin:0 0 6px;">'
-            'Point loads applied at the centerline of the toe slab top, '
-            f'(x = b<sub>toe</sub>/2 = {_f(b_toe/2)} m, y = top of base). '
+            f'Point of application: x<sub>load</sub> = <strong>{x_label}</strong>, '
+            f'y<sub>load</sub> = <strong>{y_label}</strong>. '
+            'The lever arms are measured from the toe pivot at (x = 0, y = &minus;h<sub>2</sub>), '
+            'so for V<sub>top</sub> the arm is x<sub>load</sub> and for H<sub>top</sub> the arm is y<sub>load</sub>. '
             'Sign convention: H positive in the direction of the active pressure '
             '(toward the toe); V positive downward; M positive in the same sense '
             'as the active overturning moment. Negative values flip the direction.</p>'
         )
-        r += '<table class="data-table" style="max-width:560px;margin:0 0 8px;">'
+        r += '<table class="data-table" style="max-width:620px;margin:0 0 8px;">'
         r += '<thead><tr><th>Load</th><th>Value</th><th>Lever arm</th><th>Contribution</th></tr></thead><tbody>'
         if V_top != 0.0:
             r += (
                 f'<tr><td>V (vertical, kN/m)</td><td>{_f(V_top)}</td>'
-                f'<td>b<sub>toe</sub>/2 = {_f(b_toe/2)} m</td>'
+                f'<td>x<sub>load</sub> = {_f(x_load_eff)} m</td>'
                 f'<td>&Delta;M<sub>R</sub> = {_f(m_V_top)} kN&middot;m/m, &Delta;W<sub>t</sub> = {_f(V_top)} kN/m</td></tr>'
             )
         if H_top != 0.0:
             r += (
                 f'<tr><td>H (horizontal, kN/m)</td><td>{_f(H_top)}</td>'
-                f'<td>t<sub>base</sub> = {_f(t_base)} m</td>'
+                f'<td>y<sub>load</sub> = {_f(y_load_eff)} m</td>'
                 f'<td>&Delta;P<sub>a,total</sub> = {_f(H_top)} kN/m, &Delta;M<sub>o</sub> = {_f(m_H_top)} kN&middot;m/m</td></tr>'
             )
         if M_top != 0.0:
@@ -358,7 +420,7 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
     if P_toe_soil > 0:
         parts.append({'name': 'P4 \u2013 Toe-side soil', 'W': P_toe_soil, 'x': b_toe / 2, 'M': m_toe_soil})
     if V_top != 0.0:
-        parts.append({'name': 'V \u2013 Top-of-toe load', 'W': V_top, 'x': b_toe / 2, 'M': m_V_top})
+        parts.append({'name': 'V \u2013 Applied point load', 'W': V_top, 'x': x_load_eff, 'M': m_V_top})
     for p in parts:
         r += f'<tr><td>{p["name"]}</td><td>{_f(p["W"])}</td><td>{_f(p["x"])}</td><td>{_f(p["M"])}</td></tr>'
     r += f'<tr style="font-weight:bold"><td>Total</td><td>{_f(Wt)}</td><td></td><td>{_f(Mr)}</td></tr>'
@@ -422,16 +484,17 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
         bearingOK = True
         r += '<p><strong>Bearing check:</strong> <em>skipped &mdash; q<sub>all</sub> not provided</em></p>'
 
-    # Summary table
+    # Summary table — values here are rendered by Jinja without |safe,
+    # so use plain Unicode (no HTML entities, no <sub> tags).
     _slide_resisting = (
-        f'{_f(mu * Wt + Pp_soil)} kN/m (incl. P<sub>p</sub>)'
+        f'{_f(mu * Wt + Pp_soil)} kN/m (incl. Pp)'
         if include_passive and y_front > 0
         else f'{_f(mu * Wt)} kN/m'
     )
     _over_resisting = (
-        f'{_f(Mr + Mp_resist)} kN&middot;m/m (incl. M<sub>p</sub>)'
+        f'{_f(Mr + Mp_resist)} kN\u00b7m/m (incl. Mp)'
         if include_passive and y_front > 0
-        else f'{_f(Mr)} kN&middot;m/m'
+        else f'{_f(Mr)} kN\u00b7m/m'
     )
     summary = [
         {
@@ -679,25 +742,35 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             "font": {"size": 11, "color": dark},
         })
 
-    # Top-of-toe applied loads (H, V, M arrows at b_toe/2, top of base).
+    # Top-of-toe applied loads (H, V, M arrows at the user-specified
+    # (x_load_eff, y_load_eff)). y_load_eff is measured from y = -h2
+    # so the Plotly y-coordinate is (y_bot + y_load_eff).
     # Arrows are drawn for any non-zero value; the head direction flips with the sign.
-    if (V_top != 0.0 or H_top != 0.0 or M_top != 0.0) and b_toe > 0:
-        x_load = b_toe / 2.0
-        y_load = y_iface
+    if V_top != 0.0 or H_top != 0.0 or M_top != 0.0:
+        x_load_plot = x_load_eff
+        y_load_plot = y_bot + y_load_eff
         load_color = '#7b1fa2'   # purple, distinct from active green and surcharge orange
+        # Small marker dot at the load application point so it is clearly visible
+        wall_traces.append({
+            "x": [x_load_plot], "y": [y_load_plot], "mode": "markers",
+            "marker": {"size": 9, "color": load_color,
+                       "line": {"color": "#ffffff", "width": 1.5}},
+            "showlegend": False, "hoverinfo": "skip",
+        })
         if V_top != 0.0:
             # Positive V is downward (arrow points down, tail above); negative flips.
             v_sign = 1.0 if V_top >= 0 else -1.0
             tail_dy = v_sign * 0.18 * span
             ann.append({
-                "x": x_load, "y": y_load,
-                "ax": x_load, "ay": y_load + tail_dy,
+                "x": x_load_plot, "y": y_load_plot,
+                "ax": x_load_plot, "ay": y_load_plot + tail_dy,
                 "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
                 "showarrow": True, "arrowhead": 2, "arrowsize": 1.3,
                 "arrowwidth": 2.5, "arrowcolor": load_color,
             })
             ann.append({
-                "x": x_load - 0.04 * b_base, "y": y_load + tail_dy + v_sign * 0.03 * span,
+                "x": x_load_plot - 0.04 * b_base,
+                "y": y_load_plot + tail_dy + v_sign * 0.03 * span,
                 "text": f"<b>V = {V_top:.1f}</b>", "showarrow": False,
                 "font": {"size": 11, "color": load_color}, "xanchor": "right",
             })
@@ -708,15 +781,15 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             head_dx = -h_sign * 0.18 * b_base
             tail_dx = h_sign * 0.05 * b_base
             ann.append({
-                "x": x_load + head_dx, "y": y_load + 0.05 * span,
-                "ax": x_load + tail_dx, "ay": y_load + 0.05 * span,
+                "x": x_load_plot + head_dx, "y": y_load_plot + 0.05 * span,
+                "ax": x_load_plot + tail_dx, "ay": y_load_plot + 0.05 * span,
                 "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
                 "showarrow": True, "arrowhead": 2, "arrowsize": 1.3,
                 "arrowwidth": 2.5, "arrowcolor": load_color,
             })
             ann.append({
-                "x": x_load + head_dx - h_sign * 0.02 * b_base,
-                "y": y_load + 0.05 * span + 0.03 * span,
+                "x": x_load_plot + head_dx - h_sign * 0.02 * b_base,
+                "y": y_load_plot + 0.05 * span + 0.03 * span,
                 "text": f"<b>H = {H_top:.1f}</b>", "showarrow": False,
                 "font": {"size": 11, "color": load_color},
                 "xanchor": "right" if h_sign > 0 else "left",
@@ -726,14 +799,16 @@ def calculate(h1, h2, t_stem, t_base, b_base, b_heel, gamma_s, phi, mu, q_bearin
             # direction encodes the sign, plus an "M = ..." label.
             m_sign = 1.0 if M_top >= 0 else -1.0
             ann.append({
-                "x": x_load + m_sign * 0.05 * b_base, "y": y_load + 0.13 * span,
-                "ax": x_load - m_sign * 0.05 * b_base, "ay": y_load + 0.13 * span,
+                "x": x_load_plot + m_sign * 0.05 * b_base,
+                "y": y_load_plot + 0.13 * span,
+                "ax": x_load_plot - m_sign * 0.05 * b_base,
+                "ay": y_load_plot + 0.13 * span,
                 "xref": "x", "yref": "y", "axref": "x", "ayref": "y",
                 "showarrow": True, "arrowhead": 2, "arrowsize": 1.0,
                 "arrowwidth": 2, "arrowcolor": load_color,
             })
             ann.append({
-                "x": x_load, "y": y_load + 0.18 * span,
+                "x": x_load_plot, "y": y_load_plot + 0.18 * span,
                 "text": f"<b>M = {M_top:.1f}</b>", "showarrow": False,
                 "font": {"size": 11, "color": load_color},
             })
