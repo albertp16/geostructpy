@@ -146,9 +146,9 @@ def stability_view():
             b_toe=max(_float('b_toe', 0.0), 0),
             x_cut=max(_float('x_cut', 0.0), 0),
             angle_cut=max(_float('angle_cut', 45.0), 1),
-            H_top=max(_float('H_top', 0.0), 0),
-            V_top=max(_float('V_top', 0.0), 0),
-            M_top=max(_float('M_top', 0.0), 0),
+            H_top=_float('H_top', 0.0),
+            V_top=_float('V_top', 0.0),
+            M_top=_float('M_top', 0.0),
         )
         results = stability.calculate(**params)
     return render_template("stability.html", params=params, results=results)

@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GeoStructPy{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['\\(', '\\)'], ['$', '$']],
+          displayMath: [['\\[', '\\]'], ['$$', '$$']],
+          processEscapes: true,
+          processEnvironments: true
+        },
+        options: {
+          skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+          ignoreHtmlClass: 'tex2jax_ignore',
+          processHtmlClass: 'tex2jax_process'
+        },
+        startup: {
+          typeset: true
+        }
+      };
+    </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
@@ -195,71 +213,101 @@
         }
         /* QA reference / thumbnote tooltip */
         .qa-note {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
+            display: inline-block;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            background: #2980b9;
-            color: #fff;
-            font-size: 0.7em;
-            font-weight: 700;
-            font-style: normal;
-            margin-left: 4px;
+            background: #fff
+                url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='4.2' r='1.1' fill='%232980b9'/><rect x='7' y='6.5' width='2' height='6.5' rx='0.6' fill='%232980b9'/></svg>")
+                center/10px 10px no-repeat;
+            border: 1px solid #9fbbd4;
+            margin-left: 5px;
             cursor: help;
             position: relative;
-            vertical-align: middle;
-            border: none;
-            line-height: 1;
-            font-family: inherit;
+            vertical-align: -2px;
+            opacity: 0.75;
+            transition: opacity 0.15s ease, background-color 0.15s ease,
+                        border-color 0.15s ease, transform 0.15s ease;
+            text-indent: -9999px;
+            overflow: hidden;
         }
-        .qa-note:hover, .qa-note:focus { background: #1f6391; outline: none; }
+        .qa-note:hover, .qa-note:focus {
+            opacity: 1;
+            border-color: #2980b9;
+            background-color: #eaf4fb;
+            transform: scale(1.1);
+            outline: none;
+        }
         .qa-note::after {
             content: attr(data-note);
             position: absolute;
-            bottom: calc(100% + 8px);
+            bottom: calc(100% + 10px);
             left: 50%;
-            transform: translateX(-50%);
-            min-width: 240px;
-            max-width: 360px;
-            background: #2c3e50;
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 4px;
+            transform: translateX(-50%) translateY(4px);
+            min-width: 260px;
+            max-width: 380px;
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 10px 14px;
+            border-radius: 6px;
             font-size: 0.78em;
             font-weight: 400;
-            line-height: 1.4;
+            font-style: normal;
+            line-height: 1.5;
             text-align: left;
+            text-indent: 0;
             white-space: normal;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18),
+                        0 2px 4px rgba(0, 0, 0, 0.08);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
-            transition: opacity 0.15s;
+            transition: opacity 0.18s ease, transform 0.18s ease;
             z-index: 10000;
+            letter-spacing: 0.01em;
         }
         .qa-note::before {
             content: '';
             position: absolute;
-            bottom: calc(100% + 2px);
+            bottom: calc(100% + 4px);
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%) translateY(4px);
             border: 6px solid transparent;
-            border-top-color: #2c3e50;
+            border-top-color: #1f2937;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.15s;
+            transition: opacity 0.18s ease, transform 0.18s ease;
             z-index: 10000;
         }
-        .qa-note:hover::after, .qa-note:focus::after,
+        .qa-note:hover::after, .qa-note:focus::after {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
         .qa-note:hover::before, .qa-note:focus::before {
             opacity: 1;
             visibility: visible;
+            transform: translateX(-50%) translateY(0);
         }
         /* Right-edge variant: tooltip flips left to avoid clipping */
-        .qa-note.qa-right::after { left: auto; right: 0; transform: none; }
-        .qa-note.qa-right::before { left: auto; right: 4px; transform: none; }
+        .qa-note.qa-right::after {
+            left: auto;
+            right: 0;
+            transform: translateY(4px);
+        }
+        .qa-note.qa-right::before {
+            left: auto;
+            right: 4px;
+            transform: translateY(4px);
+        }
+        .qa-note.qa-right:hover::after,
+        .qa-note.qa-right:focus::after {
+            transform: translateY(0);
+        }
+        .qa-note.qa-right:hover::before,
+        .qa-note.qa-right:focus::before {
+            transform: translateY(0);
+        }
         /* Reference box used at the bottom of calculator pages */
         .ref-box {
             background: #eef5fb;
@@ -327,11 +375,27 @@
 
     {% block scripts %}{% endblock %}
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.MathJax && MathJax.typeset) {
-                MathJax.startup.promise.then(function() { MathJax.typeset(); });
+        (function () {
+            function typesetWhenReady() {
+                if (window.MathJax && window.MathJax.startup && window.MathJax.startup.promise) {
+                    window.MathJax.startup.promise
+                        .then(function () {
+                            if (window.MathJax.typesetPromise) {
+                                return window.MathJax.typesetPromise();
+                            }
+                        })
+                        .catch(function (err) { console.warn('MathJax typeset failed:', err); });
+                } else {
+                    // MathJax script hasn't loaded yet — poll briefly
+                    setTimeout(typesetWhenReady, 120);
+                }
             }
-        });
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', typesetWhenReady);
+            } else {
+                typesetWhenReady();
+            }
+        })();
     </script>
 </body>
 </html>
