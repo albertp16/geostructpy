@@ -130,11 +130,22 @@
     </div>
 
     <div class="card">
+        <h2>Wall &amp; Soil Profile</h2>
+        <p style="color:var(--muted);font-size:0.82em;margin:0 0 10px;">
+            Geometric cross-section showing the sheet pile, the retained side (left),
+            the excavated / dredge side (right), and each soil layer drawn at its true
+            depth. The dashed brown line marks the dredge line on the excavated side.
+        </p>
+        <div id="cross-section-plot"></div>
+    </div>
+
+    <div class="card">
         <h2>Pressure, Shear, Moment, Deflection Diagrams</h2>
         <p style="color:var(--muted);font-size:0.82em;margin:0 0 10px;">
             Four-panel limit-equilibrium output, matching the PYWALL comparison diagram in
             Figure&nbsp;4.3 of Example 4. Depth is measured from the top of the wall, positive downward.
-            The dashed brown line marks the dredge line at z = L.
+            Soil layers are shown as alternating tan bands (the design layer &mdash; the one that
+            contains the dredge line &mdash; is highlighted in amber).
         </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div id="pressure-plot"></div>
@@ -153,6 +164,7 @@
 
     <script>
         var opts = {responsive: true, displayModeBar: false};
+        Plotly.newPlot('cross-section-plot', {{ results.cross_section_traces|tojson }}, {{ results.cross_section_layout|tojson }}, opts);
         Plotly.newPlot('pressure-plot', {{ results.pressure_traces|tojson }}, {{ results.pressure_layout|tojson }}, opts);
         Plotly.newPlot('shear-plot',    {{ results.shear_traces|tojson }},    {{ results.shear_layout|tojson }},    opts);
         Plotly.newPlot('moment-plot',   {{ results.moment_traces|tojson }},   {{ results.moment_layout|tojson }},   opts);
