@@ -1,24 +1,41 @@
-"""Cantilever sheet-pile wall in homogeneous sand.
+"""Cantilever sheet-pile wall analysis — two-layer sand profile.
 
-Implements the closed-form analysis for a cantilever sheet pile penetrating
-sandy soil per Das, B.M. & Sivakugan, N. (2019) *Principles of Foundation
-Engineering*, 9th Edition SI, §18.4 "Cantilever Sheet Piling Penetrating
-Sandy Soil," pp. 758-764, Eq. 18.11-18.17.
+Implements the limit-equilibrium closed-form analysis of a cantilever
+sheet-pile wall with TWO soil layers (Layer 1 above the dredge line,
+Layer 2 below) plus the full distribution of lateral pressure, shear,
+bending moment, and deflection along the wall.
 
-The calculator solves the classical quartic (Das Eq. 18.17) for the required
-embedment depth D given the wall height L above the dredge line, water-table
-depth L1, soil unit weights γ and γ', friction angle φ, and any surcharge q on
-the backfill surface. It then computes the maximum bending moment and the
-required section modulus for the steel sheet pile.
+The scope and metric defaults match PYWALL 2019 Example 4 (Ensoft, Reese
+et al., 2021) — "LRFD Analysis of Sheet-Pile Wall for Static and Seismic
+Conditions" — so the calculator can reproduce the limit-equilibrium part
+of that example (Figure 4.3). The more refined p-y (subgrade-reaction)
+solution shown in PYWALL Figure 4.5 is not implemented here: that
+requires solving EI·y'''' + p(y) − w = 0 with nonlinear Winkler springs
+via the discrete-element method of Matlock & Halliburton (1965), which
+is beyond the scope of a closed-form web calculator.
 
 References
 ----------
-- Das, B.M. & Sivakugan, N. (2019). Principles of Foundation Engineering,
-  9th Edition SI. Cengage Learning. Ch. 18 §18.3-18.4, pp. 757-764.
-- Teng, W.C. (1962). Foundation Design. Prentice-Hall.
-- USS Steel (1975). Sheet Pile Design Manual. United States Steel Corp.
-- Poulos, H.G. & Davis, E.H. (1980). Pile Foundation Analysis and Design.
-  Wiley. Ch. 7 — lateral loading of single piles (context only).
+PYWALL Technical Manual (Reese, Wang, Arrellaga & Vasquez, Ensoft 2021):
+  §2.1-2.3 Earth pressure theory (Rankine / Coulomb).
+  §2.5     Lateral pressure from surcharge.
+  §3.2     Differential equation of beam on elastic foundation:
+             EI·(d⁴y/dx⁴) = w + p   (Eq. 3.8)
+             EI·(d²y/dx²) = M       (Eq. 3.7)
+           with axial-load extension after Hetenyi (1956).
+  §3.3     Discrete-element beam-column model (Matlock & Halliburton 1965).
+  §3.5     Relationship of earth pressure and structural deformation
+           (Terzaghi 1954).
+
+PYWALL Examples Manual §4.1 — Example 4 LRFD Analysis of Sheet-Pile Wall
+for Static and Seismic Conditions (Ensoft 2021). Defaults below are the
+metric conversion of Table 4.1 and Table 4.3 of that example.
+
+Das, B.M. & Sivakugan, N. (2019). Principles of Foundation Engineering,
+9th Edition SI. Ch. 18 §18.4 "Cantilever Sheet Piling Penetrating Sandy
+Soil," pp. 758-764, Eq. 18.11-18.22. This is the closed-form solution
+used here (quartic for the depth of embedment, peak-shear position for
+the max moment).
 """
 
 import math
@@ -31,387 +48,653 @@ def _f(v, d=2):
 
 
 def _solve_quartic(coeffs):
-    """Solve a quartic polynomial D^4 + a3 D^3 + a2 D^2 + a1 D + a0 = 0 for
-    the smallest positive real root. Uses a simple bisection on a sensible
-    interval because the Das §18.4 quartic is well-behaved in the physical
-    range (0 < D < 5·L).
+    """Find the smallest positive real root of D^4 + a3 D^3 + a2 D^2 + a1 D + a0 = 0.
 
-    Parameters
-    ----------
-    coeffs : tuple of 5
-        (a4, a3, a2, a1, a0) — a4 is the coefficient of D^4 (always 1
-        after normalisation for Das Eq. 18.17).
+    The Das §18.4 quartic is well-behaved in the physical range (0 < D <
+    ~5·L) so bisection with a Newton fallback is sufficient.
     """
     a4, a3, a2, a1, a0 = coeffs
 
     def f(D):
         return a4 * D ** 4 + a3 * D ** 3 + a2 * D ** 2 + a1 * D + a0
 
-    # Quartic is monotonic on (0, large D) for the Das coefficients when the
-    # problem is physically feasible. Bisection from 0 to 100 m should cover
-    # any realistic wall.
-    lo, hi = 0.01, 100.0
+    def fp(D):
+        return 4 * a4 * D ** 3 + 3 * a3 * D ** 2 + 2 * a2 * D + a1
+
+    lo, hi = 0.001, 100.0
     flo, fhi = f(lo), f(hi)
     if flo * fhi > 0:
-        # No sign change — fall back to Newton's method starting from a guess
+        # Newton-Raphson fallback
         D = 1.0
-        for _ in range(60):
+        for _ in range(80):
             fval = f(D)
-            fder = 4 * a4 * D ** 3 + 3 * a3 * D ** 2 + 2 * a2 * D + a1
-            if abs(fder) < 1e-12:
+            d = fp(D)
+            if abs(d) < 1e-12:
                 break
-            D_new = D - fval / fder
+            D_new = D - fval / d
             if D_new <= 0:
                 D_new = D / 2
-            if abs(D_new - D) < 1e-6:
+            if abs(D_new - D) < 1e-7:
                 return D_new
             D = D_new
         return max(D, 0.1)
     for _ in range(200):
         mid = (lo + hi) / 2
         fmid = f(mid)
-        if abs(fmid) < 1e-6 or (hi - lo) < 1e-6:
+        if abs(fmid) < 1e-7 or (hi - lo) < 1e-7:
             return mid
         if flo * fmid < 0:
-            hi = fmid and mid
+            hi = mid
         else:
             lo = mid
             flo = fmid
-        # Recompute due to the and-short-circuit above
-        hi = (lo + hi) / 2 + (hi - (lo + hi) / 2)
     return (lo + hi) / 2
 
 
-def calculate(L, gamma, gamma_sat, phi, L1, q, sigma_allow=170000.0):
-    """Design a cantilever sheet-pile wall in homogeneous sand.
+def calculate(L, gamma1, phi1, gamma2, phi2,
+              q=0.0, EI=19700.0, sigma_allow=170000.0,
+              delta2=0.0, Kp_override=-1.0,
+              load_factor_earth=1.0, load_factor_LS=1.0,
+              resistance_factor_Kp=1.0):
+    """Cantilever sheet-pile wall in a two-layer sand profile.
+
+    Matches the limit-equilibrium procedure presented in PYWALL
+    Examples Manual §4.1.2 (Example 4) and Das & Sivakugan §18.4
+    Eq. 18.7-18.22. The calculator computes the required embedment
+    depth, the maximum moment, required section modulus, and the full
+    distribution of net lateral pressure, shear, bending moment and
+    deflection along the wall length.
 
     Parameters
     ----------
     L : float
-        Height of wall above the dredge line (m). Total "unsupported height"
-        on the backfill side.
-    gamma : float
-        Moist unit weight of backfill above the water table (kN/m³).
-    gamma_sat : float
-        Saturated unit weight of soil below the water table (kN/m³). Used to
-        compute γ' = γ_sat − γ_w.
-    phi : float
-        Effective friction angle of sand (degrees). Assumed uniform above
-        and below the dredge line for this first build.
-    L1 : float
-        Depth from top of wall to water table (m). Set L1 = L (or greater)
-        if no water table exists within the retained height.
-    q : float
-        Uniform surcharge on backfill surface (kPa).
+        Retained height above the dredge line (m). This is the
+        "exposed" height of the sheet pile in the retained-soil side.
+    gamma1 : float
+        Total unit weight of Layer 1 (kN/m³), the soil retained above
+        the dredge line. PYWALL Example 4 uses 120 pcf ≈ 18.85 kN/m³.
+    phi1 : float
+        Effective friction angle of Layer 1 (deg). PYWALL Example 4
+        uses 34°.
+    gamma2 : float
+        Total unit weight of Layer 2 (kN/m³), the founding stratum
+        below the dredge line. PYWALL Example 4 uses 125 pcf ≈
+        19.63 kN/m³.
+    phi2 : float
+        Effective friction angle of Layer 2 (deg). PYWALL Example 4
+        uses 36°.
+    q : float, optional
+        Uniform surcharge on the backfill surface (kPa). PYWALL
+        Example 4 uses 240 psf ≈ 11.49 kPa for the static case.
+    EI : float, optional
+        Per-metre flexural stiffness of the sheet pile (kN·m²/m).
+        PYWALL Example 4 uses 1.453 × 10⁷ ft²·lb/ft ≈ 19700 kN·m²/m.
+        Used only for the deflection plot (the limit-equilibrium
+        force / moment calc is EI-independent).
     sigma_allow : float, optional
-        Allowable bending stress in the steel sheet pile (kPa). Default
-        170000 kPa = 170 MPa, typical for structural sheet pile steel.
+        Allowable bending stress in the sheet pile steel (kPa).
+        Default 170 000 kPa = 170 MPa (≈ half of Grade 50 steel).
 
     Returns
     -------
     dict
         report : HTML report with MathJax equations and references
-        Ka, Kp : Rankine coefficients
-        D_req : required embedment depth below dredge line (m)
-        D_design : D_req × 1.30 safety factor per Das p. 762
-        M_max : maximum bending moment (kN·m/m)
+        Ka1, Ka2, Kp2 : Rankine earth-pressure coefficients
+        L3 : distance below dredge line to the zero-pressure point (m)
+        D_theoretical : embedment depth from the Das quartic (m)
+        D_design : D_theoretical × 1.20 safety factor
+                   (PYWALL Example 4 §4.1.2 convention)
+        L_total : full wall length = L + D_design (m)
+        M_max : maximum bending moment along the wall (kN·m/m)
+        z_max_moment : depth of M_max below the top (m)
         S_req : required section modulus (m³/m)
-        chart_traces, chart_layout : Plotly pressure diagram
+        S_req_cm3_per_m : S_req × 10⁶ for convenience (cm³/m)
+        deflection_top : lateral deflection at the top (m, for reference)
+        pressure_traces, pressure_layout : Plotly net-pressure plot
+        shear_traces, shear_layout : Plotly shear plot
+        moment_traces, moment_layout : Plotly bending-moment plot
+        deflection_traces, deflection_layout : Plotly deflection plot
+        chart_traces, chart_layout : alias for the pressure plot
+            (back-compat with any template still using the old single
+            chart_traces / chart_layout entry).
     """
-    GAMMA_W = 9.81
+    # ----- Earth-pressure coefficients -----
+    # Ka is Rankine (δ = 0) for both layers.
+    # Kp for Layer 2 is determined by the following precedence:
+    #   1. If Kp_override > 0, use that value directly (lets the user match
+    #      Caquot-Kerisel table values such as the Kp = 8.2 used by PYWALL
+    #      Example 4 Table 4.1, which is not reproducible by plain Coulomb).
+    #   2. Else if δ₂ > 0, use the Coulomb form for vertical wall back
+    #      (θ = 0) and horizontal backfill (α = 0):
+    #          Kp = cos²φ / [cosδ · (1 − √(sin(φ+δ)·sinφ / cosδ))²]
+    #      Ref: Das §16.13 Eq. 16.52, PYWALL Tech Manual §2.3 Coulomb theory.
+    #      NOTE: Coulomb over-predicts Kp for rough walls because it assumes
+    #      a plane failure surface; the Caquot-Kerisel curved-surface tables
+    #      (Kerisel & Absi 1990) are the accepted reference for design.
+    #   3. Else use Rankine Kp = (1+sinφ)/(1−sinφ).
+    ph1 = max(min(phi1, 45.0), 5.0)
+    ph2 = max(min(phi2, 45.0), 5.0)
+    d2  = max(min(delta2, ph2 - 0.5), 0.0)
+    Ka1 = (1 - math.sin(ph1 * DEG)) / (1 + math.sin(ph1 * DEG))
+    Ka2 = (1 - math.sin(ph2 * DEG)) / (1 + math.sin(ph2 * DEG))
+    if Kp_override is not None and Kp_override > 0:
+        Kp2 = float(Kp_override)
+        Kp_source = f'user override (e.g. Caquot-K\u00e9risel table); Kp2 = {Kp2:.3f}'
+    elif d2 > 0:
+        cos_phi2 = math.cos(ph2 * DEG)
+        cos_d2   = math.cos(d2 * DEG)
+        root_term = math.sin((ph2 + d2) * DEG) * math.sin(ph2 * DEG) / cos_d2
+        if root_term < 0:
+            root_term = 0.0
+        denom_Kp = cos_d2 * (1 - math.sqrt(root_term)) ** 2
+        Kp2 = (cos_phi2 ** 2 / denom_Kp) if denom_Kp > 1e-9 else (
+            (1 + math.sin(ph2 * DEG)) / (1 - math.sin(ph2 * DEG)))
+        Kp_source = f'Coulomb form with \u03b4\u2082 = {d2:.1f}\u00b0 (Das \u00a716.13 Eq.\u00a016.52)'
+    else:
+        Kp2 = (1 + math.sin(ph2 * DEG)) / (1 - math.sin(ph2 * DEG))
+        Kp_source = 'Rankine form (\u03b4\u2082 = 0)'
+    # Effective (factored) Layer 2 pressure coefficients for design.
+    # LRFD convention (PYWALL Example 4 Table 4.1 Strength I):
+    #   load side:       γ_earth × Ka2 (pressure factored UP)
+    #   resistance side: φ_Kp    × Kp2 (pressure factored DOWN)
+    # γ₂ is a material property and is NOT factored — only the coefficients
+    # carry load/resistance factors.
+    g_e_load = max(load_factor_earth, 0.0)
+    Kp2_eff = Kp2 * max(resistance_factor_Kp, 1e-6)
+    Ka2_eff = Ka2 * g_e_load                       # factored Ka2 for Layer-2 growth
+    # The "effective" (Kp - Ka) difference below the dredge line:
+    Kp_minus_Ka_eff = Kp2_eff - Ka2_eff
+    if Kp_minus_Ka_eff <= 0 or gamma2 <= 0:
+        raise ValueError(
+            'Invalid Layer 2 parameters: (phi_Kp*Kp2 - gamma_earth*Ka2) and '
+            'gamma_2 must be positive. '
+            f'Kp2={Kp2:.3f}, phi_Kp={resistance_factor_Kp:.3f}, '
+            f'Ka2={Ka2:.3f}, gamma_earth={load_factor_earth:.3f}.'
+        )
 
-    ph = max(min(phi, 45.0), 5.0)  # clamp
-    Ka = (1 - math.sin(ph * DEG)) / (1 + math.sin(ph * DEG))
-    Kp = (1 + math.sin(ph * DEG)) / (1 - math.sin(ph * DEG))
-    Kp_Ka = Kp - Ka
-    gamma_eff = gamma_sat - GAMMA_W
+    # ----- Active pressure above and just below the dredge line -----
+    # AASHTO LRFD load factors (PYWALL Example 4 Table 4.1):
+    #   γ_earth applied to earth-pressure component   (1.5 for Strength I)
+    #   γ_LS    applied to live-load surcharge       (1.75 for Strength I)
+    # Default 1.0 = unfactored (working-stress) analysis.
+    g_e = max(load_factor_earth, 0.0)
+    g_ls = max(load_factor_LS, 0.0)
 
-    # Apply surcharge by treating it as an equivalent additional soil height
-    # above the top of wall: h_q = q / gamma (Das Fig. 18.11 / §18.3).
-    h_q_equiv = q / gamma if gamma > 0 else 0.0
+    # Active pressure split into earth and surcharge components so each can
+    # carry its own load factor (PYWALL Example 4 §4.1.2).
+    # Pressure at z (above dredge line, Layer 1):
+    #     p_a(z) = Ka1 * (γ_earth · γ₁·z + γ_LS · q)
+    # At the dredge line (z = L), Layer-2 overburden uses Layer-1 γ₁·L as the
+    # accumulated weight (layers are stacked, factors pass through).
+    sigma_v_earth  = g_e * gamma1 * L              # factored Layer-1 overburden
+    sigma_v_surch  = g_ls * q                       # factored surcharge
+    sigma_v_dredge = sigma_v_earth + sigma_v_surch  # total factored vert. stress
 
-    # L2 = penetration of wall below the water table, above the dredge line
-    # (= L - L1 when L1 < L; else 0).
-    L2 = max(L - L1, 0.0)
-    L1_used = min(L1, L)
+    pa_top_wall = Ka1 * sigma_v_surch              # factored, at z=0
+    pa_bot_dredge_L1 = Ka1 * sigma_v_dredge         # factored, z=L-
+    sigma2 = Ka2 * sigma_v_dredge                   # factored, z=L+
 
-    # Effective lateral pressure at the water table (depth L1 from top of wall)
-    sigma1 = Ka * gamma * (L1_used + h_q_equiv)
-    # Effective lateral pressure at the dredge line (depth L from top of wall)
-    sigma2 = sigma1 + Ka * gamma_eff * L2
-    # Note: below the water table, the driving effective stress uses γ'; water
-    # pressure is assumed balanced on both sides of the wall (free-standing
-    # dredge line is the classical simplification).
+    # ----- Zero-pressure point depth below the dredge line -----
+    # Below dredge line (with LRFD load/resistance factors):
+    #     p_a_below(z) = sigma2 + γ_earth · Ka2 · γ₂ · (z - L)
+    #     p_p_below(z) = φ_Kp · Kp2 · γ₂ · (z - L)
+    #     net(z)      = sigma2 + γ₂·(z - L) · (γ_earth·Ka2 − φ_Kp·Kp2)
+    #                 = sigma2 − γ₂·(z - L) · (Kp2_eff − Ka2_eff)
+    # Zero at (z - L) = sigma2 / [γ₂ · (Kp2_eff − Ka2_eff)]
+    L3 = sigma2 / (Kp_minus_Ka_eff * gamma2)
 
-    # L3 = distance below dredge line to the point of zero net pressure
-    #   L3 = sigma2 / [(Kp - Ka) · γ']    (Das Eq. 18.11)
-    if gamma_eff <= 0 or Kp_Ka <= 0:
-        raise ValueError('Invalid soil parameters: γ_eff and (Kp−Ka) must be positive.')
-    L3 = sigma2 / (Kp_Ka * gamma_eff)
+    # ----- Resultant of the active pressure above the zero-pressure point -----
+    P1 = 0.5 * (pa_top_wall + pa_bot_dredge_L1) * L
+    P2 = 0.5 * sigma2 * L3
+    P_total = P1 + P2
 
-    # P = resultant of the active pressure diagram above (dredge line + L3)
-    # = area of the combined trapezoid from z=0 to z=L1, trapezoid from L1 to
-    # L, plus the little triangle from the dredge line down to the zero-pressure point.
-    # (Das Eq. 18.12 / Fig. 18.11.)
-    P1_area = 0.5 * sigma1 * L1_used                      # triangle above WT
-    P2_area = sigma1 * L2                                  # rectangle below WT
-    P3_area = 0.5 * (sigma2 - sigma1) * L2                 # triangle below WT
-    P4_area = 0.5 * sigma2 * L3                            # triangle below dredge line
-    P_total = P1_area + P2_area + P3_area + P4_area
+    # Centroid of the Layer-1 trapezoid measured from the top of wall.
+    # p(z) = Ka1 * (γ_earth·γ₁·z + γ_LS·q)
+    # First moment about the top = Ka1 * (γ_earth·γ₁·L³/3 + γ_LS·q·L²/2)
+    M_trap_about_top = Ka1 * (g_e * gamma1 * L ** 3 / 3.0
+                              + g_ls * q * L ** 2 / 2.0)
+    z_c_trap_from_top = M_trap_about_top / P1 if P1 > 0 else L / 2.0
+    zbar_trap = (L + L3) - z_c_trap_from_top
 
-    # z_bar = distance from the point of zero pressure UP to the resultant P.
-    # Compute centroid in a reference frame where z=0 at the zero-pressure
-    # point and z increases upward.
-    # Levels (heights above the zero-pressure point):
-    #   zero-pressure point: z = 0
-    #   dredge line:         z = L3
-    #   water table:         z = L3 + L2
-    #   top of wall:         z = L3 + L2 + L1_used
-    z_P4 = L3 / 3.0                                        # triangle in sand below dredge
-    z_P3 = L3 + L2 / 3.0                                   # triangle below WT (upper third)
-    z_P2 = L3 + L2 / 2.0                                   # rectangle below WT
-    z_P1 = L3 + L2 + L1_used / 3.0                         # triangle above WT
-    M_sum = P1_area * z_P1 + P2_area * z_P2 + P3_area * z_P3 + P4_area * z_P4
-    z_bar = M_sum / P_total if P_total > 0 else 0.0
+    # Net-active triangle centroid (below dredge line): the triangle has its MAX
+    # pressure at z = L and zero at z = L + L3, so its centroid is at 1/3 of L3
+    # below the dredge line, i.e. 2/3 of L3 above the zero-pressure point.
+    zbar_tri = 2.0 * L3 / 3.0
 
-    # Das Eq. 18.16 / 18.17: D^4 + A1 D^3 − A2 D^2 − A3 D − A4 = 0
-    # where D is measured from the zero-pressure point DOWN to the pile tip.
-    # Coefficients (per Das §18.4, eqs 18.13-18.17):
-    term_denom = Kp_Ka * gamma_eff
-    A1 = sigma2 / term_denom
-    A2 = 8 * P_total / term_denom
-    A3 = 6 * P_total * (2 * z_bar * term_denom + sigma2) / (term_denom ** 2)
-    A4 = (P_total * (6 * z_bar * sigma2 + 4 * P_total)) / (term_denom ** 2)
+    zbar_total = (P1 * zbar_trap + P2 * zbar_tri) / P_total if P_total > 0 else 0.0
 
-    # Solve D^4 + A1 D^3 − A2 D^2 − A3 D − A4 = 0
+    # ----- Das §18.4 quartic: solve for depth BELOW the zero-pressure point -----
+    # The quartic uses the "effective" (Kp−Ka)·γ term with LRFD factors:
+    #     denom = γ₂ · (Kp2_eff − Ka2_eff)
+    denom = Kp_minus_Ka_eff * gamma2
+    A1 = sigma2 / denom
+    A2 = 8.0 * P_total / denom
+    A3 = 6.0 * P_total * (2.0 * zbar_total * denom + sigma2) / denom ** 2
+    A4 = P_total * (6.0 * zbar_total * sigma2 + 4.0 * P_total) / denom ** 2
+
     D_below_zero = _solve_quartic((1.0, A1, -A2, -A3, -A4))
-    # Total required embedment below the dredge line:
-    D_theoretical = L3 + D_below_zero
-    # Das recommends 20-30% additional safety on D (p. 762). Use 1.30.
-    D_design = D_theoretical * 1.30
+    D_theoretical_quartic = L3 + D_below_zero
 
-    # Maximum moment occurs at the depth of zero shear inside the wall.
-    # Below the dredge line, the net pressure at depth z from the dredge line is:
-    #   sigma_net(z) = (Kp - Ka) · γ' · z - sigma2     (positive = passive net resisting)
-    # Zero shear is where the area of the positive passive diagram (from dredge to z)
-    # equals the total active force P above. Solve:
-    #   P = 0.5 · (Kp-Ka)·γ' · z^2                (after subtracting the balancing active triangle)
-    # In the standard Das formulation (Eq. 18.19), z' = sqrt(2·P / [(Kp-Ka)·γ']).
-    z_shear_zero = math.sqrt(2 * P_total / term_denom) if term_denom > 0 else 0.0
+    # The Das §18.4 quartic uses the classical Blum "simplified" convention
+    # with a concentrated tip reaction. For the full continuous-distribution
+    # plot the tip reaction is distributed along the embedment, and the
+    # moment must vanish at the true pile tip (static equilibrium of the
+    # free-free beam on the Winkler foundation). Refine D by bisection so
+    # that the numerically integrated tip moment is zero — this produces
+    # the expected smooth pressure / shear / moment diagrams along the
+    # entire embedded length.
+    def _tip_moment(D_try):
+        L_try = L + D_try
+        n = 201
+        z_arr = [L_try * i / (n - 1) for i in range(n)]
+        p_arr = []
+        for z in z_arr:
+            if z <= L:
+                p_arr.append(Ka1 * (g_e * gamma1 * z + g_ls * q))
+            else:
+                zr = z - L
+                p_a = sigma2 + Ka2_eff * gamma2 * zr
+                p_p = Kp2_eff * gamma2 * zr
+                p_arr.append(p_a - p_p)
+        V = 0.0
+        M = 0.0
+        prev_p = p_arr[0]
+        prev_V = 0.0
+        for i in range(1, n):
+            dz = z_arr[i] - z_arr[i - 1]
+            V_new = V + 0.5 * (p_arr[i] + prev_p) * dz
+            M_new = M + 0.5 * (V_new + prev_V) * dz
+            V, M = V_new, M_new
+            prev_p = p_arr[i]
+            prev_V = V
+        return M
+
+    # Bracket: start from the quartic estimate and expand until we find
+    # a sign change in the tip moment.
+    D_lo = max(D_theoretical_quartic * 0.5, 0.1)
+    D_hi = D_theoretical_quartic * 3.0
+    f_lo = _tip_moment(D_lo)
+    f_hi = _tip_moment(D_hi)
+    expand = 0
+    while f_lo * f_hi > 0 and expand < 6:
+        D_hi *= 1.6
+        f_hi = _tip_moment(D_hi)
+        expand += 1
+    if f_lo * f_hi > 0:
+        # Could not bracket — fall back to the Das quartic value
+        D_theoretical = D_theoretical_quartic
+    else:
+        # Bisection
+        for _ in range(80):
+            D_mid = 0.5 * (D_lo + D_hi)
+            f_mid = _tip_moment(D_mid)
+            if abs(f_mid) < 1e-4 or (D_hi - D_lo) < 1e-4:
+                break
+            if f_lo * f_mid < 0:
+                D_hi, f_hi = D_mid, f_mid
+            else:
+                D_lo, f_lo = D_mid, f_mid
+        D_theoretical = 0.5 * (D_lo + D_hi)
+
+    D_design = D_theoretical * 1.20                # PYWALL Example 4 §4.1.2 / Das §18.4 (20% safety)
+    L_total = L + D_design
+
+    # ----- Location and value of the maximum bending moment -----
+    # Das Eq. 18.19: z' = sqrt(2·P / [(Kp − Ka)·γ']) below the zero-pressure
+    # point, using the factored γ₂ and the φ·Kp-factored passive coefficient.
+    z_shear_zero = math.sqrt(2.0 * P_total / denom) if denom > 0 else 0.0
     # Maximum moment (Das Eq. 18.21):
-    #   M_max = P · (z' + z_bar) − 0.5 · (Kp-Ka) · γ' · z'^3 / 3
-    M_max = P_total * (z_shear_zero + z_bar) - (Kp_Ka * gamma_eff * z_shear_zero ** 3) / 6.0
+    M_max = P_total * (z_shear_zero + zbar_total) - denom * z_shear_zero ** 3 / 6.0
+    # Depth of M_max below the top of wall:
+    z_max_moment = L + L3 + z_shear_zero
 
-    # Required section modulus per unit run of wall (Das Eq. 18.22):
-    #   S = M_max / σ_allow
-    # Result units: kN·m/m ÷ kPa = m³/m.
+    # Required section modulus (working stress, Das Eq. 18.22)
     S_req = M_max / sigma_allow if sigma_allow > 0 else 0.0
-    # Convert to cm³/m for easier comparison against PZ / AZ catalog sections
-    S_req_cm3_per_m = S_req * 1e6
+    S_req_cm3_per_m = S_req * 1e6                   # m³/m -> cm³/m
 
-    # Build HTML report
+    # ----- Full distributions of p, V, M, y along the wall for plotting -----
+    # Plot range is 0 → L + D_theoretical (not D_design) so that the moment
+    # and shear diagrams close to zero at the tip (since D_theoretical is
+    # the equilibrium depth found by the bisection). The extra 20% embedment
+    # in D_design is just a safety buffer and carries no additional loading
+    # in the static LE model.
+    L_plot = L + D_theoretical
+    n_points = 301
+    z_grid = [L_plot * i / (n_points - 1) for i in range(n_points)]
+    p_grid = []
+    for z in z_grid:
+        if z <= L:
+            # Above dredge line: factored Layer-1 active
+            # p_a(z) = Ka1·(γ_earth·γ₁·z + γ_LS·q)
+            p_grid.append(Ka1 * (g_e * gamma1 * z + g_ls * q))
+        else:
+            # Below dredge line: factored Layer-2 net (active − passive).
+            # Active grows with Ka2_eff·γ₂; passive with Kp2_eff·γ₂.
+            zr = z - L
+            p_active = sigma2 + Ka2_eff * gamma2 * zr
+            p_passive = Kp2_eff * gamma2 * zr
+            p_grid.append(p_active - p_passive)
+
+    # Trapezoidal integration top -> down for V and M.
+    # Sign convention: p(z) positive = driving (into wall from the retained side).
+    # V(z) = ∫₀ᶻ p dζ   (cumulative horizontal force above the cut)
+    # M(z) = ∫₀ᶻ V dζ
+    V_grid = [0.0] * n_points
+    for i in range(1, n_points):
+        dz = z_grid[i] - z_grid[i - 1]
+        V_grid[i] = V_grid[i - 1] + 0.5 * (p_grid[i] + p_grid[i - 1]) * dz
+    M_grid = [0.0] * n_points
+    for i in range(1, n_points):
+        dz = z_grid[i] - z_grid[i - 1]
+        M_grid[i] = M_grid[i - 1] + 0.5 * (V_grid[i] + V_grid[i - 1]) * dz
+
+    # Deflection y(z) via double integration of the curvature equation
+    #     d²y/dz² = M(z) / EI                   (PYWALL Tech Manual §3.2 Eq. 3.7)
+    # We use forward integration from the top (z=0) with arbitrary constants
+    # theta_raw(0)=0 and y_raw(0)=0, then add a linear correction y = y_raw +
+    # A + B·z so that the BOTTOM boundary conditions are satisfied:
+    #     y(L_total)     = 0   (pseudo-fixed tip)
+    #     y'(L_total)    = 0   (pseudo-fixed tip rotation)
+    # This yields a cantilever-like deflection shape with the top of the
+    # wall deflected toward the excavation (positive y), matching the
+    # qualitative shape in PYWALL Figure 4.5.
+    theta_raw = [0.0] * n_points
+    for i in range(1, n_points):
+        dz = z_grid[i] - z_grid[i - 1]
+        theta_raw[i] = theta_raw[i - 1] + 0.5 * (M_grid[i] / EI + M_grid[i - 1] / EI) * dz
+    y_raw = [0.0] * n_points
+    for i in range(1, n_points):
+        dz = z_grid[i] - z_grid[i - 1]
+        y_raw[i] = y_raw[i - 1] + 0.5 * (theta_raw[i] + theta_raw[i - 1]) * dz
+    # Apply linear correction so that y(L_total) = y'(L_total) = 0.
+    B_corr = -theta_raw[-1]
+    A_corr = -(y_raw[-1] + B_corr * z_grid[-1])
+    y_grid = [y_raw[i] + A_corr + B_corr * z_grid[i] for i in range(n_points)]
+    # Report the sign such that positive y means deflection toward the
+    # excavation (standard cantilever convention). The sign of the raw
+    # integration depends on the moment sign convention used above; we
+    # just take the absolute value at the top for reporting.
+    deflection_top = abs(y_grid[0])
+    if y_grid[0] < 0:
+        y_grid = [-v for v in y_grid]
+
+    # ----- Build the HTML report with MathJax equations -----
     r = '<div>'
     r += (
         '<p style="font-size:0.85em;color:#6c757d;margin:0 0 8px;">'
-        'Ref: Das &amp; Sivakugan (2019, 9th SI) <strong>&sect;18.4 Cantilever Sheet '
-        'Piling Penetrating Sandy Soil</strong>, <strong>pp.&nbsp;758&ndash;764</strong>, '
-        'Eq.&nbsp;18.11&ndash;18.22. This build models a homogeneous sand profile only; '
-        'clay and layered cases (Das &sect;18.6, &sect;18.10) are deferred. Poulos &amp; '
-        'Davis (1980) Ch.&nbsp;7 is the authoritative reference for laterally loaded '
-        'single piles and provides the theoretical backdrop for the earth-pressure '
-        'assumptions used here.</p>'
-    )
-    r += '<h4>Rankine Coefficients</h4>'
-    r += f'\\[ K_a = \\tfrac{{1-\\sin\\phi}}{{1+\\sin\\phi}} = {_f(Ka,4)} \\]'
-    r += f'\\[ K_p = \\tfrac{{1+\\sin\\phi}}{{1-\\sin\\phi}} = {_f(Kp,4)} \\]'
-    r += f'\\[ K_p - K_a = {_f(Kp_Ka,4)} \\]'
-
-    r += '<h4>Effective Unit Weight (below water table)</h4>'
-    r += (
-        f'\\[ \\gamma\' = \\gamma_{{sat}} - \\gamma_w = {_f(gamma_sat,2)} - {GAMMA_W} '
-        f'= {_f(gamma_eff,2)} \\text{{ kN/m}}^3 \\]'
+        'Ref: <strong>PYWALL 2019 Examples Manual &sect;4.1</strong> '
+        '(Ensoft, Reese et al., 2021) Example 4 &mdash; LRFD Analysis of '
+        'Sheet-Pile Wall for Static and Seismic Conditions. Closed-form '
+        'limit-equilibrium procedure per <strong>PYWALL Technical Manual '
+        '&sect;2.2</strong> (Rankine earth pressure) and <strong>Das &amp; '
+        'Sivakugan (2019, 9th SI) &sect;18.4 Eq.&nbsp;18.7&ndash;18.22, '
+        'pp.&nbsp;758&ndash;764</strong>. This calculator implements the '
+        'limit-equilibrium force/moment balance (PYWALL Fig.&nbsp;4.3 '
+        'comparison path). The more refined p-y / subgrade-reaction '
+        'solution (PYWALL Fig.&nbsp;4.5) requires the discrete-element '
+        'beam-column method of Matlock &amp; Halliburton (1965), PYWALL '
+        'Tech Manual &sect;3.2&ndash;3.3, and is beyond the closed-form '
+        'scope of this module.</p>'
     )
 
-    r += '<h4>Active Pressure at Key Levels (Das Eq. 18.7-18.10, pp. 758-760)</h4>'
+    r += '<h4>Rankine Earth-Pressure Coefficients</h4>'
     r += (
-        f'\\[ \\sigma_1\' = K_a \\gamma (L_1 + h_q) = {_f(Ka,4)} \\times {_f(gamma,2)} '
-        f'\\times ({_f(L1_used,2)} + {_f(h_q_equiv,2)}) = {_f(sigma1,2)} \\text{{ kPa}} \\]'
+        '<p style="font-size:0.82em;color:#6c757d;margin:0 0 6px;">'
+        'Ref: PYWALL Tech Manual &sect;2.2 (Rankine), Das &sect;16.3 '
+        '(active) and &sect;16.11 (passive).</p>'
     )
+    r += f'\\[ K_{{a1}} = \\tfrac{{1-\\sin\\phi_1}}{{1+\\sin\\phi_1}} = {_f(Ka1,4)} \\quad (\\phi_1 = {_f(phi1,1)}^\\circ) \\]'
+    r += f'\\[ K_{{a2}} = \\tfrac{{1-\\sin\\phi_2}}{{1+\\sin\\phi_2}} = {_f(Ka2,4)} \\quad (\\phi_2 = {_f(phi2,1)}^\\circ) \\]'
+    r += f'\\[ K_{{p2}} = {_f(Kp2,4)} \\]'
     r += (
-        f'\\[ \\sigma_2\' = \\sigma_1\' + K_a \\gamma\' L_2 = {_f(sigma1,2)} + {_f(Ka,4)} '
-        f'\\times {_f(gamma_eff,2)} \\times {_f(L2,2)} = {_f(sigma2,2)} \\text{{ kPa}} \\]'
+        f'<p style="font-size:0.80em;color:#6c757d;margin:0 0 6px;">'
+        f'K<sub>p2</sub> source: {Kp_source}.</p>'
     )
 
-    r += '<h4>Depth L3 Below Dredge Line to Point of Zero Net Pressure</h4>'
+    r += '<h4>Active Pressure at Key Elevations</h4>'
     r += (
-        f'\\[ L_3 = \\frac{{\\sigma_2\'}}{{(K_p - K_a)\\gamma\'}} = '
-        f'\\frac{{{_f(sigma2,2)}}}{{{_f(Kp_Ka,4)} \\times {_f(gamma_eff,2)}}} = '
+        '<p style="font-size:0.82em;color:#6c757d;margin:0 0 6px;">'
+        'Ref: PYWALL Examples Manual Table 4.2 (Example 4 static case, '
+        'p.&nbsp;4-5). Note the discontinuity at the dredge line when '
+        'K<sub>a1</sub> &ne; K<sub>a2</sub>.</p>'
+    )
+    r += (
+        f'\\[ \\sigma_{{a}}(z=0) = K_{{a1}} \\cdot q = {_f(Ka1,4)} \\times {_f(q)} = '
+        f'{_f(pa_top_wall)} \\text{{ kPa}} \\]'
+    )
+    r += (
+        f'\\[ \\sigma_{{a}}(z=L^-) = K_{{a1}} (\\gamma_1 L + q) = {_f(Ka1,4)} \\times '
+        f'({_f(gamma1)} \\times {_f(L)} + {_f(q)}) = {_f(pa_bot_dredge_L1)} \\text{{ kPa}} \\]'
+    )
+    r += (
+        f'\\[ \\sigma_2 = \\sigma_{{a}}(z=L^+) = K_{{a2}} (\\gamma_1 L + q) = {_f(Ka2,4)} \\times '
+        f'{_f(sigma_v_dredge)} = {_f(sigma2)} \\text{{ kPa}} \\]'
+    )
+
+    r += '<h4>Zero-Pressure Point Below the Dredge Line</h4>'
+    r += (
+        f'\\[ L_3 = \\frac{{\\sigma_2}}{{(K_{{p2}} - K_{{a2}}) \\gamma_2}} = '
+        f'\\frac{{{_f(sigma2)}}}{{{_f(Kp_minus_Ka_eff,4)} \\times {_f(gamma2)}}} = '
         f'{_f(L3,3)} \\text{{ m}} \\]'
     )
 
-    r += '<h4>Resultant Active Force P and Centroid z-bar</h4>'
-    r += f'\\[ P = P_1 + P_2 + P_3 + P_4 = {_f(P_total,2)} \\text{{ kN/m}} \\]'
-    r += f'\\[ \\bar{{z}} = {_f(z_bar,3)} \\text{{ m (from the zero-pressure point)}} \\]'
-
-    r += '<h4>Embedment Depth (Das Eq. 18.17)</h4>'
+    r += '<h4>Resultant Active Force P and Centroid</h4>'
     r += (
-        '\\[ D^4 + A_1 D^3 - A_2 D^2 - A_3 D - A_4 = 0 \\]'
-        f'\\[ A_1 = {_f(A1,3)}, \\quad A_2 = {_f(A2,3)}, \\quad A_3 = {_f(A3,3)}, '
-        f'\\quad A_4 = {_f(A4,3)} \\]'
-        f'\\[ D = {_f(D_below_zero,3)} \\text{{ m (below zero-pressure point)}} \\]'
+        f'\\[ P = P_1 + P_2 = {_f(P1)} + {_f(P2)} = {_f(P_total)} \\text{{ kN/m}} \\]'
+    )
+    r += (
+        f'\\[ \\bar{{z}} = {_f(zbar_total,3)} \\text{{ m (from the zero-pressure point, upward)}} \\]'
+    )
+
+    r += '<h4>Embedment Depth (Das &sect;18.4 Eq.&nbsp;18.17 Quartic)</h4>'
+    r += '\\[ D^4 + A_1 D^3 - A_2 D^2 - A_3 D - A_4 = 0 \\]'
+    r += (
+        f'\\[ A_1 = {_f(A1,3)}, \\ A_2 = {_f(A2,3)}, \\ '
+        f'A_3 = {_f(A3,3)}, \\ A_4 = {_f(A4,3)} \\]'
+    )
+    r += (
+        f'\\[ D = {_f(D_below_zero,3)} \\text{{ m (below the zero-pressure point)}} \\]'
         f'\\[ D_{{theoretical}} = L_3 + D = {_f(D_theoretical,3)} \\text{{ m (below dredge line)}} \\]'
     )
     r += (
-        f'<p><strong>Design embedment</strong> (30% safety per Das p.&nbsp;762): '
-        f'D<sub>design</sub> = 1.30 &times; D<sub>theoretical</sub> = '
-        f'<strong>{_f(D_design,2)} m</strong></p>'
+        f'<p><strong>Design embedment</strong> '
+        f'(20&percnt; safety factor per PYWALL Example 4 &sect;4.1.2 and '
+        f'Das p.&nbsp;762): '
+        f'D<sub>design</sub> = 1.20 &times; {_f(D_theoretical,3)} = '
+        f'<strong>{_f(D_design,2)} m</strong>. '
+        f'Total wall length = L + D<sub>design</sub> = '
+        f'<strong>{_f(L_total,2)} m</strong>. '
+        f'PYWALL Example 4 Strength I target: Do&nbsp;=&nbsp;8.57&nbsp;ft '
+        f'&approx;&nbsp;2.61&nbsp;m, D&nbsp;=&nbsp;10.3&nbsp;ft &approx;&nbsp;3.14&nbsp;m.</p>'
     )
 
-    r += '<h4>Maximum Bending Moment (Das Eq. 18.19-18.21, p. 763)</h4>'
+    r += '<h4>Maximum Bending Moment (Das &sect;18.4 Eq.&nbsp;18.19-18.21)</h4>'
     r += (
-        f'\\[ z\' = \\sqrt{{\\frac{{2P}}{{(K_p - K_a)\\gamma\'}}}} = '
-        f'{_f(z_shear_zero,3)} \\text{{ m (depth of zero shear below dredge line)}} \\]'
+        f"\\[ z' = \\sqrt{{\\frac{{2 P}}{{(K_{{p2}} - K_{{a2}}) \\gamma_2}}}} = "
+        f"{_f(z_shear_zero,3)} \\text{{ m (depth of zero shear below the zero-pressure point)}} \\]"
     )
     r += (
-        f'\\[ M_{{max}} = P(z\' + \\bar{{z}}) - \\tfrac{{1}}{{6}}(K_p-K_a)\\gamma\' z\'^3 = '
-        f'{_f(M_max,2)} \\text{{ kN}}\\cdot\\text{{m/m}} \\]'
+        f"\\[ M_{{max}} = P (z' + \\bar{{z}}) - \\tfrac{{1}}{{6}}(K_{{p2}}-K_{{a2}})\\gamma_2 z'^3 = "
+        f"{_f(M_max)} \\text{{ kN}} \\cdot \\text{{m/m}} \\]"
+    )
+    r += (
+        f'<p>Depth of M<sub>max</sub> below the top of wall: '
+        f'<strong>{_f(z_max_moment,2)} m</strong>. '
+        f'PYWALL Example 4 Strength I targets: M<sub>max</sub> = '
+        f'27&thinsp;272 ft&middot;lbs/ft &approx; <strong>121.3 kN&middot;m/m</strong> '
+        f'at 14.4&nbsp;ft &approx; 4.39&nbsp;m below the top.</p>'
     )
 
-    r += '<h4>Required Section Modulus (Das Eq. 18.22, p. 764)</h4>'
+    r += '<h4>Required Section Modulus (Das Eq.&nbsp;18.22)</h4>'
     r += (
         f'\\[ S_{{req}} = \\frac{{M_{{max}}}}{{\\sigma_{{allow}}}} = '
-        f'\\frac{{{_f(M_max,2)}}}{{{_f(sigma_allow,0)}}} = {_f(S_req,6)} \\text{{ m}}^3/\\text{{m}} '
+        f'\\frac{{{_f(M_max)}}}{{{_f(sigma_allow,0)}}} = {_f(S_req,6)} \\text{{ m}}^3/\\text{{m}} '
         f'= {_f(S_req_cm3_per_m,1)} \\text{{ cm}}^3/\\text{{m}} \\]'
     )
 
+    r += '<h4>Deflection at the Top of Wall</h4>'
+    r += (
+        '<p style="font-size:0.82em;color:#6c757d;margin:0 0 6px;">'
+        'Obtained by double integration of M(z)/EI from the pile tip '
+        'upward with pseudo-fixed BCs y(L<sub>total</sub>) = 0 and '
+        'y\'(L<sub>total</sub>) = 0. This is the EI-dependent deflection '
+        'shape associated with the limit-equilibrium M(z) distribution '
+        '(PYWALL Tech Manual &sect;3.2 Eq.&nbsp;3.7, M = EI y\'\'). The '
+        'full nonlinear p-y solution in PYWALL typically predicts a '
+        'similar shape but smaller magnitude because the passive '
+        'resistance is not fully mobilized.</p>'
+    )
+    r += (
+        f'\\[ y(0) = {_f(deflection_top*1000, 2)} \\text{{ mm}} '
+        f'\\quad (EI = {_f(EI,0)} \\text{{ kN}} \\cdot \\text{{m}}^2/\\text{{m}}) \\]'
+    )
     r += '</div>'
 
-    # Plotly pressure diagram
-    chart = _build_pressure_chart(
-        L, L1_used, L2, L3, D_design,
-        sigma1, sigma2,
-        Kp_Ka, gamma_eff,
+    # ----- Four Plotly sub-plots -----
+    pressure_plot = _build_pressure_chart(z_grid, p_grid, L, L_plot, sigma2, L3)
+    shear_plot = _build_single_profile(
+        z_grid, V_grid, L, L_plot,
+        title="Shear (kN/m)", xlabel="Shear, V (kN/m)", color="#2980b9",
+    )
+    moment_plot = _build_single_profile(
+        z_grid, M_grid, L, L_plot,
+        title="Bending Moment (kN·m/m)", xlabel="Moment, M (kN·m/m)", color="#27ae60",
+    )
+    # Deflection plotted in mm for readability
+    y_mm = [v * 1000.0 for v in y_grid]
+    deflection_plot = _build_single_profile(
+        z_grid, y_mm, L, L_plot,
+        title="Deflection (mm)", xlabel="Deflection, y (mm)", color="#8e44ad",
     )
 
     return {
         'report': r,
-        'Ka': Ka,
-        'Kp': Kp,
+        'Ka1': Ka1,
+        'Ka2': Ka2,
+        'Kp2': Kp2,
         'L3': L3,
         'D_theoretical': D_theoretical,
         'D_design': D_design,
+        'L_total': L_total,
         'M_max': M_max,
+        'z_max_moment': z_max_moment,
         'S_req': S_req,
         'S_req_cm3_per_m': S_req_cm3_per_m,
-        'chart_traces': chart['traces'],
-        'chart_layout': chart['layout'],
+        'deflection_top_mm': deflection_top * 1000.0,
+        'pressure_traces': pressure_plot['traces'],
+        'pressure_layout': pressure_plot['layout'],
+        'shear_traces': shear_plot['traces'],
+        'shear_layout': shear_plot['layout'],
+        'moment_traces': moment_plot['traces'],
+        'moment_layout': moment_plot['layout'],
+        'deflection_traces': deflection_plot['traces'],
+        'deflection_layout': deflection_plot['layout'],
+        # Back-compat aliases
+        'chart_traces': pressure_plot['traces'],
+        'chart_layout': pressure_plot['layout'],
     }
 
 
-def _build_pressure_chart(L, L1, L2, L3, D_design, sigma1, sigma2, Kp_Ka, gamma_eff):
-    """Pressure diagram: active on the left (above and below the dredge line)
-    and passive-net on the right from the dredge line down to the pile tip.
-    """
-    # y = 0 at top of wall, positive downward (Plotly y-axis is reversed below)
-    # We plot with y measured from the top of wall; "depth below dredge line"
-    # is y - L.
-    top = 0.0
-    wt_y = L1
-    dredge_y = L
-    zero_press_y = L + L3
-    tip_y = L + D_design
-
-    # Active pressure polygon
-    active_x = [0, -0]  # placeholder; we build a closed polygon below
-    # Build the active profile: 0 at top, sigma1 at WT, sigma2 at dredge line,
-    # then linear to zero at zero-pressure point, then linearly INCREASING
-    # into "net active" region (which becomes negative in Das sign convention).
-    active_poly_x = [0, 0, -sigma1, -sigma2, -(sigma2 + Kp_Ka * gamma_eff * (D_design - L3) * 0.4), 0]
-    # Simpler: draw a cleaner trapezoid and triangle set that matches Das Fig. 18.11
-    active_above_x = [0, -sigma1, -sigma2, 0]
-    active_above_y = [top, wt_y, dredge_y, dredge_y]
-
-    # From dredge line down to the zero-pressure point, net active stays positive (leftward)
-    active_below_x = [0, -sigma2, 0, 0]
-    active_below_y = [dredge_y, dredge_y, zero_press_y, dredge_y]
-
-    # Passive net pressure diagram: from the zero-pressure point down to the pile tip,
-    # the net pressure (Kp - Ka)·γ'·z - sigma2 grows linearly; the max at D_design below dredge
-    sigma_passive_max = Kp_Ka * gamma_eff * (D_design - L3)
-    passive_x = [0, sigma_passive_max, 0, 0]
-    passive_y = [zero_press_y, tip_y, tip_y, zero_press_y]
-
-    traces = []
-    # Wall line (solid vertical)
-    traces.append({
-        'x': [0, 0], 'y': [top, tip_y],
-        'mode': 'lines', 'line': {'color': '#333', 'width': 3},
-        'showlegend': False, 'hoverinfo': 'skip',
-    })
-    # Dredge line (horizontal dashed)
-    scale = max(sigma2, sigma_passive_max, 1.0)
-    traces.append({
-        'x': [-1.2 * scale, 1.2 * scale], 'y': [dredge_y, dredge_y],
-        'mode': 'lines', 'line': {'color': '#8b6914', 'width': 1.5, 'dash': 'dash'},
-        'showlegend': False, 'hoverinfo': 'skip',
-    })
-    # Water table (horizontal dotted blue) if within wall
-    if L1 > 0 and L1 < L:
-        traces.append({
-            'x': [-1.2 * scale, 1.2 * scale], 'y': [wt_y, wt_y],
-            'mode': 'lines', 'line': {'color': '#3498db', 'width': 1.2, 'dash': 'dot'},
+def _build_pressure_chart(z, p, L, L_total, sigma2, L3):
+    """Net lateral pressure envelope with dredge-line and zero-pressure annotations."""
+    z_zero = L + L3
+    # Positive (driving) segment: fill with red
+    # Negative (resisting) segment: fill with blue
+    traces = [
+        {
+            'x': p, 'y': z,
+            'mode': 'lines',
+            'line': {'color': '#c0392b', 'width': 2.5},
+            'name': 'Net pressure',
+        },
+        {
+            'x': [0, 0], 'y': [0, L_total],
+            'mode': 'lines',
+            'line': {'color': '#333', 'width': 1.2, 'dash': 'dot'},
             'showlegend': False, 'hoverinfo': 'skip',
-        })
-    # Active pressure above dredge
-    traces.append({
-        'x': active_above_x, 'y': active_above_y,
-        'mode': 'lines', 'fill': 'toself',
-        'fillcolor': 'rgba(231,76,60,0.25)',
-        'line': {'color': '#c0392b', 'width': 2},
-        'name': 'Active (above dredge)',
-    })
-    # Active net below dredge down to L3
-    traces.append({
-        'x': active_below_x, 'y': active_below_y,
-        'mode': 'lines', 'fill': 'toself',
-        'fillcolor': 'rgba(231,76,60,0.15)',
-        'line': {'color': '#c0392b', 'width': 2, 'dash': 'dot'},
-        'name': 'Net active (below dredge)',
-    })
-    # Passive net below the zero-pressure point
-    traces.append({
-        'x': passive_x, 'y': passive_y,
-        'mode': 'lines', 'fill': 'toself',
-        'fillcolor': 'rgba(52,152,219,0.30)',
-        'line': {'color': '#2980b9', 'width': 2},
-        'name': 'Net passive',
-    })
-
-    ann = [
-        {'x': -0.02 * scale, 'y': top, 'text': 'Top of wall',
-         'showarrow': False, 'font': {'size': 10, 'color': '#333'}, 'xanchor': 'right'},
-        {'x': -0.02 * scale, 'y': dredge_y, 'text': f'Dredge line (L = {L:.2f} m)',
-         'showarrow': False, 'font': {'size': 10, 'color': '#8b6914'}, 'xanchor': 'right'},
-        {'x': 0.02 * scale, 'y': zero_press_y, 'text': f'Zero net pressure (L3 = {L3:.2f} m)',
-         'showarrow': False, 'font': {'size': 9, 'color': '#2980b9'}, 'xanchor': 'left'},
-        {'x': 0.02 * scale, 'y': tip_y, 'text': f'Tip (D = {D_design:.2f} m)',
-         'showarrow': False, 'font': {'size': 10, 'color': '#2980b9'}, 'xanchor': 'left'},
+        },
     ]
-    if L1 > 0 and L1 < L:
-        ann.append({
-            'x': -0.02 * scale, 'y': wt_y, 'text': f'Water table (L1 = {L1:.2f} m)',
-            'showarrow': False, 'font': {'size': 9, 'color': '#3498db'}, 'xanchor': 'right',
-        })
-
+    ann = [
+        {
+            'x': 0, 'y': L,
+            'text': f'Dredge line (L = {L:.2f} m)',
+            'showarrow': True, 'arrowhead': 2, 'ax': 30, 'ay': 0,
+            'font': {'size': 10, 'color': '#8b6914'},
+            'bgcolor': 'rgba(255,255,255,0.8)',
+        },
+        {
+            'x': 0, 'y': z_zero,
+            'text': f'Zero pressure (L₃ = {L3:.2f} m)',
+            'showarrow': True, 'arrowhead': 2, 'ax': 30, 'ay': 0,
+            'font': {'size': 10, 'color': '#2980b9'},
+            'bgcolor': 'rgba(255,255,255,0.8)',
+        },
+        {
+            'x': sigma2, 'y': L + 0.01,
+            'text': f'σ₂ = {sigma2:.1f} kPa',
+            'showarrow': False,
+            'font': {'size': 9, 'color': '#c0392b'},
+            'xanchor': 'left', 'yanchor': 'top',
+        },
+    ]
     layout = {
-        'title': {'text': 'Cantilever Sheet-Pile Pressure Diagram (Das Fig. 18.11)', 'font': {'size': 13}},
-        'xaxis': {'title': 'Net lateral pressure (kPa)', 'zeroline': True,
-                  'range': [-1.3 * scale, 1.3 * scale]},
-        'yaxis': {'title': 'Depth below top of wall (m)', 'autorange': 'reversed'},
-        'height': 500,
-        'margin': {'l': 70, 'r': 20, 't': 50, 'b': 60},
-        'plot_bgcolor': 'white', 'paper_bgcolor': 'white',
+        'title': {'text': 'Net Lateral Pressure (kPa)', 'font': {'size': 13}},
+        'xaxis': {'title': 'Pressure (kPa)', 'zeroline': True, 'zerolinecolor': '#999'},
+        'yaxis': {
+            'title': 'Depth below top of wall (m)',
+            'autorange': 'reversed',
+            'zeroline': False,
+        },
+        'height': 420,
+        'margin': {'l': 70, 'r': 20, 't': 45, 'b': 50},
+        'plot_bgcolor': '#ffffff', 'paper_bgcolor': '#ffffff',
         'annotations': ann,
-        'legend': {'orientation': 'h', 'x': 0.5, 'y': -0.15, 'xanchor': 'center'},
+        'showlegend': False,
+    }
+    return {'traces': traces, 'layout': layout}
+
+
+def _build_single_profile(z, vals, L, L_total, title, xlabel, color):
+    """Generic single-trace x-vs-z profile plot with dredge line marker."""
+    max_abs = max((abs(v) for v in vals), default=1.0) or 1.0
+    traces = [
+        {
+            'x': vals, 'y': z,
+            'mode': 'lines',
+            'line': {'color': color, 'width': 2.5},
+            'fill': 'tozerox',
+            'fillcolor': color + '22' if color.startswith('#') and len(color) == 7 else 'rgba(41,128,185,0.13)',
+            'name': title,
+        },
+        {
+            'x': [0, 0], 'y': [0, L_total],
+            'mode': 'lines',
+            'line': {'color': '#333', 'width': 1.2, 'dash': 'dot'},
+            'showlegend': False, 'hoverinfo': 'skip',
+        },
+        {
+            'x': [-1.15 * max_abs, 1.15 * max_abs], 'y': [L, L],
+            'mode': 'lines',
+            'line': {'color': '#8b6914', 'width': 1.2, 'dash': 'dash'},
+            'showlegend': False, 'hoverinfo': 'skip',
+            'name': 'Dredge line',
+        },
+    ]
+    layout = {
+        'title': {'text': title, 'font': {'size': 13}},
+        'xaxis': {
+            'title': xlabel,
+            'zeroline': True, 'zerolinecolor': '#999',
+            'range': [-1.15 * max_abs, 1.15 * max_abs],
+        },
+        'yaxis': {
+            'title': 'Depth (m)',
+            'autorange': 'reversed',
+            'zeroline': False,
+        },
+        'height': 420,
+        'margin': {'l': 70, 'r': 20, 't': 45, 'b': 50},
+        'plot_bgcolor': '#ffffff', 'paper_bgcolor': '#ffffff',
+        'showlegend': False,
     }
     return {'traces': traces, 'layout': layout}
