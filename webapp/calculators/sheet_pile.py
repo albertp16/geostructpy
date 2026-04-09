@@ -744,21 +744,44 @@ def calculate(L, layers=None,
     )
     r += '</div>'
 
-    # ----- Four Plotly sub-plots -----
-    pressure_plot = _build_pressure_chart(z_grid, p_grid, L, L_plot, sigma2, L3)
+    # ----- Plotly sub-plots -----
+    # Clip the layer list to the plotted depth so each band stops at the
+    # pile tip instead of extending into the "infinity" region below.
+    plot_layers = []
+    for i, ly in enumerate(layers):
+        z_top = ly['z_top']
+        z_bot = min(ly['z_bot'], L_plot)
+        if z_top >= L_plot:
+            break
+        plot_layers.append({
+            'name':  ly.get('name', f'Layer {i + 1}'),
+            'z_top': z_top,
+            'z_bot': z_bot,
+            'is_design': (ly is design_layer),
+        })
+
+    # Wall + soil profile cross-section (geometric diagram)
+    cross_section_plot = _build_cross_section(L, L_plot, plot_layers)
+
+    pressure_plot = _build_pressure_chart(
+        z_grid, p_grid, L, L_plot, sigma2, L3, plot_layers,
+    )
     shear_plot = _build_single_profile(
         z_grid, V_grid, L, L_plot,
         title="Shear (kN/m)", xlabel="Shear, V (kN/m)", color="#2980b9",
+        plot_layers=plot_layers,
     )
     moment_plot = _build_single_profile(
         z_grid, M_grid, L, L_plot,
         title="Bending Moment (kN·m/m)", xlabel="Moment, M (kN·m/m)", color="#27ae60",
+        plot_layers=plot_layers,
     )
     # Deflection plotted in mm for readability
     y_mm = [v * 1000.0 for v in y_grid]
     deflection_plot = _build_single_profile(
         z_grid, y_mm, L, L_plot,
         title="Deflection (mm)", xlabel="Deflection, y (mm)", color="#8e44ad",
+        plot_layers=plot_layers,
     )
 
     return {
@@ -775,6 +798,8 @@ def calculate(L, layers=None,
         'S_req': S_req,
         'S_req_cm3_per_m': S_req_cm3_per_m,
         'deflection_top_mm': deflection_top * 1000.0,
+        'cross_section_traces': cross_section_plot['traces'],
+        'cross_section_layout': cross_section_plot['layout'],
         'pressure_traces': pressure_plot['traces'],
         'pressure_layout': pressure_plot['layout'],
         'shear_traces': shear_plot['traces'],
@@ -789,7 +814,255 @@ def calculate(L, layers=None,
     }
 
 
-def _build_pressure_chart(z, p, L, L_total, sigma2, L3):
+def _layer_overlay(plot_layers):
+    """
+    Build Plotly shapes + annotations that visualise the soil layer profile.
+
+    Layout contract:
+      - shapes use xref='paper' so they span the full plot width regardless
+        of the data-axis units (kPa, kN/m, kN&middot;m/m, mm).
+      - Alternating tan background bands visually separate each layer.
+      - A dotted brown boundary line is drawn between adjacent layers
+        (skipping the top of the first layer, which is the top of wall).
+      - Each layer's name is anchored to the right edge of its band.
+      - The design layer (the one containing the dredge line) gets a
+        slightly darker highlight.
+    """
+    if not plot_layers:
+        return {'shapes': [], 'annotations': []}
+
+    # Neutral tan / sand palette for alternating bands
+    band_colors = [
+        'rgba(245, 236, 220, 0.55)',
+        'rgba(222, 207, 172, 0.45)',
+    ]
+    design_band = 'rgba(246, 220, 170, 0.55)'
+
+    shapes = []
+    annotations = []
+    for i, ly in enumerate(plot_layers):
+        if ly.get('is_design'):
+            fill = design_band
+        else:
+            fill = band_colors[i % 2]
+        shapes.append({
+            'type': 'rect',
+            'xref': 'paper', 'yref': 'y',
+            'x0': 0, 'x1': 1,
+            'y0': ly['z_top'], 'y1': ly['z_bot'],
+            'fillcolor': fill,
+            'line': {'width': 0},
+            'layer': 'below',
+        })
+        # Boundary line at the TOP of each layer, skipping the wall top
+        if ly['z_top'] > 0.001:
+            shapes.append({
+                'type': 'line',
+                'xref': 'paper', 'yref': 'y',
+                'x0': 0, 'x1': 1,
+                'y0': ly['z_top'], 'y1': ly['z_top'],
+                'line': {'color': '#8a7a5c', 'width': 1.0, 'dash': 'dot'},
+                'layer': 'below',
+            })
+        # Layer name label, right-hand margin, vertically centred in the band
+        z_mid = 0.5 * (ly['z_top'] + ly['z_bot'])
+        annotations.append({
+            'xref': 'paper', 'yref': 'y',
+            'x': 0.985, 'y': z_mid,
+            'text': ly['name'],
+            'showarrow': False,
+            'font': {'size': 9, 'color': '#6b5a3a'},
+            'xanchor': 'right', 'yanchor': 'middle',
+            'bgcolor': 'rgba(255,255,255,0.65)',
+            'borderpad': 2,
+        })
+    return {'shapes': shapes, 'annotations': annotations}
+
+
+def _build_cross_section(L, L_total, plot_layers):
+    """
+    Textbook-style cross-section of the sheet pile + layered soil profile.
+
+    Layout:
+      * Sheet pile = dark-grey vertical bar centered at x=0 spanning
+        z = 0 (top of wall) to z = L_total (pile tip).
+      * LEFT side (x<0) = retained backfill — layers drawn from z=0 down to
+        the pile tip with saturated tan / brown fills.
+      * RIGHT side (x>0) = excavated (dredge) side — no soil above z=L; below
+        the dredge line the same layers are drawn in the lower-right quadrant.
+      * Brown dashed dredge line on the excavated side only.
+      * Layer-name labels on the LEFT margin, vertically centred in each band.
+      * Sky-blue "water/air" fill on the right side above the dredge line.
+    """
+    if not plot_layers:
+        return {
+            'traces': [{'x': [None], 'y': [None], 'mode': 'markers',
+                        'showlegend': False, 'hoverinfo': 'skip'}],
+            'layout': {'height': 420, 'title': {'text': 'Wall cross-section'}},
+        }
+
+    # x-axis is dimensionless (fixed -1 to +1). Sheet pile is a thin bar in
+    # the middle; layer bands fill the rest.
+    x_left, x_right = -1.0, 1.0
+    pile_half_width = 0.03
+
+    # Full saturated palette so layers are actually visible
+    layer_colors = [
+        'rgba(245, 222, 179, 0.95)',   # wheat
+        'rgba(210, 180, 140, 0.95)',   # tan
+        'rgba(222, 184, 135, 0.95)',   # burlywood
+        'rgba(188, 143, 143, 0.95)',   # rosy brown
+        'rgba(205, 175, 149, 0.95)',   # soft tan
+    ]
+    design_color = 'rgba(246, 190, 100, 0.95)'  # amber — highlights dredge-line layer
+
+    shapes = []
+    annotations = []
+
+    # --- Air / sky over the excavated side (above dredge) ---
+    shapes.append({
+        'type': 'rect', 'xref': 'x', 'yref': 'y',
+        'x0': pile_half_width, 'x1': x_right,
+        'y0': 0, 'y1': L,
+        'fillcolor': 'rgba(176, 224, 230, 0.45)',  # powder blue
+        'line': {'width': 0},
+        'layer': 'below',
+    })
+
+    # --- Soil layers on both sides ---
+    for i, ly in enumerate(plot_layers):
+        z_top = ly['z_top']
+        z_bot = ly['z_bot']
+        color = design_color if ly.get('is_design') else layer_colors[i % len(layer_colors)]
+
+        # LEFT side (retained soil) — full height of layer
+        shapes.append({
+            'type': 'rect', 'xref': 'x', 'yref': 'y',
+            'x0': x_left, 'x1': -pile_half_width,
+            'y0': z_top, 'y1': z_bot,
+            'fillcolor': color,
+            'line': {'color': '#8b6914', 'width': 0.8},
+            'layer': 'below',
+        })
+
+        # RIGHT side (excavated) — only below the dredge line
+        if z_bot > L:
+            right_top = max(z_top, L)
+            shapes.append({
+                'type': 'rect', 'xref': 'x', 'yref': 'y',
+                'x0': pile_half_width, 'x1': x_right,
+                'y0': right_top, 'y1': z_bot,
+                'fillcolor': color,
+                'line': {'color': '#8b6914', 'width': 0.8},
+                'layer': 'below',
+            })
+
+        # Layer-name label on the LEFT margin
+        z_mid = 0.5 * (z_top + z_bot)
+        annotations.append({
+            'xref': 'x', 'yref': 'y',
+            'x': x_left + 0.02, 'y': z_mid,
+            'text': ly['name'],
+            'showarrow': False,
+            'font': {'size': 10, 'color': '#4a3a1a'},
+            'xanchor': 'left', 'yanchor': 'middle',
+            'bgcolor': 'rgba(255,255,255,0.75)', 'borderpad': 3,
+        })
+
+    # --- Sheet pile (dark grey rectangle spanning full wall length) ---
+    shapes.append({
+        'type': 'rect', 'xref': 'x', 'yref': 'y',
+        'x0': -pile_half_width, 'x1': pile_half_width,
+        'y0': 0, 'y1': L_total,
+        'fillcolor': '#555555',
+        'line': {'color': '#1a1a1a', 'width': 1.5},
+    })
+
+    # --- Dredge line (brown dashed) on the excavated side ---
+    shapes.append({
+        'type': 'line', 'xref': 'x', 'yref': 'y',
+        'x0': pile_half_width, 'x1': x_right,
+        'y0': L, 'y1': L,
+        'line': {'color': '#8b4513', 'width': 2.5, 'dash': 'dash'},
+    })
+
+    # --- Side labels ---
+    annotations.append({
+        'xref': 'x', 'yref': 'y',
+        'x': 0.5 * (x_left - pile_half_width), 'y': -0.02 * L_total,
+        'text': '<b>Retained side</b>',
+        'showarrow': False,
+        'font': {'size': 11, 'color': '#4a3a1a'},
+        'xanchor': 'center', 'yanchor': 'bottom',
+    })
+    annotations.append({
+        'xref': 'x', 'yref': 'y',
+        'x': 0.5 * (pile_half_width + x_right), 'y': -0.02 * L_total,
+        'text': '<b>Excavated side</b>',
+        'showarrow': False,
+        'font': {'size': 11, 'color': '#4a3a1a'},
+        'xanchor': 'center', 'yanchor': 'bottom',
+    })
+    # Dredge-line callout
+    annotations.append({
+        'xref': 'x', 'yref': 'y',
+        'x': x_right - 0.04, 'y': L,
+        'text': f'Dredge line (z = {L:.2f} m)',
+        'showarrow': True, 'arrowhead': 2, 'ax': -40, 'ay': -22,
+        'font': {'size': 10, 'color': '#8b4513'},
+        'bgcolor': 'rgba(255,255,255,0.85)',
+        'xanchor': 'right',
+    })
+    # Pile-tip callout
+    annotations.append({
+        'xref': 'x', 'yref': 'y',
+        'x': pile_half_width, 'y': L_total,
+        'text': f'Pile tip (z = {L_total:.2f} m)',
+        'showarrow': True, 'arrowhead': 2, 'ax': 50, 'ay': 0,
+        'font': {'size': 10, 'color': '#1a1a1a'},
+        'bgcolor': 'rgba(255,255,255,0.85)',
+    })
+    # Top-of-wall callout
+    annotations.append({
+        'xref': 'x', 'yref': 'y',
+        'x': -pile_half_width, 'y': 0,
+        'text': 'Top of wall (z = 0)',
+        'showarrow': True, 'arrowhead': 2, 'ax': -50, 'ay': 0,
+        'font': {'size': 10, 'color': '#1a1a1a'},
+        'bgcolor': 'rgba(255,255,255,0.85)',
+    })
+
+    # Plotly needs at least one trace — use an invisible marker
+    traces = [{
+        'x': [None], 'y': [None],
+        'mode': 'markers',
+        'showlegend': False, 'hoverinfo': 'skip',
+    }]
+
+    layout = {
+        'title': {'text': 'Wall + Soil Profile Cross-Section', 'font': {'size': 14}},
+        'xaxis': {
+            'range': [x_left - 0.05, x_right + 0.05],
+            'showticklabels': False, 'showgrid': False,
+            'zeroline': False, 'fixedrange': True,
+        },
+        'yaxis': {
+            'title': 'Depth below top of wall (m)',
+            'autorange': 'reversed',
+            'zeroline': False,
+            'showgrid': False,
+        },
+        'height': 460,
+        'margin': {'l': 70, 'r': 30, 't': 45, 'b': 40},
+        'plot_bgcolor': '#ffffff', 'paper_bgcolor': '#ffffff',
+        'shapes': shapes,
+        'annotations': annotations,
+        'showlegend': False,
+    }
+    return {'traces': traces, 'layout': layout}
+
+
+def _build_pressure_chart(z, p, L, L_total, sigma2, L3, plot_layers=None):
     """Net lateral pressure envelope with dredge-line and zero-pressure annotations."""
     z_zero = L + L3
     # Positive (driving) segment: fill with red
@@ -831,6 +1104,7 @@ def _build_pressure_chart(z, p, L, L_total, sigma2, L3):
             'xanchor': 'left', 'yanchor': 'top',
         },
     ]
+    overlay = _layer_overlay(plot_layers)
     layout = {
         'title': {'text': 'Net Lateral Pressure (kPa)', 'font': {'size': 13}},
         'xaxis': {'title': 'Pressure (kPa)', 'zeroline': True, 'zerolinecolor': '#999'},
@@ -842,13 +1116,14 @@ def _build_pressure_chart(z, p, L, L_total, sigma2, L3):
         'height': 420,
         'margin': {'l': 70, 'r': 20, 't': 45, 'b': 50},
         'plot_bgcolor': '#ffffff', 'paper_bgcolor': '#ffffff',
-        'annotations': ann,
+        'shapes': overlay['shapes'],
+        'annotations': overlay['annotations'] + ann,
         'showlegend': False,
     }
     return {'traces': traces, 'layout': layout}
 
 
-def _build_single_profile(z, vals, L, L_total, title, xlabel, color):
+def _build_single_profile(z, vals, L, L_total, title, xlabel, color, plot_layers=None):
     """Generic single-trace x-vs-z profile plot with dredge line marker."""
     max_abs = max((abs(v) for v in vals), default=1.0) or 1.0
     traces = [
@@ -874,6 +1149,7 @@ def _build_single_profile(z, vals, L, L_total, title, xlabel, color):
             'name': 'Dredge line',
         },
     ]
+    overlay = _layer_overlay(plot_layers)
     layout = {
         'title': {'text': title, 'font': {'size': 13}},
         'xaxis': {
@@ -889,6 +1165,8 @@ def _build_single_profile(z, vals, L, L_total, title, xlabel, color):
         'height': 420,
         'margin': {'l': 70, 'r': 20, 't': 45, 'b': 50},
         'plot_bgcolor': '#ffffff', 'paper_bgcolor': '#ffffff',
+        'shapes': overlay['shapes'],
+        'annotations': overlay['annotations'],
         'showlegend': False,
     }
     return {'traces': traces, 'layout': layout}
