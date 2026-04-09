@@ -1,70 +1,115 @@
 {% extends "base.html" %}
-{% block title %}Sheet Pile Design - GeoStructPy{% endblock %}
+{% block title %}Sheet Pile (PYWALL Example 4) - GeoStructPy{% endblock %}
 {% block content %}
 <div>
     <form method="POST" action="/sheet-pile">
     <div class="card">
-        <h2>Cantilever Sheet Pile in Sand</h2>
+        <h2>Cantilever Sheet Pile in Sand &mdash; PYWALL Example 4 (LRFD)</h2>
         <p style="color:var(--muted);font-size:0.9em;">
-            Embedment depth, maximum moment, and required section modulus for a cantilever
-            sheet-pile wall penetrating homogeneous sand, per
-            Das &amp; Sivakugan (2019, 9th SI) <strong>&sect;18.4</strong>,
-            <strong>pp.&nbsp;758&ndash;764</strong>, Eq.&nbsp;18.11&ndash;18.22.
+            Closed-form limit-equilibrium analysis of a cantilever sheet-pile wall in a two-layer sand
+            profile, matching the static Strength I case of
+            <strong>PYWALL 2019 Examples Manual &sect;4.1 &mdash; Example 4</strong>
+            (LRFD Analysis of Sheet-Pile Wall for Static and Seismic Conditions,
+            Ensoft, Reese&nbsp;et&nbsp;al.&nbsp;2021).
+            Defaults are the metric conversion of Example 4 Tables 4.1 and 4.3.
+            The four output plots (pressure, shear, bending moment, deflection) reproduce the
+            limit-equilibrium comparison shown in PYWALL Figure&nbsp;4.3.
         </p>
         <p style="background:#fdf6e3;border-left:4px solid #e6a817;padding:8px 12px;margin:0 0 12px;font-size:0.82em;color:#7a5a00;">
-            <strong>Scope of this first build:</strong> homogeneous sand profile above and below
-            the dredge line; cantilever (no anchor); optional uniform surcharge on backfill;
-            water table located anywhere within or below the retained height. Clay (&sect;18.6),
-            layered soil, and anchored sheet piles (&sect;18.9&ndash;18.16) are deferred to a later build.
+            <strong>Scope of this build:</strong> two-layer homogeneous sand profile with the layer
+            boundary exactly at the dredge line, no water table, uniform surcharge, cantilever
+            (unanchored). Rankine active &amp; passive coefficients (&delta;&nbsp;=&nbsp;0). The more
+            refined p-y / subgrade-reaction solution (PYWALL Fig.&nbsp;4.5) uses the discrete-element
+            beam-column method of Matlock &amp; Halliburton (1965) &mdash; that is beyond the closed-form
+            scope of this module. References for every input are in the tooltips.
         </p>
 
         <div class="form-row">
             <div>
                 <h3>Wall Geometry</h3>
                 <div class="form-group">
-                    <label>Wall Height above Dredge Line, L (m)
-                        <span class="qa-note" tabindex="0" data-note="Total unsupported height measured from the top of the sheet pile down to the dredge line (the lower ground surface on the waterward side). See Das Fig. 18.11, p. 758."></span>
+                    <label>Retained Height, L (m)
+                        <span class="qa-note" tabindex="0" data-note="Total 'free' height of the sheet pile above the dredge line. Also called the 'excavation depth' in PYWALL. Example 4 uses 10 ft ≈ 3.05 m (Fig. 4.1)."></span>
                     </label>
-                    <input type="number" step="0.1" min="0.5" name="L" value="{{ params.L }}">
+                    <input type="number" step="0.01" min="0.5" name="L" value="{{ params.L }}">
                 </div>
                 <div class="form-group">
-                    <label>Water Table Depth from Top, L<sub>1</sub> (m)
-                        <span class="qa-note" tabindex="0" data-note="Depth from the top of wall down to the water table. Set L1 ≥ L to model a dry profile. Water is assumed balanced across the sheet pile (dredge-line free water on both sides)."></span>
+                    <label>Surcharge, q (kPa)
+                        <span class="qa-note" tabindex="0" data-note="Uniform surcharge on the backfill surface (e.g. traffic load LS in AASHTO). Ref: PYWALL Tech Manual §2.5 (lateral pressure from surcharges) and PYWALL Examples Manual §4.1.2. Example 4 uses 240 psf ≈ 11.49 kPa for the Strength I static case."></span>
                     </label>
-                    <input type="number" step="0.1" min="0" name="L1" value="{{ params.L1 }}">
+                    <input type="number" step="0.01" min="0" name="q" value="{{ params.q }}">
                 </div>
                 <div class="form-group">
-                    <label>Surcharge on Backfill, q (kPa)
-                        <span class="qa-note" tabindex="0" data-note="Uniform surcharge on the backfill surface. Modeled as an equivalent additional soil height hq = q/γ (Das §18.3, p. 757)."></span>
+                    <label>Pile Flexural Stiffness, EI (kN&middot;m&sup2;/m)
+                        <span class="qa-note" tabindex="0" data-note="Per-metre flexural stiffness of the steel sheet pile. Used only for the deflection plot (the limit-equilibrium force/moment calc does not depend on EI). Example 4: EI = 1.453×10⁷ ft²·lb/ft ≈ 19 700 kN·m²/m. Ref: PYWALL Tech Manual §3.2 Eq. 3.7, M = EI·(d²y/dx²)."></span>
                     </label>
-                    <input type="number" step="0.1" min="0" name="q" value="{{ params.q }}">
-                </div>
-            </div>
-            <div>
-                <h3>Soil &amp; Section Properties</h3>
-                <div class="form-group">
-                    <label>Moist Unit Weight, &gamma; (kN/m&sup3;)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Moist (above-water-table) unit weight of sand. Typical range: 17–20 kN/m³."></span>
-                    </label>
-                    <input type="number" step="0.1" min="10" name="gamma" value="{{ params.gamma }}">
-                </div>
-                <div class="form-group">
-                    <label>Saturated Unit Weight, &gamma;<sub>sat</sub> (kN/m&sup3;)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Saturated unit weight below the water table. Used to compute γ' = γsat − γw (with γw = 9.81 kN/m³)."></span>
-                    </label>
-                    <input type="number" step="0.1" min="10" name="gamma_sat" value="{{ params.gamma_sat }}">
-                </div>
-                <div class="form-group">
-                    <label>Friction Angle, &phi;' (deg)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of sand, uniform above and below the dredge line for this first build. Typical range: 28–38°."></span>
-                    </label>
-                    <input type="number" step="0.1" min="5" max="45" name="phi" value="{{ params.phi }}">
+                    <input type="number" step="100" min="100" name="EI" value="{{ params.EI }}">
                 </div>
                 <div class="form-group">
                     <label>Allowable Bending Stress, &sigma;<sub>allow</sub> (kPa)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Allowable bending stress of the steel sheet pile. Default 170 MPa = 170000 kPa for typical structural steel piles (ASTM A572 Grade 50 gives ~230 MPa, but most codes use a reduced allowable for permanent works)."></span>
+                        <span class="qa-note" tabindex="0" data-note="Allowable flexural stress of the steel sheet pile. Default 170 MPa ≈ half of Grade 50 (Fy = 345 MPa). Used in the required section-modulus check S_req = M_max / σ_allow per Das §18.4 Eq. 18.22."></span>
                     </label>
-                    <input type="number" step="100" min="50000" name="sigma_allow" value="{{ params.sigma_allow }}">
+                    <input type="number" step="1000" min="50000" name="sigma_allow" value="{{ params.sigma_allow }}">
+                </div>
+                <h4 style="margin:10px 0 4px;font-size:0.95em;color:var(--primary);">AASHTO LRFD Factors (Strength I)</h4>
+                <div class="form-group">
+                    <label>&gamma;<sub>earth</sub> &mdash; load factor for earth pressure
+                        <span class="qa-note" tabindex="0" data-note="AASHTO LRFD load factor for horizontal earth pressure. PYWALL Example 4 Table 4.1 Strength I uses 1.5. Set to 1.0 for unfactored (working-stress) analysis."></span>
+                    </label>
+                    <input type="number" step="0.05" min="1" name="load_factor_earth" value="{{ params.load_factor_earth }}">
+                </div>
+                <div class="form-group">
+                    <label>&gamma;<sub>LS</sub> &mdash; load factor for surcharge (LS)
+                        <span class="qa-note" tabindex="0" data-note="AASHTO LRFD load factor for live-load surcharge. PYWALL Example 4 Table 4.1 Strength I uses 1.75. Set to 1.0 for unfactored analysis."></span>
+                    </label>
+                    <input type="number" step="0.05" min="1" name="load_factor_LS" value="{{ params.load_factor_LS }}">
+                </div>
+                <div class="form-group">
+                    <label>&phi;<sub>Kp</sub> &mdash; resistance factor on passive pressure
+                        <span class="qa-note" tabindex="0" data-note="AASHTO LRFD resistance factor applied to the passive earth-pressure coefficient Kp. PYWALL Example 4 Table 4.1 Strength I uses 0.75. The effective design Kp used by the calculator is φ_Kp × Kp2. Set to 1.0 for unfactored analysis."></span>
+                    </label>
+                    <input type="number" step="0.05" min="0.1" max="1" name="resistance_factor_Kp" value="{{ params.resistance_factor_Kp }}">
+                </div>
+            </div>
+            <div>
+                <h3>Soil Properties</h3>
+                <h4 style="margin:6px 0 4px;font-size:0.95em;color:var(--primary);">Layer 1 &mdash; Above Dredge Line</h4>
+                <div class="form-group">
+                    <label>Unit Weight, &gamma;<sub>1</sub> (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Total (moist) unit weight of the backfill above the dredge line. Example 4 uses 120 pcf ≈ 18.85 kN/m³ (Table 4.1 / 4.3)."></span>
+                    </label>
+                    <input type="number" step="0.01" min="10" name="gamma1" value="{{ params.gamma1 }}">
+                </div>
+                <div class="form-group">
+                    <label>Friction Angle, &phi;<sub>1</sub> (deg)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of Layer 1. Example 4 uses 34° (Table 4.1). K_a1 = (1−sin φ₁)/(1+sin φ₁). Ref: PYWALL Tech Manual §2.2 Rankine theory; Das §16.3."></span>
+                    </label>
+                    <input type="number" step="0.1" min="5" max="45" name="phi1" value="{{ params.phi1 }}">
+                </div>
+                <h4 style="margin:10px 0 4px;font-size:0.95em;color:var(--primary);">Layer 2 &mdash; Below Dredge Line</h4>
+                <div class="form-group">
+                    <label>Unit Weight, &gamma;<sub>2</sub> (kN/m&sup3;)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Total unit weight of the founding stratum below the dredge line. Example 4 uses 125 pcf ≈ 19.63 kN/m³ (Table 4.3)."></span>
+                    </label>
+                    <input type="number" step="0.01" min="10" name="gamma2" value="{{ params.gamma2 }}">
+                </div>
+                <div class="form-group">
+                    <label>Friction Angle, &phi;<sub>2</sub> (deg)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of Layer 2. Example 4 uses 36° (Table 4.1). K_a2 = (1−sin φ₂)/(1+sin φ₂). For the passive coefficient K_p2, see the wall-friction δ₂ field below. Ref: PYWALL Tech Manual §2.2 Rankine theory; §2.3 Coulomb theory."></span>
+                    </label>
+                    <input type="number" step="0.1" min="5" max="45" name="phi2" value="{{ params.phi2 }}">
+                </div>
+                <div class="form-group">
+                    <label>Wall Friction Angle, &delta;<sub>2</sub> (deg) &mdash; Layer 2 passive
+                        <span class="qa-note qa-right" tabindex="0" data-note="Wall-friction angle used for the PASSIVE pressure coefficient when K_p override is 0. Set to 0 for the Rankine form K_p2 = (1+sin φ₂)/(1−sin φ₂). Set to 2/3·φ₂ ≈ 24° for the Coulomb form. Ref: Das §16.13 Eq. 16.52; PYWALL Tech Manual §2.3 Coulomb theory."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" max="45" name="delta2" value="{{ params.delta2 }}">
+                </div>
+                <div class="form-group">
+                    <label>K<sub>p2</sub> Override (0 = auto)
+                        <span class="qa-note qa-right" tabindex="0" data-note="Override the Layer 2 passive coefficient with a direct value. PYWALL Example 4 Table 4.1 uses K_p2 = 8.2, which is a Caquot-Kérisel curved-failure-surface table value (Kerisel & Absi 1990) and is NOT reproducible by plain Rankine (3.85) or Coulomb (11.15) for φ₂=36°, δ₂=24°. Set to 8.2 to reproduce Example 4 exactly. Set to 0 to auto-compute from Rankine or Coulomb based on δ₂."></span>
+                    </label>
+                    <input type="number" step="0.01" min="0" name="Kp_override" value="{{ params.Kp_override }}">
                 </div>
             </div>
         </div>
@@ -79,17 +124,36 @@
     {% if results %}
     <div class="card">
         <h2>Design Summary</h2>
-        <table class="data-table" style="max-width:600px;">
+        <table class="data-table" style="max-width:640px;">
             <tbody>
-                <tr><td>Active coefficient, K<sub>a</sub></td><td><strong>{{ "%.4f"|format(results.Ka) }}</strong></td></tr>
-                <tr><td>Passive coefficient, K<sub>p</sub></td><td><strong>{{ "%.4f"|format(results.Kp) }}</strong></td></tr>
-                <tr><td>Distance L<sub>3</sub> to zero-pressure point</td><td>{{ "%.3f"|format(results.L3) }} m</td></tr>
+                <tr><td>K<sub>a1</sub> (Layer 1 active)</td><td><strong>{{ "%.4f"|format(results.Ka1) }}</strong></td></tr>
+                <tr><td>K<sub>a2</sub> (Layer 2 active)</td><td><strong>{{ "%.4f"|format(results.Ka2) }}</strong></td></tr>
+                <tr><td>K<sub>p2</sub> (Layer 2 passive)</td><td><strong>{{ "%.4f"|format(results.Kp2) }}</strong></td></tr>
+                <tr><td>Distance L<sub>3</sub> (zero-pressure point below dredge)</td><td>{{ "%.3f"|format(results.L3) }} m</td></tr>
                 <tr><td>Theoretical embedment D<sub>theoretical</sub></td><td>{{ "%.3f"|format(results.D_theoretical) }} m</td></tr>
                 <tr style="background:#fef9e7;"><td><strong>Design embedment D<sub>design</sub> (&times; 1.30)</strong></td><td><strong>{{ "%.2f"|format(results.D_design) }} m</strong></td></tr>
-                <tr><td>Max bending moment, M<sub>max</sub></td><td>{{ "%.2f"|format(results.M_max) }} kN&middot;m/m</td></tr>
-                <tr style="background:#fef9e7;"><td><strong>Required section modulus, S<sub>req</sub></strong></td><td><strong>{{ "%.1f"|format(results.S_req_cm3_per_m) }} cm&sup3;/m</strong></td></tr>
+                <tr><td>Total wall length = L + D<sub>design</sub></td><td><strong>{{ "%.2f"|format(results.L_total) }} m</strong></td></tr>
+                <tr style="background:#fef9e7;"><td><strong>Max bending moment, M<sub>max</sub></strong></td><td><strong>{{ "%.2f"|format(results.M_max) }} kN&middot;m/m</strong></td></tr>
+                <tr><td>Depth of M<sub>max</sub> below top</td><td>{{ "%.2f"|format(results.z_max_moment) }} m</td></tr>
+                <tr><td>Required section modulus, S<sub>req</sub></td><td>{{ "%.1f"|format(results.S_req_cm3_per_m) }} cm&sup3;/m</td></tr>
+                <tr><td>Top-of-wall deflection (pseudo-fixed tip BC)</td><td>{{ "%.1f"|format(results.deflection_top_mm) }} mm</td></tr>
             </tbody>
         </table>
+    </div>
+
+    <div class="card">
+        <h2>Pressure, Shear, Moment, Deflection Diagrams</h2>
+        <p style="color:var(--muted);font-size:0.82em;margin:0 0 10px;">
+            Four-panel limit-equilibrium output, matching the PYWALL comparison diagram in
+            Figure&nbsp;4.3 of Example 4. Depth is measured from the top of the wall, positive downward.
+            The dashed brown line marks the dredge line at z = L.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div id="pressure-plot"></div>
+            <div id="shear-plot"></div>
+            <div id="moment-plot"></div>
+            <div id="deflection-plot"></div>
+        </div>
     </div>
 
     <div class="card">
@@ -99,27 +163,52 @@
         </div>
     </div>
 
-    <div class="card">
-        <h2>Pressure Diagram</h2>
-        <div id="pressure-plot"></div>
-    </div>
-
     <script>
-        Plotly.newPlot('pressure-plot',
-            {{ results.chart_traces|tojson }},
-            {{ results.chart_layout|tojson }},
-            {responsive: true, displayModeBar: false});
+        var opts = {responsive: true, displayModeBar: false};
+        Plotly.newPlot('pressure-plot', {{ results.pressure_traces|tojson }}, {{ results.pressure_layout|tojson }}, opts);
+        Plotly.newPlot('shear-plot',    {{ results.shear_traces|tojson }},    {{ results.shear_layout|tojson }},    opts);
+        Plotly.newPlot('moment-plot',   {{ results.moment_traces|tojson }},   {{ results.moment_layout|tojson }},   opts);
+        Plotly.newPlot('deflection-plot', {{ results.deflection_traces|tojson }}, {{ results.deflection_layout|tojson }}, opts);
     </script>
     {% endif %}
 
     <div class="ref-box">
         <h4>References &amp; Methodology</h4>
         <ol>
-            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 18 &mdash; Sheet-Pile Walls</strong>: &sect;18.3 Cantilever sheet-pile walls (p.&nbsp;757); <strong>&sect;18.4 Cantilever Sheet Piling Penetrating Sandy Soil (pp.&nbsp;758&ndash;764)</strong>, Eq.&nbsp;18.7&ndash;18.22 &mdash; the closed-form used by this calculator.</li>
-            <li>Poulos, H.G. &amp; Davis, E.H. (1980). <em>Pile Foundation Analysis and Design</em>. John Wiley &amp; Sons. <strong>Ch.&nbsp;7 &mdash; Lateral Loading of Single Piles</strong> provides the theoretical backdrop for the simplified earth-pressure treatment used in cantilever sheet-pile analysis.</li>
-            <li>Teng, W.C. (1962). <em>Foundation Design</em>. Prentice-Hall. Classical sheet-pile design reference.</li>
-            <li>USS Steel (1975). <em>Sheet Pile Design Manual</em>. United States Steel Corporation. Catalog of PZ/AZ sections and allowable stresses.</li>
-            <li>Rankine, W.J.M. (1857). On the stability of loose earth. <em>Phil. Trans. Royal Society of London</em>, 147. Source of the K<sub>a</sub>/K<sub>p</sub> coefficients used.</li>
+            <li><strong>Reese, L.C., Wang, S.T., Arrellaga, J.A. &amp; Vasquez, L. (2021).</strong>
+                <em>PYWALL 2019 &mdash; A Program for the Analysis of Flexible Retaining Structures</em>.
+                Ensoft, Inc., Austin, TX. <strong>Examples Manual &sect;4.1 &mdash; Example 4 LRFD Analysis of
+                Sheet-Pile Wall for Static and Seismic Conditions</strong> (pp.&nbsp;4-1 through 4-12,
+                Tables 4.1&ndash;4.5, Figures 4.1&ndash;4.8). The metric defaults on this page are the SI
+                conversion of Tables 4.1 and 4.3.</li>
+            <li><strong>PYWALL 2019 Technical Manual</strong> (Ensoft, 2021):
+                <strong>&sect;2.1&ndash;2.3</strong> Earth-pressure theory (Rankine &amp; Coulomb);
+                <strong>&sect;2.5</strong> Lateral pressure from surcharges;
+                <strong>&sect;3.1</strong> Modified subgrade-reaction method;
+                <strong>&sect;3.2</strong> Differential equation of the beam on elastic foundation
+                (Eq.&nbsp;3.7 M = EI&middot;y&Prime;, Eq.&nbsp;3.8 EI&middot;y&#x2034;&prime; = w + p,
+                Eq.&nbsp;3.10 with axial load per Hetenyi 1956);
+                <strong>&sect;3.3</strong> Discrete-element beam-column model
+                (Matlock &amp; Halliburton 1965);
+                <strong>&sect;3.4</strong> Solutions with nonlinear Winkler-soil springs.</li>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>,
+                9th Edition, SI. Cengage Learning. <strong>Ch.&nbsp;18 &sect;18.4 Cantilever Sheet Piling
+                Penetrating Sandy Soil</strong> (pp.&nbsp;758&ndash;764, Eq.&nbsp;18.7&ndash;18.22) &mdash; the
+                closed-form quartic used to solve for the embedment depth in this module.</li>
+            <li>Matlock, H. &amp; Halliburton, T.A. (1965). A Finite-Element Method of Solution for
+                Linearly Elastic Beam-Columns. <em>Research Report No.&nbsp;56-1</em>, Center for
+                Highway Research, University of Texas at Austin. The discrete-element mechanical
+                model used by PYWALL for the full p-y solution.</li>
+            <li>Hetenyi, M. (1946). <em>Beams on Elastic Foundation</em>. University of Michigan Press.
+                Derivation of the beam-column equation with axial loading
+                (PYWALL Tech Manual Eq.&nbsp;3.10).</li>
+            <li>Terzaghi, K. (1954). Anchored bulkheads. <em>Transactions ASCE</em>, 119. Earth pressure
+                vs. wall movement relationship, referenced in PYWALL Tech Manual &sect;3.5.</li>
+            <li>AASHTO (2020). <em>LRFD Bridge Design Specifications</em>. Load and resistance
+                factor method applied to Example 4 Strength I and Extreme I load cases.</li>
+            <li>Rankine, W.J.M. (1857). On the stability of loose earth.
+                <em>Phil. Trans. Royal Society of London</em>, 147.
+                Source of the K<sub>a</sub> / K<sub>p</sub> coefficients used in this module.</li>
         </ol>
     </div>
 </div>

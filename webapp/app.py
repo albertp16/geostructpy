@@ -491,29 +491,62 @@ def bored_pile_view():
 
 @app.route("/sheet-pile", methods=["GET", "POST"])
 def sheet_pile_view():
+    # Defaults match PYWALL 2019 Example 4 "LRFD Analysis of Sheet-Pile Wall
+    # for Static and Seismic Conditions" (Ensoft, Reese et al., 2021)
+    # converted to SI / metric units:
+    #   L          = 10 ft  -> 3.05 m   (retained height above dredge line)
+    #   γ₁ = 120 pcf -> 18.85 kN/m³    (Layer 1 above dredge line)
+    #   φ₁ = 34°                        (Layer 1)
+    #   γ₂ = 125 pcf -> 19.63 kN/m³    (Layer 2 below dredge line)
+    #   φ₂ = 36°                        (Layer 2)
+    #   q  = 240 psf -> 11.49 kPa      (static surcharge, Strength I)
+    #   EI = 1.453e7 ft²·lb/ft -> ~19 700 kN·m²/m
+    # PYWALL Example 4 Table 4.1 uses a wall-friction angle δ₂ = 24° on the
+    # passive side AND a quoted Kp = 8.2 that is a Caquot-Kérisel table value
+    # (not reproducible by plain Coulomb, which over-predicts). We default
+    # Kp_override = 8.2 so the static case reproduces Example 4 Figure 4.3 /
+    # Table 4.1 exactly. Set Kp_override to 0 to fall back to Coulomb with
+    # δ₂, or to 0 with δ₂ = 0 for the conservative Rankine form.
+    # AASHTO LRFD load/resistance factors (PYWALL Example 4 Table 4.1
+    # Strength I case). Set all three to 1.0 for unfactored working-stress
+    # analysis.
     defaults = dict(
-        L=6.0, gamma=17.0, gamma_sat=20.0, phi=32.0,
-        L1=2.0, q=10.0, sigma_allow=170000.0,
+        L=3.05, gamma1=18.85, phi1=34.0, gamma2=19.63, phi2=36.0,
+        q=11.49, EI=19700.0, sigma_allow=170000.0,
+        delta2=24.0, Kp_override=8.2,
+        load_factor_earth=1.5, load_factor_LS=1.75, resistance_factor_Kp=0.75,
     )
     results = None
     params = defaults
     if request.method == "POST":
         params = dict(
-            L=_float('L', 6.0),
-            gamma=_float('gamma', 17.0),
-            gamma_sat=_float('gamma_sat', 20.0),
-            phi=_float('phi', 32.0),
-            L1=_float('L1', 2.0),
-            q=_float('q', 10.0),
+            L=_float('L', 3.05),
+            gamma1=_float('gamma1', 18.85),
+            phi1=_float('phi1', 34.0),
+            gamma2=_float('gamma2', 19.63),
+            phi2=_float('phi2', 36.0),
+            q=_float('q', 11.49),
+            EI=_float('EI', 19700.0),
             sigma_allow=_float('sigma_allow', 170000.0),
+            delta2=_float('delta2', 24.0),
+            Kp_override=_float('Kp_override', 8.2),
+            load_factor_earth=_float('load_factor_earth', 1.5),
+            load_factor_LS=_float('load_factor_LS', 1.75),
+            resistance_factor_Kp=_float('resistance_factor_Kp', 0.75),
         )
         try:
             results = sheet_pile.calculate(**params)
         except (ValueError, ZeroDivisionError) as e:
             results = {
                 'report': f'<p style="color:#c0392b;"><strong>Calculation error:</strong> {e}</p>',
-                'Ka': 0, 'Kp': 0, 'L3': 0, 'D_theoretical': 0, 'D_design': 0,
-                'M_max': 0, 'S_req': 0, 'S_req_cm3_per_m': 0,
+                'Ka1': 0, 'Ka2': 0, 'Kp2': 0, 'L3': 0,
+                'D_theoretical': 0, 'D_design': 0, 'L_total': 0,
+                'M_max': 0, 'z_max_moment': 0,
+                'S_req': 0, 'S_req_cm3_per_m': 0, 'deflection_top_mm': 0,
+                'pressure_traces': [], 'pressure_layout': {},
+                'shear_traces': [], 'shear_layout': {},
+                'moment_traces': [], 'moment_layout': {},
+                'deflection_traces': [], 'deflection_layout': {},
                 'chart_traces': [], 'chart_layout': {},
             }
     return render_template("sheet_pile.html", params=params, results=results)
