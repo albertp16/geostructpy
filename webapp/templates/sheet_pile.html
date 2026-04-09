@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Sheet Pile (PYWALL Example 4) - GeoStructPy{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.css">
+<script src="https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.js"></script>
+<style>
+    .htCore td, .htCore th { font-size: 0.85em; }
+    .handsontable .htDimmed { color: #333; }
+    .sp-layer-help {
+        font-size: 0.78em;
+        color: var(--muted);
+        margin: 4px 0 8px;
+        line-height: 1.45;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div>
     <form method="POST" action="/sheet-pile">
@@ -72,45 +86,19 @@
                 </div>
             </div>
             <div>
-                <h3>Soil Properties</h3>
-                <h4 style="margin:6px 0 4px;font-size:0.95em;color:var(--primary);">Layer 1 &mdash; Above Dredge Line</h4>
-                <div class="form-group">
-                    <label>Unit Weight, &gamma;<sub>1</sub> (kN/m&sup3;)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Total (moist) unit weight of the backfill above the dredge line. Example 4 uses 120 pcf ≈ 18.85 kN/m³ (Table 4.1 / 4.3)."></span>
-                    </label>
-                    <input type="number" step="0.01" min="10" name="gamma1" value="{{ params.gamma1 }}">
-                </div>
-                <div class="form-group">
-                    <label>Friction Angle, &phi;<sub>1</sub> (deg)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of Layer 1. Example 4 uses 34° (Table 4.1). K_a1 = (1−sin φ₁)/(1+sin φ₁). Ref: PYWALL Tech Manual §2.2 Rankine theory; Das §16.3."></span>
-                    </label>
-                    <input type="number" step="0.1" min="5" max="45" name="phi1" value="{{ params.phi1 }}">
-                </div>
-                <h4 style="margin:10px 0 4px;font-size:0.95em;color:var(--primary);">Layer 2 &mdash; Below Dredge Line</h4>
-                <div class="form-group">
-                    <label>Unit Weight, &gamma;<sub>2</sub> (kN/m&sup3;)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Total unit weight of the founding stratum below the dredge line. Example 4 uses 125 pcf ≈ 19.63 kN/m³ (Table 4.3)."></span>
-                    </label>
-                    <input type="number" step="0.01" min="10" name="gamma2" value="{{ params.gamma2 }}">
-                </div>
-                <div class="form-group">
-                    <label>Friction Angle, &phi;<sub>2</sub> (deg)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Effective friction angle of Layer 2. Example 4 uses 36° (Table 4.1). K_a2 = (1−sin φ₂)/(1+sin φ₂). For the passive coefficient K_p2, see the wall-friction δ₂ field below. Ref: PYWALL Tech Manual §2.2 Rankine theory; §2.3 Coulomb theory."></span>
-                    </label>
-                    <input type="number" step="0.1" min="5" max="45" name="phi2" value="{{ params.phi2 }}">
-                </div>
-                <div class="form-group">
-                    <label>Wall Friction Angle, &delta;<sub>2</sub> (deg) &mdash; Layer 2 passive
-                        <span class="qa-note qa-right" tabindex="0" data-note="Wall-friction angle used for the PASSIVE pressure coefficient when K_p override is 0. Set to 0 for the Rankine form K_p2 = (1+sin φ₂)/(1−sin φ₂). Set to 2/3·φ₂ ≈ 24° for the Coulomb form. Ref: Das §16.13 Eq. 16.52; PYWALL Tech Manual §2.3 Coulomb theory."></span>
-                    </label>
-                    <input type="number" step="0.1" min="0" max="45" name="delta2" value="{{ params.delta2 }}">
-                </div>
-                <div class="form-group">
-                    <label>K<sub>p2</sub> Override (0 = auto)
-                        <span class="qa-note qa-right" tabindex="0" data-note="Override the Layer 2 passive coefficient with a direct value. PYWALL Example 4 Table 4.1 uses K_p2 = 8.2, which is a Caquot-Kérisel curved-failure-surface table value (Kerisel & Absi 1990) and is NOT reproducible by plain Rankine (3.85) or Coulomb (11.15) for φ₂=36°, δ₂=24°. Set to 8.2 to reproduce Example 4 exactly. Set to 0 to auto-compute from Rankine or Coulomb based on δ₂."></span>
-                    </label>
-                    <input type="number" step="0.01" min="0" name="Kp_override" value="{{ params.Kp_override }}">
-                </div>
+                <h3>Soil Profile &mdash; Layer Table
+                    <span class="qa-note" tabindex="0" data-note="Enter layers from TOP to BOTTOM. The layer that covers z = L (the retained height) is automatically identified as the 'design layer' for the below-dredge quartic (Das §18.4). Right-click a row to add or remove. Kp override = 0 means auto-compute from Rankine (if δ=0) or Coulomb (if δ>0); set it to 8.2 to reproduce PYWALL Example 4 Table 4.1 exactly."></span>
+                </h3>
+                <p class="sp-layer-help">
+                    Each row is one soil layer stacked from top to bottom. Right-click to
+                    insert or remove rows. The <strong>design layer</strong> for the
+                    below-dredge calculation is automatically the one covering z = L.
+                    Defaults match PYWALL 2019 Example 4 Tables 4.1 &amp; 4.3.
+                </p>
+                <input type="hidden" name="layer_count" id="layer_count" value="{{ layers|length }}">
+                <div id="hot-sp-layers" style="overflow-x:auto;margin-bottom:8px;"></div>
+                <!-- hidden fields emitted by syncBeforeSubmit() -->
+                <div id="hidden-layer-fields"></div>
             </div>
         </div>
 
@@ -212,4 +200,85 @@
         </ol>
     </div>
 </div>
+
+<script>
+// --- Sheet-pile soil profile: Handsontable grid ---
+// The grid holds the layers shown to the user. On form submit we flatten it
+// into ly_* hidden fields so Flask can rebuild the list of dicts.
+var spInitialLayers = {{ layers_json|tojson }};
+
+var spContainer = document.getElementById('hot-sp-layers');
+var spHot = new Handsontable(spContainer, {
+    data: spInitialLayers,
+    colHeaders: [
+        '#',
+        'Layer Name',
+        'Thickness (m)',
+        '\u03b3 (kN/m\u00b3)',
+        '\u03c6 (deg)',
+        '\u03b4 (deg)',
+        'K<sub>p</sub> override'
+    ],
+    columns: [
+        {data: 'row_num', type: 'numeric', readOnly: true, className: 'htCenter htDimmed'},
+        {data: 'name', type: 'text'},
+        {data: 'thickness',   type: 'numeric', numericFormat: {pattern: '0.00'}},
+        {data: 'gamma',       type: 'numeric', numericFormat: {pattern: '0.00'}},
+        {data: 'phi',         type: 'numeric', numericFormat: {pattern: '0.0'}},
+        {data: 'delta',       type: 'numeric', numericFormat: {pattern: '0.0'}},
+        {data: 'Kp_override', type: 'numeric', numericFormat: {pattern: '0.00'}}
+    ],
+    colWidths: [40, 140, 110, 100, 80, 80, 120],
+    rowHeaders: false,
+    contextMenu: ['row_above', 'row_below', 'remove_row', '---------', 'undo', 'redo'],
+    minRows: 1,
+    minSpareRows: 1,
+    licenseKey: 'non-commercial-and-evaluation',
+    stretchH: 'none',
+    height: 'auto',
+    afterChange: function () {
+        var data = this.getSourceData();
+        for (var i = 0; i < data.length; i++) {
+            if (data[i].name || data[i].thickness || data[i].gamma || data[i].phi) {
+                data[i].row_num = i + 1;
+            }
+        }
+    }
+});
+
+function syncSheetPileLayersBeforeSubmit() {
+    var data = spHot.getSourceData();
+    var hiddenDiv = document.getElementById('hidden-layer-fields');
+    hiddenDiv.innerHTML = '';
+    var valid = [];
+    for (var i = 0; i < data.length; i++) {
+        var r = data[i];
+        // Drop rows that are entirely blank
+        if (!r.name && !r.thickness && !r.gamma && !r.phi) continue;
+        valid.push(r);
+    }
+    document.getElementById('layer_count').value = valid.length;
+    for (var i = 0; i < valid.length; i++) {
+        var r = valid[i];
+        addLayerHidden('ly_name_' + i,        r.name || ('Layer ' + (i + 1)));
+        addLayerHidden('ly_thickness_' + i,   r.thickness !== null && r.thickness !== undefined ? r.thickness : 0);
+        addLayerHidden('ly_gamma_' + i,       r.gamma !== null && r.gamma !== undefined ? r.gamma : 0);
+        addLayerHidden('ly_phi_' + i,         r.phi !== null && r.phi !== undefined ? r.phi : 0);
+        addLayerHidden('ly_delta_' + i,       r.delta !== null && r.delta !== undefined ? r.delta : 0);
+        addLayerHidden('ly_Kp_override_' + i, r.Kp_override !== null && r.Kp_override !== undefined ? r.Kp_override : 0);
+    }
+}
+
+function addLayerHidden(name, val) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = name;
+    inp.value = val;
+    document.getElementById('hidden-layer-fields').appendChild(inp);
+}
+
+document.querySelector('form[action="/sheet-pile"]').addEventListener('submit', function () {
+    syncSheetPileLayersBeforeSubmit();
+});
+</script>
 {% endblock %}
