@@ -504,38 +504,58 @@ def sheet_pile_view():
     # PYWALL Example 4 Table 4.1 uses a wall-friction angle δ₂ = 24° on the
     # passive side AND a quoted Kp = 8.2 that is a Caquot-Kérisel table value
     # (not reproducible by plain Coulomb, which over-predicts). We default
-    # Kp_override = 8.2 so the static case reproduces Example 4 Figure 4.3 /
-    # Table 4.1 exactly. Set Kp_override to 0 to fall back to Coulomb with
-    # δ₂, or to 0 with δ₂ = 0 for the conservative Rankine form.
-    # AASHTO LRFD load/resistance factors (PYWALL Example 4 Table 4.1
-    # Strength I case). Set all three to 1.0 for unfactored working-stress
-    # analysis.
+    # Kp_override = 8.2 on the Layer-2 row so the static case reproduces
+    # Example 4 Figure 4.3 / Table 4.1 exactly. Set Kp_override = 0 on a
+    # layer to fall back to Coulomb (if δ>0) or Rankine (if δ=0).
+    default_layers = [
+        {'name': 'Sand 1 (above dredge)', 'thickness': 3.05, 'gamma': 18.85,
+         'phi': 34.0, 'delta': 0.0,  'Kp_override': 0.0},
+        {'name': 'Sand 2 (below dredge)', 'thickness': 10.0, 'gamma': 19.63,
+         'phi': 36.0, 'delta': 24.0, 'Kp_override': 8.2},
+    ]
     defaults = dict(
-        L=3.05, gamma1=18.85, phi1=34.0, gamma2=19.63, phi2=36.0,
-        q=11.49, EI=19700.0, sigma_allow=170000.0,
-        delta2=24.0, Kp_override=8.2,
+        L=3.05, q=11.49, EI=19700.0, sigma_allow=170000.0,
         load_factor_earth=1.5, load_factor_LS=1.75, resistance_factor_Kp=0.75,
     )
     results = None
     params = defaults
+    layers = default_layers
+
     if request.method == "POST":
         params = dict(
             L=_float('L', 3.05),
-            gamma1=_float('gamma1', 18.85),
-            phi1=_float('phi1', 34.0),
-            gamma2=_float('gamma2', 19.63),
-            phi2=_float('phi2', 36.0),
             q=_float('q', 11.49),
             EI=_float('EI', 19700.0),
             sigma_allow=_float('sigma_allow', 170000.0),
-            delta2=_float('delta2', 24.0),
-            Kp_override=_float('Kp_override', 8.2),
             load_factor_earth=_float('load_factor_earth', 1.5),
             load_factor_LS=_float('load_factor_LS', 1.75),
             resistance_factor_Kp=_float('resistance_factor_Kp', 0.75),
         )
+
+        # Parse the ly_* hidden fields emitted by the Handsontable sync.
+        lc = int(_float('layer_count', 0))
+        parsed_layers = []
+        for i in range(lc):
+            thickness = _float(f'ly_thickness_{i}', 0.0)
+            gamma_i   = _float(f'ly_gamma_{i}', 0.0)
+            phi_i     = _float(f'ly_phi_{i}', 0.0)
+            if thickness <= 0 or gamma_i <= 0 or phi_i <= 0:
+                continue
+            parsed_layers.append({
+                'name':        request.form.get(f'ly_name_{i}', f'Layer {i + 1}'),
+                'thickness':   thickness,
+                'gamma':       gamma_i,
+                'phi':         phi_i,
+                'delta':       _float(f'ly_delta_{i}', 0.0),
+                'Kp_override': _float(f'ly_Kp_override_{i}', 0.0),
+            })
+        if parsed_layers:
+            layers = parsed_layers
+        else:
+            layers = default_layers
+
         try:
-            results = sheet_pile.calculate(**params)
+            results = sheet_pile.calculate(layers=layers, **params)
         except (ValueError, ZeroDivisionError) as e:
             results = {
                 'report': f'<p style="color:#c0392b;"><strong>Calculation error:</strong> {e}</p>',
@@ -549,7 +569,25 @@ def sheet_pile_view():
                 'deflection_traces': [], 'deflection_layout': {},
                 'chart_traces': [], 'chart_layout': {},
             }
-    return render_template("sheet_pile.html", params=params, results=results)
+
+    # Build the Handsontable JSON payload (add row_num for the readonly col)
+    layers_json = []
+    for i, ly in enumerate(layers):
+        layers_json.append({
+            'row_num':     i + 1,
+            'name':        ly.get('name', f'Layer {i + 1}'),
+            'thickness':   ly.get('thickness', 0.0),
+            'gamma':       ly.get('gamma', 0.0),
+            'phi':         ly.get('phi', 0.0),
+            'delta':       ly.get('delta', 0.0),
+            'Kp_override': ly.get('Kp_override', 0.0),
+        })
+
+    return render_template("sheet_pile.html",
+                           params=params,
+                           results=results,
+                           layers=layers,
+                           layers_json=layers_json)
 
 
 @app.route("/anchor", methods=["GET", "POST"])

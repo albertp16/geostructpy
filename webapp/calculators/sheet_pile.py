@@ -91,11 +91,15 @@ def _solve_quartic(coeffs):
     return (lo + hi) / 2
 
 
-def calculate(L, gamma1, phi1, gamma2, phi2,
+def calculate(L, layers=None,
               q=0.0, EI=19700.0, sigma_allow=170000.0,
-              delta2=0.0, Kp_override=-1.0,
               load_factor_earth=1.0, load_factor_LS=1.0,
-              resistance_factor_Kp=1.0):
+              resistance_factor_Kp=1.0,
+              # Legacy scalar inputs (kept for backward-compat with the old
+              # two-layer form and existing unit tests). When `layers` is
+              # supplied, these are ignored.
+              gamma1=None, phi1=None, gamma2=None, phi2=None,
+              delta2=0.0, Kp_override=-1.0):
     """Cantilever sheet-pile wall in a two-layer sand profile.
 
     Matches the limit-equilibrium procedure presented in PYWALL
@@ -110,19 +114,30 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
     L : float
         Retained height above the dredge line (m). This is the
         "exposed" height of the sheet pile in the retained-soil side.
-    gamma1 : float
-        Total unit weight of Layer 1 (kN/m³), the soil retained above
-        the dredge line. PYWALL Example 4 uses 120 pcf ≈ 18.85 kN/m³.
-    phi1 : float
-        Effective friction angle of Layer 1 (deg). PYWALL Example 4
-        uses 34°.
-    gamma2 : float
-        Total unit weight of Layer 2 (kN/m³), the founding stratum
-        below the dredge line. PYWALL Example 4 uses 125 pcf ≈
-        19.63 kN/m³.
-    phi2 : float
-        Effective friction angle of Layer 2 (deg). PYWALL Example 4
-        uses 36°.
+    layers : list of dict, optional
+        Soil profile as a list of layers from top to bottom. Each layer
+        dict has the following keys:
+            name       : str, display name (optional)
+            thickness  : float, layer thickness (m). The last layer is
+                         treated as extending to infinity past the pile
+                         tip regardless of thickness.
+            gamma      : float, total unit weight (kN/m³)
+            phi        : float, effective friction angle (deg)
+            delta      : float, wall-friction angle (deg) for passive
+                         Kp (only used for the below-dredge layer)
+            Kp_override: float, direct override for the passive
+                         coefficient of the below-dredge layer (e.g.
+                         8.2 for PYWALL Example 4 Table 4.1). 0 or
+                         negative means "auto-compute from Rankine or
+                         Coulomb".
+        Layers above the dredge line are integrated piecewise for the
+        active pressure diagram. The layer whose extent covers z = L
+        (or the first layer strictly below L if L falls on a boundary)
+        is the "design layer" used for the below-dredge quartic and for
+        the embedment / max-moment calculation.
+
+        When omitted, the legacy two-layer scalar inputs (gamma1, phi1,
+        gamma2, phi2, delta2, Kp_override) are used instead.
     q : float, optional
         Uniform surcharge on the backfill surface (kPa). PYWALL
         Example 4 uses 240 psf ≈ 11.49 kPa for the static case.
@@ -158,25 +173,101 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
             (back-compat with any template still using the old single
             chart_traces / chart_layout entry).
     """
+    # ----- Normalize the soil profile into a uniform layer list -----
+    # When the caller passes a `layers` list, use it directly. Otherwise
+    # synthesise a two-element list from the legacy scalar arguments so
+    # existing tests and the previous API continue to work.
+    if layers is None or len(layers) == 0:
+        if gamma1 is None or phi1 is None or gamma2 is None or phi2 is None:
+            raise ValueError(
+                'Either `layers` (list of dicts) or the legacy scalar '
+                'arguments gamma1/phi1/gamma2/phi2 must be supplied.'
+            )
+        layers = [
+            {
+                'name': 'Layer 1',
+                'thickness': max(L, 0.01),
+                'gamma': gamma1,
+                'phi': phi1,
+                'delta': 0.0,
+                'Kp_override': -1.0,
+            },
+            {
+                'name': 'Layer 2',
+                'thickness': 1e6,   # effectively infinite
+                'gamma': gamma2,
+                'phi': phi2,
+                'delta': delta2,
+                'Kp_override': Kp_override,
+            },
+        ]
+    else:
+        # Clean / coerce the caller-supplied list
+        clean = []
+        for i, ly in enumerate(layers):
+            if ly is None:
+                continue
+            thickness = float(ly.get('thickness', 0.0) or 0.0)
+            gamma = float(ly.get('gamma', 0.0) or 0.0)
+            phi_i  = float(ly.get('phi',   0.0) or 0.0)
+            if thickness <= 0 or gamma <= 0 or phi_i <= 0:
+                continue
+            clean.append({
+                'name':        ly.get('name') or f'Layer {i + 1}',
+                'thickness':   thickness,
+                'gamma':       gamma,
+                'phi':         phi_i,
+                'delta':       float(ly.get('delta', 0.0) or 0.0),
+                'Kp_override': float(ly.get('Kp_override', -1.0) or -1.0),
+            })
+        if not clean:
+            raise ValueError('`layers` list is empty after cleaning.')
+        layers = clean
+        # The last layer is treated as extending to infinity past the tip.
+        layers[-1]['thickness'] = max(layers[-1]['thickness'], 1e6)
+
+    # Attach cumulative top depths and identify the "design layer" — the
+    # layer that covers z = L (or the first layer with top >= L if L falls
+    # on a boundary).
+    cum = 0.0
+    for ly in layers:
+        ly['z_top'] = cum
+        cum += ly['thickness']
+        ly['z_bot'] = cum
+
+    design_layer = None
+    for ly in layers:
+        if ly['z_top'] <= L < ly['z_bot']:
+            design_layer = ly
+            break
+    if design_layer is None:
+        # L is exactly at or past the bottom of the last defined layer —
+        # use the last layer as the design layer.
+        design_layer = layers[-1]
+
+    gamma2 = design_layer['gamma']
+    phi2   = design_layer['phi']
+    delta2 = design_layer.get('delta', 0.0) or 0.0
+    Kp_override = design_layer.get('Kp_override', -1.0) or -1.0
+
     # ----- Earth-pressure coefficients -----
-    # Ka is Rankine (δ = 0) for both layers.
-    # Kp for Layer 2 is determined by the following precedence:
+    # Ka for each layer (Rankine, δ = 0).
+    # Kp for the design layer (below dredge) uses the precedence:
     #   1. If Kp_override > 0, use that value directly (lets the user match
     #      Caquot-Kerisel table values such as the Kp = 8.2 used by PYWALL
     #      Example 4 Table 4.1, which is not reproducible by plain Coulomb).
-    #   2. Else if δ₂ > 0, use the Coulomb form for vertical wall back
+    #   2. Else if δ > 0, use the Coulomb form for vertical wall back
     #      (θ = 0) and horizontal backfill (α = 0):
     #          Kp = cos²φ / [cosδ · (1 − √(sin(φ+δ)·sinφ / cosδ))²]
     #      Ref: Das §16.13 Eq. 16.52, PYWALL Tech Manual §2.3 Coulomb theory.
-    #      NOTE: Coulomb over-predicts Kp for rough walls because it assumes
-    #      a plane failure surface; the Caquot-Kerisel curved-surface tables
-    #      (Kerisel & Absi 1990) are the accepted reference for design.
     #   3. Else use Rankine Kp = (1+sinφ)/(1−sinφ).
-    ph1 = max(min(phi1, 45.0), 5.0)
+    for ly in layers:
+        ph = max(min(ly['phi'], 45.0), 5.0)
+        ly['Ka'] = (1 - math.sin(ph * DEG)) / (1 + math.sin(ph * DEG))
     ph2 = max(min(phi2, 45.0), 5.0)
     d2  = max(min(delta2, ph2 - 0.5), 0.0)
-    Ka1 = (1 - math.sin(ph1 * DEG)) / (1 + math.sin(ph1 * DEG))
-    Ka2 = (1 - math.sin(ph2 * DEG)) / (1 + math.sin(ph2 * DEG))
+    Ka1 = layers[0]['Ka']                  # Ka of the first (top) layer — for surcharge at z=0
+    Ka2 = design_layer['Ka']               # Ka of the design layer — for below-dredge calc
     if Kp_override is not None and Kp_override > 0:
         Kp2 = float(Kp_override)
         Kp_source = f'user override (e.g. Caquot-K\u00e9risel table); Kp2 = {Kp2:.3f}'
@@ -220,19 +311,54 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
     g_e = max(load_factor_earth, 0.0)
     g_ls = max(load_factor_LS, 0.0)
 
-    # Active pressure split into earth and surcharge components so each can
-    # carry its own load factor (PYWALL Example 4 §4.1.2).
-    # Pressure at z (above dredge line, Layer 1):
-    #     p_a(z) = Ka1 * (γ_earth · γ₁·z + γ_LS · q)
-    # At the dredge line (z = L), Layer-2 overburden uses Layer-1 γ₁·L as the
-    # accumulated weight (layers are stacked, factors pass through).
-    sigma_v_earth  = g_e * gamma1 * L              # factored Layer-1 overburden
-    sigma_v_surch  = g_ls * q                       # factored surcharge
-    sigma_v_dredge = sigma_v_earth + sigma_v_surch  # total factored vert. stress
+    # Cumulative factored vertical stress at the dredge line, summed across
+    # all above-dredge layer segments. Also keep a list of piecewise
+    # boundaries for plotting and the trapezoid integration.
+    #   σ_v_earth(z=L)  = γ_earth · Σᵢ γᵢ · hᵢ      (for layer segments above dredge)
+    #   σ_v_surch(z=L)  = γ_LS · q                   (constant with depth)
+    # At each layer boundary above dredge we store (z, σ_v_earth, σ_v_surch, Ka).
+    sigma_v_surch = g_ls * q
+    above_segments = []   # list of dicts: z_top, z_bot, gamma, phi, Ka
+    cum_sigma_earth = 0.0
+    for ly in layers:
+        if ly['z_top'] >= L:
+            break
+        z_top = ly['z_top']
+        z_bot = min(ly['z_bot'], L)
+        above_segments.append({
+            'z_top': z_top,
+            'z_bot': z_bot,
+            'gamma': ly['gamma'],
+            'phi':   ly['phi'],
+            'Ka':    ly['Ka'],
+            'sigma_earth_top': cum_sigma_earth,
+        })
+        cum_sigma_earth += g_e * ly['gamma'] * (z_bot - z_top)
+        above_segments[-1]['sigma_earth_bot'] = cum_sigma_earth
+        if ly['z_bot'] >= L:
+            break
+    sigma_v_earth  = cum_sigma_earth
+    sigma_v_dredge = sigma_v_earth + sigma_v_surch
 
-    pa_top_wall = Ka1 * sigma_v_surch              # factored, at z=0
-    pa_bot_dredge_L1 = Ka1 * sigma_v_dredge         # factored, z=L-
-    sigma2 = Ka2 * sigma_v_dredge                   # factored, z=L+
+    # Key pressures for the report and plots
+    pa_top_wall      = Ka1 * sigma_v_surch             # factored, z=0
+    pa_bot_dredge_L1 = ((above_segments[-1]['Ka'] * (above_segments[-1]['sigma_earth_bot'] + sigma_v_surch))
+                       if above_segments else
+                       Ka1 * sigma_v_dredge)           # factored, z=L-
+    sigma2           = Ka2 * sigma_v_dredge            # factored, z=L+ (design layer)
+
+    def _pa_above(z):
+        """Factored active pressure at depth z (0 ≤ z ≤ L), piecewise by layer."""
+        if z <= 0:
+            return Ka1 * sigma_v_surch
+        if z >= L:
+            return pa_bot_dredge_L1
+        for seg in above_segments:
+            if seg['z_top'] <= z <= seg['z_bot']:
+                frac = (z - seg['z_top']) / (seg['z_bot'] - seg['z_top']) if seg['z_bot'] > seg['z_top'] else 0.0
+                sigma_earth = seg['sigma_earth_top'] + frac * (seg['sigma_earth_bot'] - seg['sigma_earth_top'])
+                return seg['Ka'] * (sigma_earth + sigma_v_surch)
+        return pa_bot_dredge_L1
 
     # ----- Zero-pressure point depth below the dredge line -----
     # Below dredge line (with LRFD load/resistance factors):
@@ -244,15 +370,32 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
     L3 = sigma2 / (Kp_minus_Ka_eff * gamma2)
 
     # ----- Resultant of the active pressure above the zero-pressure point -----
-    P1 = 0.5 * (pa_top_wall + pa_bot_dredge_L1) * L
+    # P1 = resultant of the piecewise-linear active pressure above the dredge
+    # line. With one layer above dredge this reduces to a simple trapezoid;
+    # with N layers it is a sum of trapezoids (one per layer segment) that
+    # may have pressure jumps at the layer boundaries when Ka changes.
+    P1 = 0.0
+    M_trap_about_top = 0.0   # first moment of P1 about the top of wall
+    for seg in above_segments:
+        p_top = seg['Ka'] * (seg['sigma_earth_top'] + sigma_v_surch)
+        p_bot = seg['Ka'] * (seg['sigma_earth_bot'] + sigma_v_surch)
+        h = seg['z_bot'] - seg['z_top']
+        area = 0.5 * (p_top + p_bot) * h
+        # Centroid of this trapezoid within the segment, measured from the
+        # segment's top: y_c = h · (p_top + 2·p_bot) / (3·(p_top + p_bot))
+        if (p_top + p_bot) > 1e-12:
+            y_c_rel = h * (p_top + 2 * p_bot) / (3 * (p_top + p_bot))
+        else:
+            y_c_rel = h / 2.0
+        z_c_abs = seg['z_top'] + y_c_rel   # from the top of wall
+        P1 += area
+        M_trap_about_top += area * z_c_abs
+
+    # Force P2 and zero-pressure point remain as before (single design layer
+    # below the dredge line handles the rest).
     P2 = 0.5 * sigma2 * L3
     P_total = P1 + P2
 
-    # Centroid of the Layer-1 trapezoid measured from the top of wall.
-    # p(z) = Ka1 * (γ_earth·γ₁·z + γ_LS·q)
-    # First moment about the top = Ka1 * (γ_earth·γ₁·L³/3 + γ_LS·q·L²/2)
-    M_trap_about_top = Ka1 * (g_e * gamma1 * L ** 3 / 3.0
-                              + g_ls * q * L ** 2 / 2.0)
     z_c_trap_from_top = M_trap_about_top / P1 if P1 > 0 else L / 2.0
     zbar_trap = (L + L3) - z_c_trap_from_top
 
@@ -290,7 +433,7 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
         p_arr = []
         for z in z_arr:
             if z <= L:
-                p_arr.append(Ka1 * (g_e * gamma1 * z + g_ls * q))
+                p_arr.append(_pa_above(z))
             else:
                 zr = z - L
                 p_a = sigma2 + Ka2_eff * gamma2 * zr
@@ -364,11 +507,11 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
     p_grid = []
     for z in z_grid:
         if z <= L:
-            # Above dredge line: factored Layer-1 active
-            # p_a(z) = Ka1·(γ_earth·γ₁·z + γ_LS·q)
-            p_grid.append(Ka1 * (g_e * gamma1 * z + g_ls * q))
+            # Above dredge line: piecewise-linear factored active pressure
+            # from the above-dredge layer segments.
+            p_grid.append(_pa_above(z))
         else:
-            # Below dredge line: factored Layer-2 net (active − passive).
+            # Below dredge line: factored design-layer net (active − passive).
             # Active grows with Ka2_eff·γ₂; passive with Kp2_eff·γ₂.
             zr = z - L
             p_active = sigma2 + Ka2_eff * gamma2 * zr
@@ -443,8 +586,58 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
         'Ref: PYWALL Tech Manual &sect;2.2 (Rankine), Das &sect;16.3 '
         '(active) and &sect;16.11 (passive).</p>'
     )
-    r += f'\\[ K_{{a1}} = \\tfrac{{1-\\sin\\phi_1}}{{1+\\sin\\phi_1}} = {_f(Ka1,4)} \\quad (\\phi_1 = {_f(phi1,1)}^\\circ) \\]'
-    r += f'\\[ K_{{a2}} = \\tfrac{{1-\\sin\\phi_2}}{{1+\\sin\\phi_2}} = {_f(Ka2,4)} \\quad (\\phi_2 = {_f(phi2,1)}^\\circ) \\]'
+    # ----- Soil profile table (always rendered, shows the layers used) -----
+    r += '<h4>Soil Profile</h4>'
+    r += '<table class="data-table" style="max-width:760px;margin:0 0 10px;">'
+    r += (
+        '<thead><tr>'
+        '<th>#</th><th>Layer</th><th>Top (m)</th><th>Bottom (m)</th>'
+        '<th>Thick. (m)</th>'
+        '<th>&gamma; (kN/m³)</th>'
+        '<th>&phi; (&deg;)</th>'
+        '<th>&delta; (&deg;)</th>'
+        '<th>K<sub>a</sub></th>'
+        '<th>K<sub>p</sub> override</th>'
+        '<th>Role</th>'
+        '</tr></thead><tbody>'
+    )
+    for i, ly in enumerate(layers):
+        role_tags = []
+        if ly['z_top'] < L:
+            role_tags.append('above dredge')
+        if ly is design_layer:
+            role_tags.append('<strong>design layer</strong>')
+        role = ', '.join(role_tags) if role_tags else 'below dredge'
+        kp_ov = ly.get('Kp_override', 0.0) or 0.0
+        kp_disp = f'{kp_ov:.2f}' if kp_ov > 0 else '&mdash;'
+        r += (
+            f'<tr>'
+            f'<td>{i + 1}</td>'
+            f'<td>{ly.get("name", f"Layer {i + 1}")}</td>'
+            f'<td>{_f(ly["z_top"])}</td>'
+            f'<td>{_f(ly["z_bot"])}</td>'
+            f'<td>{_f(ly["thickness"])}</td>'
+            f'<td>{_f(ly["gamma"])}</td>'
+            f'<td>{_f(ly["phi"], 1)}</td>'
+            f'<td>{_f(ly.get("delta", 0.0), 1)}</td>'
+            f'<td>{_f(ly["Ka"], 4)}</td>'
+            f'<td>{kp_disp}</td>'
+            f'<td style="font-size:0.85em;color:#6c757d;">{role}</td>'
+            f'</tr>'
+        )
+    r += '</tbody></table>'
+    r += (
+        f'<p style="font-size:0.82em;color:#6c757d;margin:0 0 6px;">'
+        f'Retained height L = {_f(L)} m. The design layer '
+        f'(<strong>{design_layer.get("name", "layer")}</strong>) is the one that '
+        'covers z = L; its parameters drive the below-dredge quartic and the '
+        'embedment / max-moment calculation.</p>'
+    )
+
+    phi1_disp = layers[0]['phi']
+    phi2_disp = design_layer['phi']
+    r += f'\\[ K_{{a1}} = \\tfrac{{1-\\sin\\phi_1}}{{1+\\sin\\phi_1}} = {_f(Ka1,4)} \\quad (\\phi_1 = {_f(phi1_disp,1)}^\\circ \\text{{, top layer}}) \\]'
+    r += f'\\[ K_{{a2}} = \\tfrac{{1-\\sin\\phi_2}}{{1+\\sin\\phi_2}} = {_f(Ka2,4)} \\quad (\\phi_2 = {_f(phi2_disp,1)}^\\circ \\text{{, design layer}}) \\]'
     r += f'\\[ K_{{p2}} = {_f(Kp2,4)} \\]'
     r += (
         f'<p style="font-size:0.80em;color:#6c757d;margin:0 0 6px;">'
@@ -462,12 +655,13 @@ def calculate(L, gamma1, phi1, gamma2, phi2,
         f'\\[ \\sigma_{{a}}(z=0) = K_{{a1}} \\cdot q = {_f(Ka1,4)} \\times {_f(q)} = '
         f'{_f(pa_top_wall)} \\text{{ kPa}} \\]'
     )
+    # Above-dredge earth stress is the sum of all above-dredge layer segments.
     r += (
-        f'\\[ \\sigma_{{a}}(z=L^-) = K_{{a1}} (\\gamma_1 L + q) = {_f(Ka1,4)} \\times '
-        f'({_f(gamma1)} \\times {_f(L)} + {_f(q)}) = {_f(pa_bot_dredge_L1)} \\text{{ kPa}} \\]'
+        f'\\[ \\sigma_{{a}}(z=L^-) = K_{{a,\\text{{bot}}}} (\\sum_i \\gamma_{{earth}}\\gamma_i h_i + \\gamma_{{LS}} q) = '
+        f'{_f(pa_bot_dredge_L1)} \\text{{ kPa}} \\]'
     )
     r += (
-        f'\\[ \\sigma_2 = \\sigma_{{a}}(z=L^+) = K_{{a2}} (\\gamma_1 L + q) = {_f(Ka2,4)} \\times '
+        f'\\[ \\sigma_2 = \\sigma_{{a}}(z=L^+) = K_{{a2}} (\\sigma_{{v,\\text{{dredge}}}}) = {_f(Ka2,4)} \\times '
         f'{_f(sigma_v_dredge)} = {_f(sigma2)} \\text{{ kPa}} \\]'
     )
 
