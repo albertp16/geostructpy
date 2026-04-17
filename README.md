@@ -20,9 +20,9 @@ GeoStructPy is an open-source Python web application and library for geotechnica
 | **Wall Stability** | Earth Pressure | Retaining wall sliding, overturning, and eccentricity checks |
 | **Micropile** | Deep Foundation | Micropile design per NSCP 2015, AISC 14th Ed., ACI 318-14/19 |
 | **Bored Pile** | Deep Foundation | Bored pile capacity from rock UCS, RQD, and structural checks |
-| **Slope Stability** | Slope | Midas GTS NX material parameters derived from borehole data |
+| **Slope Stability** | Slope | Midas GTS NX material parameters derived from borehole data. Priority list reads measured MC, Gs, and UCS from the JSON before falling back to Polish-Code PN-59/B-03020 correlations; per-layer permeability and damping by USCS family; compound codes (SP-SM, GW-SW) normalized so sands no longer get routed to cohesive tables; CORE runs detected via sample_type and given ISRM-1981 rock physics |
 | **SPT & UCS Charts** | Borehole | SPT N-value, N60, and UCS vs. Depth graph maker with JSON import |
-| **Borehole Log** | Borehole | AI-powered borehole log digitizer with soil profiles and charts |
+| **Borehole Log** | Borehole | AI-powered borehole log digitizer with soil profiles and charts. Each CORE run and No-Recovery event renders as its own layer; UCS vs. Depth chart splits measured and N60-correlated traces with a measured-only median; Sample Data Table marks correlated UCS in gray italic "(est.)" |
 | **Theory & Notes** | Reference | Technical background and equations |
 
 For detailed theory, equations, and step-by-step tutorials for each module, see the [Wiki](https://github.com/albertp16/geostructpy/wiki).
@@ -91,7 +91,31 @@ webapp/
     borehole_log.html   # Borehole log digitizer
     theory.html         # Technical notes
     changelog.html      # Version history
+  static/samples/
+    BH-5_qaqc.json          # Guadalupe Bridge BH-5 — QAQC reference borehole
+    qaqc_test_borehole.json # Synthetic dataset covering every QAQC check
+tests/
+  qaqc_slope_stability/
+    generate_and_test.py    # Generates 10 randomized datasets and runs checks
+    report.md               # Per-run acceptance-rule report
+    dataset_01.json ...     # Last generated test corpus
 ```
+
+## Testing
+
+The slope-stability tool has an internal QAQC harness that produces ten
+randomized borehole datasets and asserts the acceptance rules (CORE-as-layer,
+consistent sand parameters, priority list for measured MC/Gs, per-layer
+permeability, rock physics for CORE, measured-UCS precedence over rock
+default):
+
+```sh
+py tests/qaqc_slope_stability/generate_and_test.py
+```
+
+The run writes `report.md` in the same folder and exits non-zero if any rule
+regresses. Manual regression for the borehole-log and slope-stability pages:
+load `webapp/static/samples/BH-5_qaqc.json` via the page's **Load** button.
 
 ## Python Library
 
