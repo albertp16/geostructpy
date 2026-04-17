@@ -272,11 +272,20 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                         <button type="button" class="btn" style="font-size:0.8em;padding:4px 10px;" onclick="copyTableLaTeX('layer-table')">Copy for LaTeX</button>
                     </div>
                 </div>
+                <p style="color:var(--muted);font-size:0.82em;font-style:italic;margin:6px 0 10px;">
+                    Note: Layers shown represent interpreted soil units based on grouping of
+                    similar adjacent SPT samples; each CORE run is listed as its own layer.
+                    Refer to the Sample Data Table for individual sample records.
+                </p>
                 <div id="layer-table">{{ results.layer_table|safe }}</div>
             </div>
             {% if results.charts.soil_profile %}
             <div class="card" style="padding:12px;">
                 <div id="chart-profile"></div>
+                <p style="color:var(--muted);font-size:0.78em;font-style:italic;margin:6px 0 0;text-align:center;max-width:360px;">
+                    Interpreted profile &mdash; adjacent SPT samples of the same classification
+                    are grouped; CORE samples are drawn individually.
+                </p>
             </div>
             {% endif %}
         </div>
@@ -309,7 +318,7 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                         <th>w<sub>P</sub></th>
                         <th>PI</th>
                         <th>UCS (kg/cm&sup2;)</th>
-                        <th>UCS (kPa)</th>
+                        <th>UCS (kPa)<br><span style="font-weight:normal;font-size:0.8em;color:var(--muted);">measured / est. from N<sub>60</sub></span></th>
                         <th>SpGr</th>
                     </tr>
                 </thead>
@@ -330,12 +339,22 @@ Use null for any value NOT visible in the image. Depths in meters. SPT in blows/
                         <td>{{ s.plastic_limit if s.plastic_limit is not none else '-' }}</td>
                         <td>{{ s.plasticity_index if s.plasticity_index is not none else '-' }}</td>
                         <td>{{ s.ucs if s.ucs is not none else '-' }}</td>
-                        <td>{{ s.ucs_kpa if s.ucs_kpa is not none else '-' }}</td>
+                        <td>
+                            {% if s.ucs_kpa_measured is not none %}
+                                {{ s.ucs_kpa_measured }}
+                            {% elif s.ucs_kpa_estimated is not none %}
+                                <span style="color:#95a5a6;font-style:italic;" title="Empirical estimate from N60 (qu &asymp; N60 &times; 12.5 kPa). No lab UCS reported.">{{ s.ucs_kpa_estimated }} (est.)</span>
+                            {% else %}-{% endif %}
+                        </td>
                         <td>{{ s.specific_gravity if s.specific_gravity is not none else '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table></div>
+            <p style="color:var(--muted);font-size:0.78em;font-style:italic;margin:6px 0 0;">
+                UCS (kPa) values shown in gray italic with &ldquo;(est.)&rdquo; are empirical estimates from N<sub>60</sub>
+                (q<sub>u</sub> &asymp; N<sub>60</sub> &times; 12.5 kPa), not lab-measured strengths.
+            </p>
         </div>
 
         {% if results.summaries %}

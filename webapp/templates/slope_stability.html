@@ -92,6 +92,15 @@
     {% if params_table %}
     <div class="card" style="margin-bottom:12px;">
         <div class="results-box">
+            <p style="color:var(--muted);font-size:0.82em;font-style:italic;margin:0 0 10px;">
+                Note: Layers shown are <strong>interpreted soil units</strong>, not raw borehole
+                sample intervals. Consecutive SPT samples of the same USCS family are merged;
+                each CORE run and each No-Recovery event is listed as its own layer. Values
+                tagged <em>Measured</em> come from the JSON (water content, specific gravity,
+                UCS); all others are derived from Polish Code PN-59/B-03020 correlations and
+                standard rock defaults. See each layer&rsquo;s <em>Source of &phi;, c, &gamma;, E</em>
+                line for per-parameter provenance.
+            </p>
             {{ params_table|safe }}
         </div>
     </div>

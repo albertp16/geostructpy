@@ -241,6 +241,9 @@ def slope_stability_view():
                 name=request.form.get(f'ly_name_{i}', f'LAYER {i+1}'),
                 thickness=_float(f'ly_thickness_{i}', 3.0),
                 description=request.form.get(f'ly_desc_{i}', ''),
+                classification=request.form.get(f'ly_cls_{i}', ''),
+                is_core=request.form.get(f'ly_is_core_{i}', '') == '1',
+                is_no_recovery=request.form.get(f'ly_is_nr_{i}', '') == '1',
                 spt=_float(f'ly_spt_{i}', 0),
                 phi=_float(f'ly_phi_{i}', 30),
                 cohesion=_float(f'ly_c_{i}', 0),
@@ -249,6 +252,8 @@ def slope_stability_view():
                 gamma=_float(f'ly_gamma_{i}', 18),
                 moisture_content=_float(f'ly_mc_{i}', 0),
                 Gs=_float(f'ly_Gs_{i}', 2.65),
+                permeability=_float(f'ly_perm_{i}', 1e-5) or 1e-5,
+                damping_ratio=_float(f'ly_damping_{i}', 0.05) or 0.05,
                 data_source=request.form.get(f'ly_src_{i}', '') or None,
             ))
         if not layers:
@@ -390,17 +395,24 @@ def borehole_log_view():
             for s in samples
         ]
 
-    # Pass samples as dicts for the data table in results
+    # Pass samples as dicts for the data table in results. Keep measured UCS
+    # (from lab) separate from the N60-correlated estimate so the table can
+    # render them distinctly and users are never misled about which values
+    # come from tests vs. empirical correlation.
     samples_data = []
     if request.method == "POST" and samples:
         for s in samples:
             n60 = round(s['spt_n'] * 72 / 60, 1) if s.get('spt_n') is not None else None
-            ucs_kpa = None
-            if s.get('ucs') is not None:
-                ucs_kpa = round(s['ucs'] * 98.07, 1)
-            elif n60 is not None:
-                ucs_kpa = round(n60 * 12.5, 1)
-            samples_data.append({**s, 'n60': n60, 'ucs_kpa': ucs_kpa})
+            ucs_kpa_measured = round(s['ucs'] * 98.07, 1) if s.get('ucs') is not None else None
+            ucs_kpa_estimated = None
+            if ucs_kpa_measured is None and n60 is not None:
+                ucs_kpa_estimated = round(n60 * 12.5, 1)
+            samples_data.append({
+                **s,
+                'n60': n60,
+                'ucs_kpa_measured': ucs_kpa_measured,
+                'ucs_kpa_estimated': ucs_kpa_estimated,
+            })
 
     return render_template("borehole_log.html",
                            has_api_key=has_api_key,

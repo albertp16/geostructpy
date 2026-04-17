@@ -43,7 +43,10 @@ def calculate(layers):
         gamma_eff = gamma_sat - gamma_w
         Ko = 1 - math.sin(math.radians(phi)) if phi > 0 else 0.5
         psi = max(0, phi - 30)
+        # Respect per-layer values produced by derive_layers_from_borehole so
+        # the porous / damping tabs are not a column of identical defaults.
         perm = layer.get('permeability', 1e-5)
+        damping = layer.get('damping_ratio', 0.05)
         Ss = gamma_w / (E if E > 0 else 10000)
 
         result = {
@@ -53,10 +56,15 @@ def calculate(layers):
             'depth_bottom': bottom,
             'depth_range': f"{_f(top)}-{_f(bottom)}",
             'description': desc,
+            'classification': layer.get('classification', ''),
+            'is_core': layer.get('is_core', False),
+            'is_no_recovery': layer.get('is_no_recovery', False),
             'spt': spt,
+            'avg_rqd': layer.get('avg_rqd'),
+            'avg_recovery': layer.get('avg_recovery'),
             'E': E, 'nu': nu, 'gamma': gamma,
             'Ko': Ko, 'cohesion': c, 'phi': phi,
-            'damping_ratio': 0.05,
+            'damping_ratio': damping,
             'gamma_sat': gamma_sat, 'e0': e0,
             'perm_kx': perm, 'perm_ky': perm, 'perm_kz': perm,
             'Ss': Ss,
@@ -146,23 +154,86 @@ def _lookup_table(table, n):
     return table[-1][2], table[-1][3]
 
 
+_NO_RECOVERY_CLS = {'', 'unknown', 'no recovery', 'nr', 'n/a', 'na', 'n.a.', '-', 'none'}
+
+
+def _normalize_uscs(classification):
+    """Return a canonical USCS token for tabulated lookups.
+
+    Handles compound codes (SP-SM, GW-SW, SC-SM, CL-ML, ...) by choosing
+    the dominant (first) symbol. Unknown strings return ''. This prevents
+    compound codes from falling through to the Sandy Clay default and
+    getting cohesive parameters for what is really a sand (QAQC: inconsistent
+    c, phi across nominally similar sand layers).
+    """
+    if not classification:
+        return ''
+    token = classification.strip().upper().split('-')[0].split('/')[0].strip()
+    return token
+
+
 def _get_soil_table(classification):
     """Select the right Polish Code table based on USCS classification."""
-    cls = (classification or '').upper()
-    # Cohesionless sands/gravels (no clay component)
+    cls = _normalize_uscs(classification)
     if cls in ('SM', 'SW', 'SP', 'GM', 'GW', 'GP'):
         return _SAND
-    # Clayey sand/gravel
     if cls in ('SC', 'GC'):
         return _CLAYEY_SAND
-    # Sandy silts
     if cls in ('ML', 'MH'):
         return _SANDY_SILT
-    # Sandy clay, silty clay, lean/fat clay
     if cls in ('CL', 'CH'):
         return _SANDY_CLAY
     # Default to sandy clay for unknown
     return _SANDY_CLAY
+
+
+# Typical saturated permeability by USCS family (m/s) — order-of-magnitude
+# values from Das & Sivakugan (2019) Table 8.1 / Bowles (1996) Table 2-4.
+# Replaces the blanket 1e-5 fallback that made every porous tab identical.
+_PERM_BY_CLS = {
+    'GW': 1e-2, 'GP': 1e-2, 'GM': 1e-4, 'GC': 1e-6,
+    'SW': 5e-4, 'SP': 5e-4, 'SM': 1e-5, 'SC': 1e-7,
+    'ML': 5e-7, 'MH': 1e-7,
+    'CL': 1e-9, 'CH': 1e-10,
+    'OL': 1e-8, 'OH': 1e-9,
+    'RK': 1e-8,
+}
+
+
+def _permeability_for(classification, is_rock=False):
+    if is_rock:
+        return _PERM_BY_CLS['RK']
+    cls = _normalize_uscs(classification)
+    return _PERM_BY_CLS.get(cls, 1e-6)
+
+
+def _damping_for(is_rock, is_cohesive):
+    """Small-strain damping ratio defaults (EPRI TR-102293 / Seed-Idriss)."""
+    if is_rock:
+        return 0.02
+    if is_cohesive:
+        return 0.05
+    return 0.03
+
+
+def _is_core_sample(s):
+    return (s.get('sample_type') or '').upper() == 'CORE'
+
+
+def _is_no_recovery_sample(s):
+    """No-Recovery event: failed sampling, not a soil unit."""
+    cls = (s.get('classification') or '').strip().lower()
+    desc = (s.get('description') or '').strip().lower()
+    return (
+        cls in _NO_RECOVERY_CLS
+        or 'no recovery' in desc
+        or (s.get('recovery_pct') == 0 and s.get('spt_n') in (None, 0))
+    )
+
+
+def _mean(values):
+    clean = [v for v in values if v is not None]
+    return sum(clean) / len(clean) if clean else None
 
 
 def _estimate_E(n, classification):
@@ -239,34 +310,56 @@ def build_parameters_table(layers):
 def derive_layers_from_borehole(samples):
     """Convert borehole JSON samples into slope stability layer format.
 
-    Uses Polish Code PN-59/B-03020 correlation tables to derive
-    phi, cohesion, gamma, and E from SPT N-values and classification.
+    Grouping rules (mirror borehole_log.py so the two tools agree):
+      * Each CORE run is its own layer (never merged with neighbours).
+      * Each No-Recovery event is its own layer.
+      * Otherwise consecutive samples with the same normalized USCS code
+        are merged.
 
-    Returns list of layer dicts compatible with the Handsontable format.
+    Parameter-derivation priority (QAQC: priority list for SG / MC / lab):
+      1. Use per-sample values from the JSON whenever present
+         (water_content, specific_gravity, ucs, spt_n, rqd_pct, recovery_pct).
+      2. Only if missing, fall back to Polish-Code PN-59/B-03020 correlations
+         keyed on classification + average N.
+      3. CORE layers with measured UCS use UCS/2 as cohesion (unconfined
+         compressive strength &rarr; undrained shear / Mohr-Coulomb c for rock
+         per ISRM 1981 simplified input).
+
+    Returns layer dicts compatible with the Handsontable format.
     """
     if not samples:
         return []
 
-    # Sort by depth
-    samples = sorted(samples, key=lambda s: s['depth'])
+    samples = sorted(samples, key=lambda s: s.get('depth', 0))
 
-    # Group consecutive samples with same classification into layers
+    # ---- grouping ----------------------------------------------------------
     groups = []
-    current = {'cls': (samples[0].get('classification') or '').upper(),
-               'samples': [samples[0]]}
+    current = {
+        'cls': _normalize_uscs(samples[0].get('classification')),
+        'samples': [samples[0]],
+    }
     for s in samples[1:]:
-        cls = (s.get('classification') or '').upper()
-        if cls == current['cls']:
+        cls = _normalize_uscs(s.get('classification'))
+        prev = current['samples'][-1]
+        force_new = (
+            _is_core_sample(s) or _is_core_sample(prev)
+            or _is_no_recovery_sample(s) or _is_no_recovery_sample(prev)
+        )
+        if not force_new and cls == current['cls']:
             current['samples'].append(s)
         else:
             groups.append(current)
             current = {'cls': cls, 'samples': [s]}
     groups.append(current)
 
+    # ---- per-layer parameter derivation -----------------------------------
     layers = []
     for i, g in enumerate(groups):
         slist = g['samples']
         cls = g['cls']
+        is_core_layer = any(_is_core_sample(s) for s in slist)
+        is_nr_layer = all(_is_no_recovery_sample(s) for s in slist)
+
         n_values = [s.get('spt_n') for s in slist if s.get('spt_n') is not None]
         avg_n = round(sum(n_values) / len(n_values)) if n_values else 0
 
@@ -285,49 +378,113 @@ def derive_layers_from_borehole(samples):
             bot = round(max_depth + 1, 2)
         thickness = round(bot - top, 2)
 
-        # Description from first sample
-        desc = slist[0].get('description', cls)
+        desc = slist[0].get('description') or cls or ('No Recovery' if is_nr_layer else 'Unknown')
 
-        # Derive parameters from Polish Code tables
-        table = _get_soil_table(cls)
-        cohesion, phi = _lookup_table(table, avg_n)
-        gamma = _gamma_from_n(avg_n)
-        E = _estimate_E(avg_n, cls)
+        # --- strength & stiffness (priority: measured → correlated) ---------
+        sources = []  # human-readable provenance strings per parameter family
 
-        # Provenance: tag the source of each derived parameter so downstream
-        # reports can distinguish measured-vs-correlated values.
-        table_name = {
-            id(_SAND): 'Sand table',
-            id(_CLAYEY_SAND): 'Clayey sand table',
-            id(_SANDY_CLAY): 'Sandy clay table',
-            id(_SANDY_SILT): 'Sandy silt table',
-        }.get(id(table), 'General table')
-        data_source = (
-            f'SPT N={avg_n} &rarr; Polish Code PN-59/B-03020 {table_name}'
-        )
-
-        # Rock layers
-        if cls in ('RK', 'ROCK'):
-            cohesion = 100
+        if is_core_layer:
+            # Rock layer — prefer measured UCS when present.
+            ucs_vals = [s.get('ucs') for s in slist if s.get('ucs') is not None]
+            if ucs_vals:
+                # UCS in kg/cm² → convert to kPa; c = UCS / 2 (Mohr-Coulomb)
+                ucs_kpa_mean = sum(ucs_vals) / len(ucs_vals) * 98.07
+                cohesion = round(ucs_kpa_mean / 2.0, 0)
+                sources.append(
+                    f"c from measured UCS mean = {ucs_kpa_mean:.0f} kPa &divide; 2 (ISRM 1981)"
+                )
+            else:
+                cohesion = 100
+                sources.append("c = 100 kPa (ISRM 1981 rock default — no UCS lab data)")
             phi = 35
             gamma = 24
             E = 50000
-            data_source = 'Rock default values (ISRM 1981 suggested methods)'
+            nu = 0.2
+            classification_out = cls or 'RK'
+        elif is_nr_layer:
+            # No Recovery — conservative cohesive default so the layer does
+            # not masquerade as competent soil.
+            table = _SANDY_CLAY
+            cohesion, phi = _lookup_table(table, avg_n)
+            gamma = _gamma_from_n(avg_n)
+            E = _estimate_E(avg_n, cls)
+            nu = 0.3
+            classification_out = 'No Recovery'
+            sources.append(
+                'No-Recovery interval &mdash; conservative fallback (Sandy Clay table, min N)'
+            )
+        else:
+            table = _get_soil_table(cls)
+            cohesion, phi = _lookup_table(table, avg_n)
+            gamma = _gamma_from_n(avg_n)
+            E = _estimate_E(avg_n, cls)
+            nu = 0.3
+            classification_out = cls or 'Unknown'
+            table_name = {
+                id(_SAND): 'Sand table (Table 3)',
+                id(_CLAYEY_SAND): 'Clayey Sand table (Table 2)',
+                id(_SANDY_CLAY): 'Sandy/Silty Clay table (Table 1)',
+                id(_SANDY_SILT): 'Sandy Silt table (Table 4)',
+            }.get(id(table), 'General table')
+            sources.append(
+                f"&phi;, c, &gamma;, E: SPT N={avg_n} &rarr; Polish Code PN-59/B-03020 {table_name}"
+            )
+
+        # --- moisture content / specific gravity (priority: measured first) -
+        mc_mean = _mean([s.get('water_content') for s in slist])
+        sg_mean = _mean([s.get('specific_gravity') for s in slist])
+
+        if mc_mean is not None:
+            mc_value = round(mc_mean, 2)
+            sources.append(f"MC = mean of {sum(1 for s in slist if s.get('water_content') is not None)} lab value(s)")
+        else:
+            # Simple depth-based fallback so rows are not all 0.
+            mid_depth = (top + bot) / 2
+            if is_core_layer:
+                mc_value = 5.0  # weathered rock typical
+            elif _normalize_uscs(cls) in ('CL', 'CH', 'ML', 'MH', 'OL', 'OH'):
+                mc_value = round(min(45.0, 20.0 + mid_depth * 0.5), 2)
+            else:
+                mc_value = round(max(8.0, 25.0 - mid_depth * 0.3), 2)
+            sources.append("MC: depth-based fallback (no lab MC in JSON)")
+
+        if sg_mean is not None:
+            sg_value = round(sg_mean, 3)
+            sources.append(f"Gs = mean of {sum(1 for s in slist if s.get('specific_gravity') is not None)} lab value(s)")
+        else:
+            sg_value = 2.70 if is_core_layer else (2.68 if _normalize_uscs(cls) in ('CL', 'CH', 'ML', 'MH') else 2.65)
+            sources.append(f"Gs = {sg_value} (typical value — no lab Gs in JSON)")
+
+        # --- Porous/damping (QAQC: must be layer-specific, not fixed) -------
+        perm = _permeability_for(cls, is_rock=is_core_layer)
+        is_cohesive = _normalize_uscs(cls) in ('CL', 'CH', 'ML', 'MH', 'OL', 'OH', 'SC', 'GC')
+        damping = _damping_for(is_core_layer, is_cohesive)
+
+        # Average RQD / Recovery for reporting
+        rqd_mean = _mean([s.get('rqd_pct') for s in slist])
+        rec_mean = _mean([s.get('recovery_pct') for s in slist])
 
         layers.append({
             'row_num': i + 1,
             'name': f'LAYER {i + 1}',
             'thickness': thickness,
             'description': desc,
+            'classification': classification_out,
+            'is_core': is_core_layer,
+            'is_no_recovery': is_nr_layer,
             'spt': avg_n,
+            'avg_rqd': round(rqd_mean, 1) if rqd_mean is not None else None,
+            'avg_recovery': round(rec_mean, 1) if rec_mean is not None else None,
             'phi': round(phi, 1),
             'cohesion': round(cohesion, 0),
             'E': E,
-            'nu': 0.3 if cls not in ('RK', 'ROCK') else 0.2,
+            'nu': nu,
             'gamma': round(gamma, 2),
-            'moisture_content': 0,
-            'Gs': 2.65,
-            'data_source': data_source,
+            'moisture_content': mc_value,
+            'Gs': sg_value,
+            'permeability': perm,
+            'damping_ratio': damping,
+            'data_source': ' | '.join(sources),
         })
 
     return layers

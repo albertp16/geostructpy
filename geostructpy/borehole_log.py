@@ -202,36 +202,58 @@ def _build_n60_chart(samples):
 
 
 def _build_ucs_chart(samples):
-    """UCS vs Depth — uses extracted UCS if available, else empirical from N60."""
-    pts = []
+    """UCS vs Depth — plots measured UCS and (separately) empirical UCS from N60.
+
+    Median line is computed from measured UCS only; empirically-derived points
+    are excluded so the reference line reflects true laboratory strength
+    (QAQC Comment #2).
+    """
+    measured = []   # (depth, kPa) from recorded UCS
+    empirical = []  # (depth, kPa) estimated from N60
     for s in samples:
         if s.get('ucs') is not None:
             # Convert kg/cm2 to kPa (1 kg/cm2 ≈ 98.07 kPa)
-            pts.append((s['depth'], round(s['ucs'] * 98.07, 1)))
+            measured.append((s['depth'], round(s['ucs'] * 98.07, 1)))
         elif s.get('spt_n') is not None:
             n60 = s['spt_n'] * 72 / 60
-            pts.append((s['depth'], round(n60 * 12.5, 1)))
-    if not pts:
+            empirical.append((s['depth'], round(n60 * 12.5, 1)))
+    if not measured and not empirical:
         return None
-    depths = [-d for d, _ in pts]
-    values = [v for _, v in pts]
-    x_max = max(values) * 1.15 if values else 500
-    y_min, y_max = min(min(depths) - 1, -12), 1
-    traces = [{
-        "x": values, "y": depths,
-        "mode": "lines+markers", "name": "UCS",
-        "marker": {"size": 9, "color": "#27ae60", "symbol": "diamond"},
-        "line": {"color": "#27ae60", "width": 1.5},
-    }]
-    # Median line
-    sorted_v = sorted(values)
-    n = len(sorted_v)
-    med = sorted_v[n // 2] if n % 2 else (sorted_v[n // 2 - 1] + sorted_v[n // 2]) / 2
-    traces.append({
-        "x": [med, med], "y": [min(depths) - 1, max(depths) + 1],
-        "mode": "lines", "name": f"Median = {_f(med, 1)} kPa",
-        "line": {"color": "#c0392b", "width": 2, "dash": "dash"},
-    })
+
+    all_depths = [-d for d, _ in measured + empirical]
+    all_values = [v for _, v in measured + empirical]
+    x_max = max(all_values) * 1.15 if all_values else 500
+    y_min, y_max = min(min(all_depths) - 1, -12), 1
+
+    traces = []
+    if measured:
+        traces.append({
+            "x": [v for _, v in measured],
+            "y": [-d for d, _ in measured],
+            "mode": "lines+markers", "name": "UCS (measured)",
+            "marker": {"size": 9, "color": "#27ae60", "symbol": "diamond"},
+            "line": {"color": "#27ae60", "width": 1.5},
+        })
+    if empirical:
+        traces.append({
+            "x": [v for _, v in empirical],
+            "y": [-d for d, _ in empirical],
+            "mode": "markers", "name": "UCS (est. from N\u2086\u2080)",
+            "marker": {"size": 8, "color": "#95a5a6", "symbol": "circle-open"},
+        })
+
+    # Median is drawn only when we have at least one measured UCS value.
+    if measured:
+        m_vals = sorted(v for _, v in measured)
+        n = len(m_vals)
+        med = m_vals[n // 2] if n % 2 else (m_vals[n // 2 - 1] + m_vals[n // 2]) / 2
+        traces.append({
+            "x": [med, med], "y": [min(all_depths) - 1, max(all_depths) + 1],
+            "mode": "lines",
+            "name": f"Median (measured) = {_f(med, 1)} kPa",
+            "line": {"color": "#c0392b", "width": 2, "dash": "dash"},
+        })
+
     layout = _base_layout("UCS (q\u1D64) vs. Depth",
                           "UCS, q\u1D64 [kPa]", y_min, y_max, x_max)
     return {'traces': traces, 'layout': layout}
@@ -324,10 +346,31 @@ def _build_recovery_chart(samples):
     return {'traces': traces, 'layout': layout}
 
 
+_NO_RECOVERY_CLS = {'', 'unknown', 'no recovery', 'nr', 'n/a', 'na', 'n.a.', '-'}
+
+
+def _is_core_sample(s):
+    return (s.get('sample_type') or '').upper() == 'CORE'
+
+
+def _is_no_recovery(s):
+    """True for samples that represent a sampling event with no usable
+    material recovered (empty/unknown classification, or an explicit
+    'No Recovery' label). Such samples are events, not soil units, so
+    they should never be merged with neighbours."""
+    return (s.get('classification') or '').strip().lower() in _NO_RECOVERY_CLS
+
+
 def _group_into_layers(samples):
-    """Group consecutive samples with the same classification into layers."""
+    """Group consecutive SPT samples of the same classification into layers.
+
+    A new layer is forced whenever the current or previous sample is a CORE
+    run (so each core run stands on its own) or a 'No Recovery' event
+    (so a run of failed recoveries is not collapsed into one thick band).
+    """
     if not samples:
         return []
+
     layers = []
     current = {
         'name': samples[0].get('classification') or 'Unknown',
@@ -336,7 +379,12 @@ def _group_into_layers(samples):
     }
     for s in samples[1:]:
         cls = s.get('classification') or 'Unknown'
-        if cls == current['name']:
+        prev = current['samples'][-1]
+        force_new = (
+            _is_core_sample(s) or _is_core_sample(prev)
+            or _is_no_recovery(s) or _is_no_recovery(prev)
+        )
+        if not force_new and cls == current['name']:
             current['samples'].append(s)
         else:
             layers.append(current)
@@ -345,10 +393,15 @@ def _group_into_layers(samples):
 
     # Compute layer properties
     result = []
-    depth_top = 0
     for i, ly in enumerate(layers):
         spt_vals = [s['spt_n'] for s in ly['samples'] if s.get('spt_n') is not None]
         avg_spt = round(sum(spt_vals) / len(spt_vals), 1) if spt_vals else None
+
+        rqd_vals = [s['rqd_pct'] for s in ly['samples'] if s.get('rqd_pct') is not None]
+        avg_rqd = round(sum(rqd_vals) / len(rqd_vals), 1) if rqd_vals else None
+
+        rec_vals = [s['recovery_pct'] for s in ly['samples'] if s.get('recovery_pct') is not None]
+        avg_rec = round(sum(rec_vals) / len(rec_vals), 1) if rec_vals else None
 
         min_depth = min(s['depth'] for s in ly['samples'])
         max_depth = max(s['depth'] for s in ly['samples'])
@@ -367,6 +420,9 @@ def _group_into_layers(samples):
 
         thickness = round(bot - top, 2)
 
+        is_core_layer = any(_is_core_sample(s) for s in ly['samples'])
+        is_no_recovery_layer = all(_is_no_recovery(s) for s in ly['samples'])
+
         result.append({
             'num': i + 1,
             'name': f'LAYER {i + 1}',
@@ -376,9 +432,12 @@ def _group_into_layers(samples):
             'depth_bottom': bot,
             'thickness': thickness,
             'avg_spt': avg_spt,
+            'avg_rqd': avg_rqd,
+            'avg_recovery': avg_rec,
+            'is_core': is_core_layer,
+            'is_no_recovery': is_no_recovery_layer,
             'sample_count': len(ly['samples']),
         })
-        depth_top = bot
 
     return result
 
@@ -402,7 +461,15 @@ def _build_soil_profile(samples):
         mid = (top + bot) / 2
         thickness = ly['thickness']
 
-        spt_text = f" | SPT={ly['avg_spt']}" if ly['avg_spt'] is not None else ''
+        if ly.get('is_core'):
+            parts = []
+            if ly.get('avg_rqd') is not None:
+                parts.append(f"RQD={ly['avg_rqd']}%")
+            if ly.get('avg_recovery') is not None:
+                parts.append(f"Rec={ly['avg_recovery']}%")
+            metric_text = f" | {' '.join(parts)}" if parts else ''
+        else:
+            metric_text = f" | SPT={ly['avg_spt']}" if ly['avg_spt'] is not None else ''
 
         traces.append({
             "x": [0, 1, 1, 0],
@@ -416,7 +483,7 @@ def _build_soil_profile(samples):
             "hoverinfo": "text",
             "text": f"{ly['name']} ({cls}): {ly['description']}<br>"
                     f"{_f(ly['depth_top'])}-{_f(ly['depth_bottom'])} m<br>"
-                    f"t = {_f(thickness)} m{spt_text}",
+                    f"t = {_f(thickness)} m{metric_text}",
         })
 
         # Adapt annotation detail to layer thickness
@@ -426,12 +493,12 @@ def _build_soil_profile(samples):
                 desc = desc[:42] + '...'
             label = (f"<b>{ly['name']}</b><br>"
                      f"{desc}<br>"
-                     f"t={_f(thickness)}m{spt_text}")
+                     f"t={_f(thickness)}m{metric_text}")
             font_size = 11
         elif thickness >= 1.5:
             if len(desc) > 30:
                 desc = desc[:27] + '...'
-            label = f"<b>{ly['name']}</b>  {desc}  t={_f(thickness)}m{spt_text}"
+            label = f"<b>{ly['name']}</b>  {desc}  t={_f(thickness)}m{metric_text}"
             font_size = 10
         else:
             label = f"<b>{ly['name']}</b> ({cls}) t={_f(thickness)}m"
@@ -475,18 +542,23 @@ def build_layer_table(samples):
     r = '<table class="data-table" style="font-size:0.85em;">'
     r += '<thead><tr>'
     r += '<th>#</th><th>Layer Name</th><th>Thickness (m)</th>'
-    r += '<th>Description</th><th>SPT N</th><th>Classification</th>'
-    r += '<th>Depth Range (m)</th><th>Samples</th>'
+    r += '<th>Description</th><th>SPT N</th><th>RQD (%)</th><th>Recovery (%)</th>'
+    r += '<th>Classification</th><th>Depth Range (m)</th><th>Samples</th>'
     r += '</tr></thead><tbody>'
 
     for ly in layers:
         spt_str = _f(ly['avg_spt'], 1) if ly['avg_spt'] is not None else '-'
-        r += f'<tr>'
+        rqd_str = _f(ly['avg_rqd'], 0) if ly.get('avg_rqd') is not None else '-'
+        rec_str = _f(ly['avg_recovery'], 0) if ly.get('avg_recovery') is not None else '-'
+        row_style = ' style="background:#fdf0ef;"' if ly.get('is_no_recovery') else ''
+        r += f'<tr{row_style}>'
         r += f'<td>{ly["num"]}</td>'
         r += f'<td>{ly["name"]}</td>'
         r += f'<td>{_f(ly["thickness"])}</td>'
         r += f'<td>{ly["description"]}</td>'
         r += f'<td>{spt_str}</td>'
+        r += f'<td>{rqd_str}</td>'
+        r += f'<td>{rec_str}</td>'
         r += f'<td><strong>{ly["classification"]}</strong></td>'
         r += f'<td>{_f(ly["depth_top"])}-{_f(ly["depth_bottom"])}</td>'
         r += f'<td>{ly["sample_count"]}</td>'
@@ -515,7 +587,9 @@ def build_charts(samples, water_table_depth=None):
     for name, builder in builders.items():
         result = builder(samples)
         if result is not None:
-            # Add water table annotation if available
+            # Add water table annotation if available. Anchor inside the plot
+            # area (upper-left, just above the dashed line) so the label is
+            # never clipped at the chart's right edge (QAQC Comment #3).
             if water_table_depth is not None and name != 'soil_profile':
                 wt_y = -water_table_depth
                 result['layout'].setdefault('shapes', []).append({
@@ -525,11 +599,15 @@ def build_charts(samples, water_table_depth=None):
                     "line": {"color": "#2980b9", "width": 2, "dash": "dash"},
                 })
                 result['layout'].setdefault('annotations', []).append({
-                    "x": 1, "xref": "paper", "y": wt_y,
+                    "x": 0.02, "xref": "paper", "y": wt_y,
                     "text": f"WT = {_f(water_table_depth)} m",
                     "showarrow": False,
                     "font": {"size": 10, "color": "#2980b9"},
-                    "xanchor": "left",
+                    "xanchor": "left", "yanchor": "bottom",
+                    "yshift": 2,
+                    "bgcolor": "rgba(255,255,255,0.8)",
+                    "bordercolor": "#2980b9", "borderwidth": 0,
+                    "borderpad": 2,
                 })
             charts[name] = result
 
