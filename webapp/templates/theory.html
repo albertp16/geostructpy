@@ -265,9 +265,9 @@
             <div class="card">
                 <h2>3.1 Static Earth Pressure Coefficients (Coulomb)</h2>
                 <p>Active:</p>
-                \[ K_a = \frac{\sin^2(\beta + \phi)}{\sin\beta\sin(\beta - \delta)\left[1 + \sqrt{\frac{\sin(\phi+\delta)\sin(\phi-\alpha)}{\sin(\beta-\delta)\sin(\beta+\alpha)}}\right]^2} \]
+                \[ K_a = \frac{\sin^2(\beta + \phi)}{\sin^2\beta\sin(\beta - \delta)\left[1 + \sqrt{\frac{\sin(\phi+\delta)\sin(\phi-\alpha)}{\sin(\beta-\delta)\sin(\beta+\alpha)}}\right]^2} \]
                 <p>Passive:</p>
-                \[ K_p = \frac{\sin^2(\beta - \phi)}{\sin\beta\sin(\beta + \delta)\left[1 - \sqrt{\frac{\sin(\phi+\delta)\sin(\phi+\alpha)}{\sin(\beta+\delta)\sin(\beta+\alpha)}}\right]^2} \]
+                \[ K_p = \frac{\sin^2(\beta - \phi)}{\sin^2\beta\sin(\beta + \delta)\left[1 - \sqrt{\frac{\sin(\phi+\delta)\sin(\phi+\alpha)}{\sin(\beta+\delta)\sin(\beta+\alpha)}}\right]^2} \]
             </div>
         </div>
 
@@ -276,7 +276,7 @@
             <div class="card">
                 <h2>3.2 Seismic Active Earth Pressure (Mononobe-Okabe)</h2>
                 <p>Extends Coulomb's theory with pseudo-static seismic forces:</p>
-                \[ K_{ae} = \frac{\sin^2(\beta + \phi - \theta)}{\cos\theta\sin\beta\sin(\beta - \delta - \theta)\left[1 + \sqrt{\frac{\sin(\phi+\delta)\sin(\phi-\alpha-\theta)}{\sin(\beta-\delta-\theta)\sin(\beta+\alpha)}}\right]^2} \]
+                \[ K_{ae} = \frac{\sin^2(\beta + \phi - \theta)}{\cos\theta\sin^2\beta\sin(\beta - \delta - \theta)\left[1 + \sqrt{\frac{\sin(\phi+\delta)\sin(\phi-\alpha-\theta)}{\sin(\beta-\delta-\theta)\sin(\beta+\alpha)}}\right]^2} \]
                 <p>Seismic inclination angle:</p>
                 \[ \theta = \arctan\left(\frac{k_h}{1 - k_v}\right) \]
             </div>

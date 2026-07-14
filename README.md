@@ -99,6 +99,8 @@ tests/
     generate_and_test.py    # Generates 10 randomized datasets and runs checks
     report.md               # Per-run acceptance-rule report
     dataset_01.json ...     # Last generated test corpus
+  qaqc_mononobe_okabe/
+    qaqc_mononobe_okabe.py  # M-O closed forms vs independent trial-wedge search
 ```
 
 ## Testing
@@ -116,6 +118,16 @@ py tests/qaqc_slope_stability/generate_and_test.py
 The run writes `report.md` in the same folder and exits non-zero if any rule
 regresses. Manual regression for the borehole-log and slope-stability pages:
 load `webapp/static/samples/BH-5_qaqc.json` via the page's **Load** button.
+
+The Mononobe-Okabe calculator has its own QAQC harness that verifies the
+closed-form coefficients (Coulomb Ka/Kp, M-O Kae/Kpe, Zarrabi-Kashani critical
+wedge angle) against an independent brute-force trial-wedge equilibrium search,
+checks static limits, force-polygon closure, validity guards, and end-to-end
+report generation:
+
+```sh
+py tests/qaqc_mononobe_okabe/qaqc_mononobe_okabe.py
+```
 
 ## Python Library
 

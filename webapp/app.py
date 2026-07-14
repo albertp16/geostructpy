@@ -99,6 +99,7 @@ def mononobe_okabe_view():
         beta=90, delta=20, kh=0.30, kv=0.0, cohesion=0.0,
     )
     results = None
+    error = None
     params = defaults
     if request.method == "POST":
         params = dict(
@@ -112,8 +113,12 @@ def mononobe_okabe_view():
             kv=_float('kv', 0.0),
             cohesion=_float('cohesion', 0.0),
         )
-        results = mononobe_okabe.calculate(**params)
-    return render_template("mononobe_okabe.html", params=params, results=results)
+        try:
+            results = mononobe_okabe.calculate(**params)
+        except (ValueError, ZeroDivisionError, OverflowError) as e:
+            error = str(e)
+    return render_template("mononobe_okabe.html", params=params,
+                           results=results, error=error)
 
 
 @app.route("/stability", methods=["GET", "POST"])
