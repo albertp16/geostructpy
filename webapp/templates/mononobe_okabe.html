@@ -1,64 +1,208 @@
 {% extends "base.html" %}
 {% block title %}Mononobe-Okabe Calculator - GeoStructPy{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* --- full-width layout: use the whole viewport, not the 1100px column --- */
+    .page-container {
+        max-width: min(1780px, 96vw);
+    }
+
+    /* --- form ------------------------------------------------------------ */
+    .mo-form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px 24px;
+    }
+    .mo-fieldset {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px 16px 6px;
+        margin: 0;
+    }
+    .mo-fieldset legend {
+        font-size: 0.78em;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 0 6px;
+    }
+    .mo-unit { color: var(--muted); font-weight: 400; }
+
+    /* --- validity banner -------------------------------------------------- */
+    .mo-validity {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        font-size: 0.9em;
+        line-height: 1.5;
+    }
+    .mo-validity.ok    { background: #f0f9f0; border: 1px solid #b5dfb5; color: #1c5e1c; }
+    .mo-validity.fail  { background: #fdf0f0; border: 1px solid #eebcbc; color: #8a2020; }
+    .mo-validity .tag  { font-weight: 700; white-space: nowrap; }
+
+    /* --- summary stat tiles ------------------------------------------------ */
+    .mo-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 4px;
+    }
+    .stat-tile {
+        background: #fcfcfb;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px 14px;
+    }
+    .stat-tile .label {
+        font-size: 0.72em;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+    }
+    .stat-tile .value {
+        font-size: 1.45em;
+        font-weight: 600;
+        color: #0b0b0b;
+        line-height: 1.15;
+    }
+    .stat-tile .value .unit {
+        font-size: 0.55em;
+        font-weight: 400;
+        color: var(--muted);
+        margin-left: 3px;
+    }
+    .stat-tile .sub {
+        font-size: 0.72em;
+        color: var(--muted);
+        margin-top: 3px;
+    }
+
+    /* --- figures ------------------------------------------------------------ */
+    .fig-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    .fig-card { min-width: 0; }
+    .fig-caption {
+        font-size: 0.8em;
+        color: var(--muted);
+        line-height: 1.5;
+        margin: 6px 4px 0;
+        text-align: justify;
+    }
+    .fig-caption strong { color: var(--text); }
+
+    /* --- report sections ------------------------------------------------------ */
+    .results-box h4 {
+        margin: 22px 0 4px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border);
+        color: var(--primary);
+        font-size: 1.02em;
+    }
+    .results-box > div:first-child h4 { margin-top: 4px; }
+    .ref-line {
+        font-size: 0.8em;
+        color: var(--muted);
+        margin: 0 0 6px;
+        line-height: 1.5;
+    }
+    .results-box table.data-table { margin: 10px 0 4px; }
+
+    @media (max-width: 900px) {
+        .mo-form-grid { grid-template-columns: 1fr; }
+        .fig-grid { grid-template-columns: 1fr; }
+    }
+    @media print {
+        .fig-grid { grid-template-columns: 1fr 1fr; }
+        .stat-tile { break-inside: avoid; }
+        .card { break-inside: auto; }
+        .results-box > div { break-inside: avoid; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div>
     <form method="POST" action="/mononobe-okabe">
     <div class="card">
-        <h2>Mononobe-Okabe Seismic Earth Pressure Calculator</h2>
-        <div class="form-row">
-            <div>
-                <h3>Embankment Parameters</h3>
+        <h2>Mononobe-Okabe Seismic Earth Pressure</h2>
+        <p style="color:var(--muted);font-size:0.85em;margin:4px 0 16px;">
+            Pseudo-static active/passive earth pressure on retaining walls
+            (Okabe 1926; Mononobe &amp; Matsuo 1929), with the exact
+            Zarrabi-Kashani critical wedge, Seed&ndash;Whitman resultant location,
+            and an independent wedge-equilibrium QA check.
+        </p>
+        <div class="mo-form-grid">
+            <fieldset class="mo-fieldset">
+                <legend>Geometry</legend>
                 <div class="form-group">
-                    <label>Unit Weight of Soil, &gamma;<sub>moist</sub> (kN/m&sup3;)</label>
-                    <input type="number" step="0.1" name="soil_weight" value="{{ params.soil_weight }}">
+                    <label>Wall height, H <span class="mo-unit">(m)</span></label>
+                    <input type="number" step="0.01" min="0.01" name="h_wall" value="{{ params.h_wall }}">
                 </div>
                 <div class="form-group">
-                    <label>Height of Embankment, H (m)</label>
-                    <input type="number" step="0.01" name="h_wall" value="{{ params.h_wall }}">
-                </div>
-                <div class="form-group">
-                    <label>Angle of Embankment Slope, &alpha; (deg)</label>
+                    <label>Backfill slope, &alpha; <span class="mo-unit">(deg)</span>
+                        <span class="qa-note" tabindex="0" data-note="Inclination of the backfill surface above horizontal. M-O requires φ − α − θ ≥ 0."></span>
+                    </label>
                     <input type="number" step="0.1" name="alpha" value="{{ params.alpha }}">
                 </div>
                 <div class="form-group">
-                    <label>Angle of Internal Friction, &phi; (deg)</label>
-                    <input type="number" step="0.1" name="phi" value="{{ params.phi }}">
+                    <label>Wall back face, &beta; <span class="mo-unit">(deg)</span>
+                        <span class="qa-note" tabindex="0" data-note="Angle of the wall back face from horizontal; 90° = vertical back. β < 90° means the backfill rests on the inclined face."></span>
+                    </label>
+                    <input type="number" step="0.1" min="45" max="135" name="beta" value="{{ params.beta }}">
+                </div>
+            </fieldset>
+            <fieldset class="mo-fieldset">
+                <legend>Backfill Soil</legend>
+                <div class="form-group">
+                    <label>Unit weight, &gamma; <span class="mo-unit">(kN/m&sup3;)</span></label>
+                    <input type="number" step="0.1" min="0.1" name="soil_weight" value="{{ params.soil_weight }}">
                 </div>
                 <div class="form-group">
-                    <label>Backfill Cohesion, c' (kPa) &mdash; optional
-                        <span class="qa-note" tabindex="0" data-note="Effective cohesion of backfill. When > 0 and the wall back is vertical (β = 90°) with a horizontal surface (α = 0), the calculator applies the Das §16.10 seismic c'-φ' correction (p. 672). Outside that geometry range the correction is skipped with a disclaimer."></span>
+                    <label>Friction angle, &phi;&prime; <span class="mo-unit">(deg)</span></label>
+                    <input type="number" step="0.1" min="1" max="60" name="phi" value="{{ params.phi }}">
+                </div>
+                <div class="form-group">
+                    <label>Wall friction, &delta; <span class="mo-unit">(deg)</span>
+                        <span class="qa-note" tabindex="0" data-note="Wall-soil interface friction. Typical δ = φ/2 to 2φ/3. Must not exceed φ."></span>
+                    </label>
+                    <input type="number" step="0.1" min="0" name="delta" value="{{ params.delta }}">
+                </div>
+                <div class="form-group">
+                    <label>Cohesion, c&prime; <span class="mo-unit">(kPa, optional)</span>
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective cohesion. When > 0 with β = 90° and α = 0, the Das §16.10 seismic c'-φ' correction (p. 672) applies, including the tension crack. Outside that geometry it is skipped with a disclaimer."></span>
                     </label>
                     <input type="number" step="0.1" min="0" name="cohesion" value="{{ params.cohesion }}">
                 </div>
-                <div class="form-group">
-                    <label>Angle of Wall Face from Horizontal, &beta; (deg)</label>
-                    <input type="number" step="0.1" name="beta" value="{{ params.beta }}">
-                </div>
-                <div class="form-group">
-                    <label>Wall-Soil Friction Angle, &delta; (deg)</label>
-                    <input type="number" step="0.1" name="delta" value="{{ params.delta }}">
-                </div>
-            </div>
-            <div>
-                <h3>Seismic Parameters</h3>
-                <p style="color:var(--muted);font-size:0.78em;margin:0 0 8px;">
-                    Enter k<sub>h</sub> and k<sub>v</sub> as the <strong>effective</strong> coefficients
-                    (i.e., the reduction factor &alpha; on PGA already applied: k<sub>h</sub> = &alpha;&middot;a<sub>max</sub>/g).
-                    Typical &alpha; = 0.5 per AASHTO &sect;11.6.5.2 / Seed &amp; Whitman 1970.
+            </fieldset>
+            <fieldset class="mo-fieldset">
+                <legend>Seismic Coefficients</legend>
+                <p style="color:var(--muted);font-size:0.76em;margin:2px 0 10px;line-height:1.5;">
+                    Enter <strong>effective</strong> coefficients: the PGA reduction
+                    factor already applied (k<sub>h</sub> = &alpha;&middot;a<sub>max</sub>/g,
+                    typically &alpha; = 0.5). Ref: AASHTO &sect;11.6.5.2.
                 </p>
                 <div class="form-group">
-                    <label>Horizontal Seismic Coefficient, k<sub>h</sub>
-                        <span class="qa-note" tabindex="0" data-note="Effective horizontal pseudo-static coefficient. Example: PGA = 0.40 g and α = 0.5 → kh = 0.20. Ref: AASHTO §11.6.5.2; Das &amp; Sivakugan §16.9."></span>
+                    <label>Horizontal, k<sub>h</sub>
+                        <span class="qa-note qa-right" tabindex="0" data-note="Effective horizontal pseudo-static coefficient. Example: PGA = 0.40 g with α = 0.5 → kh = 0.20."></span>
                     </label>
-                    <input type="number" step="0.01" name="kh" value="{{ params.kh }}">
+                    <input type="number" step="0.01" min="0" name="kh" value="{{ params.kh }}">
                 </div>
                 <div class="form-group">
-                    <label>Vertical Seismic Coefficient, k<sub>v</sub>
-                        <span class="qa-note" tabindex="0" data-note="Often taken as 0 or ⅔·kh per AASHTO. Positive kv acts upward."></span>
+                    <label>Vertical, k<sub>v</sub>
+                        <span class="qa-note qa-right" tabindex="0" data-note="Often 0 or ⅔·kh per AASHTO. Positive kv acts upward (reduces effective weight)."></span>
                     </label>
                     <input type="number" step="0.01" name="kv" value="{{ params.kv }}">
                 </div>
-            </div>
+            </fieldset>
         </div>
 
         <div class="no-print">
@@ -68,49 +212,169 @@
     </div>
     </form>
 
-    {% if results %}
+    {% if error %}
     <div class="card">
-        <h2>Wall Diagram &mdash; Textbook-Style Cross Section</h2>
-        <p style="color:var(--muted);font-size:0.85em;margin:0 0 8px;">
-            Two-panel figure after Das &amp; Sivakugan Fig.&nbsp;16.23 (&sect;16.9, <strong>p.&nbsp;668</strong>) and
-            Kramer (1996) Fig.&nbsp;11.1: wall cross-section with static vs. seismic active pressure distribution, and a
-            trial failure wedge with the pseudo-static force polygon.
-        </p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div id="cross-section-plot"></div>
-            <div id="force-polygon-plot"></div>
+        <div class="mo-validity fail" style="margin-bottom:0;">
+            <span class="tag">&#10007; INVALID INPUT</span>
+            <span>{{ error }}</span>
         </div>
     </div>
+    {% endif %}
+
+    {% if results %}
+    {% set s = results.summary %}
+
     <div class="card">
-        <h2>Detailed Calculations</h2>
+        <h2>Results at a Glance</h2>
+
+        {% if s.mo_valid %}
+        <div class="mo-validity ok">
+            <span class="tag">&#10003; M-O VALID</span>
+            <span>&phi; &minus; &alpha; &minus; &theta; = {{ '%.2f'|format(params.phi - params.alpha - s.theta) }}&deg; &ge; 0
+                &nbsp;&middot;&nbsp; limiting coefficient k<sub>h,lim</sub> = {{ '%.3f'|format(s.kh_limit) }}
+                {% if s.closure is not none %}
+                &nbsp;&middot;&nbsp; independent wedge-equilibrium check: &Delta; = {{ '%.3f'|format(s.closure) }}%
+                {% endif %}
+            </span>
+        </div>
+        {% else %}
+        <div class="mo-validity fail">
+            <span class="tag">&#10007; M-O LIMIT EXCEEDED</span>
+            <span>
+            {% for w in s.warnings %}{{ w|safe }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+            </span>
+        </div>
+        {% endif %}
+        {% if s.mo_valid and s.warnings %}
+        <div class="mo-validity fail">
+            <span class="tag">&#9888; NOTE</span>
+            <span>{% for w in s.warnings %}{{ w|safe }}{% if not loop.last %}<br>{% endif %}{% endfor %}</span>
+        </div>
+        {% endif %}
+
+        <div class="mo-summary">
+            <div class="stat-tile">
+                <div class="label">K<sub>ae</sub> &mdash; seismic active</div>
+                <div class="value">{{ '%.4f'|format(s.kae) }}</div>
+                <div class="sub">K<sub>a</sub> static = {{ '%.4f'|format(s.ka) }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="label">P<sub>ae</sub> &mdash; seismic thrust</div>
+                <div class="value">{{ '%.2f'|format(s.Pae) }}<span class="unit">kN/m</span></div>
+                <div class="sub">P<sub>a</sub> static = {{ '%.2f'|format(s.Pa_ref) }} kN/m</div>
+            </div>
+            <div class="stat-tile">
+                <div class="label">&Delta;P<sub>ae</sub> &mdash; dynamic increment</div>
+                <div class="value">{{ '%.2f'|format(s.dPae) }}<span class="unit">kN/m</span></div>
+                <div class="sub">acts at 0.6H (Seed &amp; Whitman)</div>
+            </div>
+            <div class="stat-tile">
+                <div class="label">z&#772; &mdash; resultant height</div>
+                <div class="value">{{ '%.3f'|format(s.z_bar) }}<span class="unit">m</span></div>
+                <div class="sub">z&#772;/H = {{ '%.3f'|format(s.z_bar_ratio) }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="label">M<sub>ot</sub> &mdash; overturning</div>
+                <div class="value">{{ '%.2f'|format(s.M_ot) }}<span class="unit">kN&middot;m/m</span></div>
+                <div class="sub">P<sub>h</sub> = {{ '%.2f'|format(s.Ph) }} kN/m</div>
+            </div>
+            {% if s.psi_ae is not none %}
+            <div class="stat-tile">
+                <div class="label">&alpha;<sub>AE</sub> &mdash; failure plane</div>
+                <div class="value">{{ '%.1f'|format(s.psi_ae) }}<span class="unit">&deg;</span></div>
+                <div class="sub">{% if s.psi_a is not none %}static {{ '%.1f'|format(s.psi_a) }}&deg;{% endif %}
+                    {% if s.x_extent is not none %} &middot; wedge {{ '%.2f'|format(s.x_extent) }} m{% endif %}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Figures</h2>
+        <div class="fig-grid">
+            <div class="fig-card">
+                <div id="fig-cross-section"></div>
+                <p class="fig-caption"><strong>Figure 1 &mdash; Wall cross-section.</strong>
+                    Static (dashed blue) and seismic (solid red) active pressure
+                    distributions, resultants at H/3 and z&#772;, and the critical
+                    failure wedge at the exact Zarrabi-Kashani angle
+                    &alpha;<sub>AE</sub> (dashed). After Das Fig.&nbsp;16.23 /
+                    Kramer Fig.&nbsp;11.1.</p>
+            </div>
+            <div class="fig-card">
+                <div id="fig-force-polygon"></div>
+                <p class="fig-caption"><strong>Figure 2 &mdash; Force polygon.</strong>
+                    Head-to-tail pseudo-static equilibrium of the critical wedge:
+                    weight W, inertia k<sub>h</sub>W{% if params.kv %}, k<sub>v</sub>W{% endif %},
+                    plane reaction R (at &phi; from the plane normal) and thrust
+                    P<sub>ae</sub> (at &delta; from the wall normal). The polygon
+                    closes; the recovered P<sub>ae</sub> independently verifies the
+                    closed-form K<sub>ae</sub>.</p>
+            </div>
+            <div class="fig-card">
+                <div id="fig-sensitivity"></div>
+                <p class="fig-caption"><strong>Figure 3 &mdash; Sensitivity.</strong>
+                    K<sub>ae</sub> versus k<sub>h</sub> for &phi; &plusmn; 5&deg;
+                    (single-hue ramp), the Seed&ndash;Whitman approximation
+                    K<sub>a</sub> + 0.75k<sub>h</sub> (dashed), the design point, and
+                    the validity limit k<sub>h,lim</sub> where the M-O solution
+                    degenerates.</p>
+            </div>
+            <div class="fig-card">
+                <div id="fig-pressure"></div>
+                <p class="fig-caption"><strong>Figure 4 &mdash; Pressure distribution.</strong>
+                    Theoretical triangular distributions &sigma;<sub>a</sub> = K<sub>a</sub>&gamma;z
+                    and &sigma;<sub>ae</sub> = K<sub>ae</sub>(1&minus;k<sub>v</sub>)&gamma;z;
+                    the shaded band is the dynamic increment
+                    {% if s.c_applicable %}
+                    (c&prime;-&phi;&prime; corrected profiles with tension crack)
+                    {% endif %}.
+                    Values at fifth points are tabulated in the calculation sheet.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Calculation Sheet</h2>
         <div class="results-box">
             {% for r in results.results %}
             <div>{{ r|safe }}</div>
             {% endfor %}
         </div>
     </div>
+
     <script>
-        Plotly.newPlot('cross-section-plot',
-            {{ results.cross_section.traces|tojson }},
-            {{ results.cross_section.layout|tojson }},
-            {responsive: true, displayModeBar: false});
-        Plotly.newPlot('force-polygon-plot',
-            {{ results.force_polygon.traces|tojson }},
-            {{ results.force_polygon.layout|tojson }},
-            {responsive: true, displayModeBar: false});
+        (function () {
+            var cfg = {responsive: true, displayModeBar: false};
+            var figs = {
+                'fig-cross-section': {{ results.figures.cross_section|tojson }},
+                'fig-force-polygon': {{ results.figures.force_polygon|tojson }},
+                'fig-sensitivity':   {{ results.figures.sensitivity|tojson }},
+                'fig-pressure':      {{ results.figures.pressure_dist|tojson }}
+            };
+            Object.keys(figs).forEach(function (id) {
+                Plotly.newPlot(id, figs[id].traces, figs[id].layout, cfg);
+            });
+            window.addEventListener('beforeprint', function () {
+                Object.keys(figs).forEach(function (id) {
+                    Plotly.Plots.resize(document.getElementById(id));
+                });
+            });
+        })();
     </script>
     {% endif %}
 
     <div class="ref-box">
         <h4>References &amp; Methodology</h4>
         <ol>
-            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch. 16 &mdash; Lateral Earth Pressure</strong>: &sect;16.5 Generalized case for Rankine seismic active earth pressure (granular backfill); <strong>&sect;16.9 Active earth pressure for earthquake conditions &mdash; granular backfill (M-O method)</strong>; &sect;16.10 Active earth pressure for earthquake condition (vertical backface and c'-&phi;' backfill); &sect;16.17 Passive force on walls with earthquake forces. <strong>Ch. 17</strong>: &sect;17.10 Gravity retaining-wall design for earthquake conditions.</li>
-            <li>Mononobe, N. &amp; Matsuo, H. (1929). On the determination of earth pressures during earthquakes. <em>Proc. World Engineering Conference</em>, Tokyo, 9, 177&ndash;185.</li>
+            <li>Das, B.M. &amp; Sivakugan, N. (2019). <em>Principles of Foundation Engineering</em>, 9th Edition, SI. Cengage Learning. <strong>Ch.&nbsp;16</strong>: &sect;16.7 Coulomb active (Eq.&nbsp;16.26, p.&nbsp;658); <strong>&sect;16.9 Active earth pressure for earthquake conditions &mdash; granular backfill (M-O method, Eq.&nbsp;16.38, p.&nbsp;668)</strong>; &sect;16.10 c&prime;-&phi;&prime; backfill (p.&nbsp;672); &sect;16.17 Passive force with earthquake. <strong>Ch.&nbsp;17</strong>: &sect;17.10 Gravity wall design for earthquakes.</li>
             <li>Okabe, S. (1926). General theory of earth pressures. <em>J. Japan Society of Civil Engineers</em>, 12(1).</li>
-            <li>Seed, H.B. &amp; Whitman, R.V. (1970). Design of earth retaining structures for dynamic loads. <em>ASCE Specialty Conf. on Lateral Stresses in the Ground and Design of Earth Retaining Structures</em>, 103&ndash;147.</li>
-            <li>Kramer, S.L. (1996). <em>Geotechnical Earthquake Engineering</em>, Ch. 11. Prentice Hall. <em>(Modern treatment of pseudo-static M-O method.)</em></li>
+            <li>Mononobe, N. &amp; Matsuo, H. (1929). On the determination of earth pressures during earthquakes. <em>Proc. World Engineering Conference</em>, Tokyo, 9, 177&ndash;185.</li>
+            <li>Seed, H.B. &amp; Whitman, R.V. (1970). Design of earth retaining structures for dynamic loads. <em>ASCE Specialty Conf. on Lateral Stresses in the Ground and Design of Earth Retaining Structures</em>, 103&ndash;147. <em>(&Delta;K<sub>ae</sub> &asymp; &frac34;k<sub>h</sub>; increment at 0.6H.)</em></li>
+            <li>Zarrabi-Kashani, K. (1979). Sliding of gravity retaining wall during earthquakes. M.S. thesis, MIT. <em>(Exact critical failure-plane angle &alpha;<sub>AE</sub>.)</em></li>
+            <li>Kramer, S.L. (1996). <em>Geotechnical Earthquake Engineering</em>, Ch.&nbsp;11, Eqs.&nbsp;11.6&ndash;11.10. Prentice Hall.</li>
             <li>AASHTO (2020). <em>LRFD Bridge Design Specifications</em>, &sect;11.6.5 &mdash; Seismic earth pressure on retaining walls.</li>
-            <li>Eurocode 8 Part 5 (EN 1998-5:2004). <em>Foundations, retaining structures and geotechnical aspects</em>, Annex E (M-O method).</li>
+            <li>Eurocode 8 Part 5 (EN 1998-5:2004), Annex E (M-O method).</li>
         </ol>
     </div>
 </div>
